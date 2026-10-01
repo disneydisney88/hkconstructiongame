@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>角色廊 · 免費GLB模型比較 · 香港地盤GTA</title>
+<style>
+  :root { --glass: rgba(12,14,20,.7); --line: rgba(255,255,255,.14); --amber:#ffb03a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#101018; color:#eee;
+    font-family:"Segoe UI","Microsoft JhengHei",system-ui,sans-serif; }
+  #c { position:fixed; inset:0; display:block; }
+  #top { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:10; text-align:center;
+    background:var(--glass); border:1px solid var(--line); border-radius:12px; padding:10px 22px; backdrop-filter:blur(10px); }
+  #top h1 { font-size:16px; font-weight:800; letter-spacing:.06em;
+    background:linear-gradient(180deg,#ffe2a0,#ff9d3c); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #top p { margin-top:3px; color:#a79fc0; font-size:11.5px; }
+  #fps { position:fixed; top:14px; right:14px; z-index:10; background:var(--glass); border:1px solid var(--line);
+    border-radius:8px; padding:6px 12px; color:#8ef0a0; font-weight:800; font-size:13px; }
+  #animBar { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); z-index:10; display:flex; gap:8px; flex-wrap:wrap; justify-content:center; max-width:94vw; }
+  #animBar button { cursor:pointer; border:1px solid var(--line); background:var(--glass); color:#ffd98a;
+    font-weight:700; font-family:inherit; font-size:12px; padding:9px 14px; border-radius:9px; backdrop-filter:blur(8px); }
+  #animBar button.on { background:rgba(255,176,58,.22); border-color:var(--amber); }
+  #log { position:fixed; top:60px; left:14px; z-index:10; background:var(--glass); border:1px solid var(--line);
+    border-radius:8px; padding:8px 12px; color:#8ea0c8; font-size:10.5px; line-height:1.7; max-width:300px; backdrop-filter:blur(8px); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="top">
+  <h1>👷 角色廊 — 免費 GLB 模型(Poly Pizza / three.js)</h2>
+  <p>點模型聚焦 · 下面按掣切換動畫 · 拖曳轉鏡</p>
+</div>
+<div id="fps">-- FPS</div>
+<div id="log">載入中…</div>
+<div id="animBar"></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x14121e);
+scene.fog = new THREE.Fog(0x14121e, 16, 46);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, .1, 100);
+camera.position.set(0, 2.6, 9);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, .9, 0);
+controls.enableDamping = true; controls.dampingFactor = .08;
+controls.minDistance = 1.5; controls.maxDistance = 20;
+
+scene.add(new THREE.HemisphereLight(0x9a8ac8, 0x2a2438, 1.15));
+const key = new THREE.DirectionalLight(0xfff0d8, 2.6);
+key.position.set(4, 8, 5); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+key.shadow.camera.left = -10; key.shadow.camera.right = 10; key.shadow.camera.top = 10; key.shadow.camera.bottom = -10;
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x6a8aff, 1.0); rim.position.set(-5, 4, -5); scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(30, 48),
+  new THREE.MeshStandardMaterial({ color: 0x1c1826, roughness: .92 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(60, 60, 0x342c50, 0x221c34); grid.position.y = .002; scene.add(grid);
+
+const MODELS = [
+  { file: "models/worker_male.glb",   name: "男工人",        credit: "Quaternius · CC0",    pos: -4.2, char: true },
+  { file: "models/worker_female.glb", name: "女工人",        credit: "Quaternius · CC-BY",  pos: -1.4, char: true },
+  { file: "models/Soldier.glb",       name: "Soldier(對照)", credit: "three.js 範例",        pos: 1.4,  char: true },
+  { file: "models/toolbox.glb",       name: "工具箱",        credit: "Poly by Google · CC-BY", pos: 3.6, char: false },
+  { file: "models/barrier.glb",       name: "圍欄",          credit: "Kenney · CC0",        pos: 5.0,  char: false },
+  { file: "models/cinderblock.glb",   name: "磚頭",          credit: "Poly by Google · CC-BY", pos: 6.2,  char: false },
+];
+
+function textPill(text, fg, bg, border) {
+  const c = document.createElement("canvas"); const g = c.getContext("2d");
+  g.font = "700 26px 'Segoe UI','Microsoft JhengHei',sans-serif";
+  const w = Math.ceil(g.measureText(text).width) + 36; c.width = w; c.height = 46;
+  const gg = c.getContext("2d");
+  gg.font = "700 26px 'Segoe UI','Microsoft JhengHei',sans-serif";
+  gg.fillStyle = bg; gg.beginPath(); gg.roundRect(1.5, 1.5, w - 3, 43, 10); gg.fill();
+  gg.strokeStyle = border; gg.lineWidth = 1.5; gg.beginPath(); gg.roundRect(1.5, 1.5, w - 3, 43, 10); gg.stroke();
+  gg.fillStyle = fg; gg.textAlign = "center"; gg.textBaseline = "middle"; gg.fillText(text, w / 2, 24);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return { tex: t, aspect: w / 46 };
+}
+
+const loader = new GLTFLoader();
+const entries = [];
+let selected = null, focusData = null;
+const animBar = document.getElementById("animBar");
+const log = document.getElementById("log");
+const logLines = [];
+
+MODELS.forEach((d, idx) => {
+  const pg = new THREE.Group(); pg.position.set(d.pos, 0, 0); scene.add(pg);
+  const plat = new THREE.Mesh(new THREE.CylinderGeometry(.9, .98, .12, 32),
+    new THREE.MeshStandardMaterial({ color: 0x1e1a30, roughness: .85 }));
+  plat.position.y = -.06; plat.receiveShadow = true; pg.add(plat);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(.88, .02, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0xffb03a }));
+  ring.rotation.x = Math.PI / 2; ring.position.y = .005; pg.add(ring);
+  const pill = textPill(d.name, "#ffd98a", "rgba(14,12,24,.85)", "rgba(255,176,58,.5)");
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: pill.tex, transparent: true }));
+  sp.scale.set(pill.aspect * .42, .42, 1); sp.position.y = 2.3; pg.add(sp);
+  const sub = textPill(d.credit, "#8ea0c8", "rgba(14,12,24,.7)", "rgba(255,255,255,.15)");
+  const sp2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: sub.tex, transparent: true }));
+  sp2.scale.set(sub.aspect * .24, .24, 1); sp2.position.y = 2.02; pg.add(sp2);
+
+  loader.load(d.file, (gltf) => {
+    const model = gltf.scene;
+    model.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+    // 標準化:罩住高度 (人物1.75 / 道具原大)
+    const box = new THREE.Box3().setFromObject(model);
+    const h = box.max.y - box.min.y;
+    if (d.char && h > 0) model.scale.setScalar(1.75 / h);
+    model.position.y = d.char ? 0 : -box.min.y * model.scale.x;
+    pg.add(model);
+    let mixer = null, actions = [], current = null;
+    if (gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      actions = gltf.animations.map(c => mixer.clipAction(c));
+      const names = gltf.animations.map(a => a.name);
+      current = actions.find(a => /walk/i.test(a.getClip().name)) || actions[0];
+      current.play();
+    }
+    logLines.push(`${d.name}: ✅ ${gltf.animations.length} 動畫`);
+    log.textContent = logLines.join(" · ");
+    const e = { ...d, pg, model, mixer, actions, current, idx };
+    entries.push(e);
+    // 預設選第一個有動畫嘅
+    if (!selected && actions.length) select(e);
+  }, undefined, (err) => {
+    logLines.push(`${d.name}: ❌ ${err.message || err}`);
+    log.textContent = logLines.join(" · ");
+  });
+});
+
+function select(e) {
+  selected = e;
+  focusData = { target: new THREE.Vector3(e.pos, .95, 0), pos: new THREE.Vector3(e.pos * .75, 1.6, 3.4) };
+  animBar.innerHTML = "";
+  e.actions.forEach((a, i) => {
+    const b = document.createElement("button");
+    b.textContent = a.getClip().name;
+    b.classList.toggle("on", a === e.current);
+    b.onclick = () => { if (e.current && e.current !== a) { a.reset(); e.current.crossFadeTo(a, .25, true); } else a.play(); e.current = a;
+      animBar.querySelectorAll("button").forEach((x, j) => x.classList.toggle("on", j === i)); };
+    animBar.appendChild(b);
+  });
+  const stop = document.createElement("button");
+  stop.textContent = "⏸ 暫停";
+  stop.onclick = () => { e.actions.forEach(a => a.paused = !a.paused); };
+  animBar.appendChild(stop);
+}
+
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+renderer.domElement.addEventListener("pointerdown", ev => {
+  if (ev.button !== 0) return;
+  ptr.x = (ev.clientX / innerWidth) * 2 - 1; ptr.y = -(ev.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(ptr, camera);
+  const hits = ray.intersectObjects(entries.map(e => e.model), true);
+  if (hits.length) {
+    let o = hits[0].object; while (o.parent && !entries.some(e => e.model === o)) o = o.parent;
+    const e = entries.find(en => en.model === o);
+    if (e) select(e);
+  } else focusData = null;
+});
+
+addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+const clock = new THREE.Clock();
+let fCnt = 0, fT = 0;
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), .05);
+  for (const e of entries) { if (e.mixer) e.mixer.update(dt); e.pg.rotation.y += dt * .25; }
+  if (focusData) {
+    const k = 1 - Math.exp(-5 * dt);
+    camera.position.lerp(focusData.pos, k);
+    controls.target.lerp(focusData.target, k);
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  fCnt++; fT += dt;
+  if (fT >= .5) { document.getElementById("fps").textContent = Math.round(fCnt / fT) + " FPS"; fCnt = 0; fT = 0; }
+});
+</script>
+</body>
+</html>

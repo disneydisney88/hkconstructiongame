@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛑️</text></svg>">
+<title>香港地盤GTA · 開工大吉</title>
+<style>
+  :root { --glass: rgba(12,14,20,.58); --line: rgba(255,255,255,.14); --amber:#ffb03a; --mint:#7ef0a0; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0d0b14; color:#eee;
+    font-family:"Segoe UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif; }
+  #c { position:fixed; inset:0; display:block; }
+  .glass { background:var(--glass); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+
+  /* ---- 開始畫面 ---- */
+  #start { position:fixed; inset:0; z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 26%, #2b2140 0%, #161022 58%, #0b0810 100%); text-align:center; }
+  #start h1 { font-size:min(6.4vw,46px); font-weight:800; letter-spacing:.14em;
+    background:linear-gradient(180deg,#ffe2a0 0%,#ff9d3c 55%,#ff6070 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #start .sub { margin-top:4px; font-size:min(2.6vw,13px); color:#c9b98a; letter-spacing:.5em; text-indent:.5em; font-weight:600; }
+  #start .mapinfo { margin-top:12px; color:#8f88a8; font-size:min(2.8vw,12px); line-height:1.7; }
+  .card { margin-top:20px; background:rgba(16,14,26,.66); border:1px solid var(--line); border-radius:12px; padding:13px 20px;
+    font-size:min(2.7vw,12px); color:#b8b2c8; line-height:1.9; text-align:left; }
+  .card b{ color:#ffd98a; font-weight:700; }
+  #btnStart { margin-top:22px; pointer-events:auto; cursor:pointer; border:none; outline:none;
+    font-family:inherit; font-size:15px; font-weight:800; letter-spacing:.22em; text-indent:.22em; color:#062806;
+    background:linear-gradient(180deg,#a8f27e,#54c244); padding:13px 40px; border-radius:9px;
+    box-shadow:0 4px 0 #2c7a22, 0 10px 26px rgba(80,220,60,.22); transition:transform .08s; }
+  #btnStart:active { transform:translateY(3px); box-shadow:0 1px 0 #2c7a22; }
+  #start .credit { position:absolute; bottom:10px; width:100%; text-align:center; color:#5d5674; font-size:10px; line-height:1.6; }
+  .hardhat { font-size:min(6vw,34px); margin-bottom:2px; }
+
+  /* ---- HUD ---- */
+  #hud { position:fixed; inset:0; z-index:20; pointer-events:none; display:none; }
+  #missionCard { position:absolute; top:12px; left:12px; max-width:min(56vw,270px); padding:8px 12px;
+    background:var(--glass); border:1px solid var(--line); border-radius:10px; backdrop-filter:blur(10px); }
+  #missionCard .mt { color:var(--amber); font-weight:800; font-size:12px; letter-spacing:.04em; }
+  #missionCard .md { color:#dcd6ea; font-size:11.5px; margin-top:3px; line-height:1.5; }
+  #missionCard .dist { color:var(--mint); font-size:10.5px; margin-top:3px; font-weight:700; }
+  #stats { position:absolute; top:12px; right:12px; display:flex; flex-direction:column; gap:5px; align-items:flex-end; }
+  .stat { background:var(--glass); border:1px solid var(--line); border-radius:8px; backdrop-filter:blur(10px); padding:4px 10px; font-size:11.5px; }
+  #cash { color:var(--mint); font-weight:800; font-size:13px; }
+  #warnBox { color:#ff8a8a; font-weight:800; letter-spacing:.06em; }
+  #starsBox { color:#ffd23a; font-weight:800; font-size:12px; letter-spacing:.05em; }
+  .bar { width:110px; height:6px; background:rgba(255,255,255,.08); border-radius:3px; overflow:hidden; }
+  .bar>div { height:100%; border-radius:3px; }
+  #hpFill { background:linear-gradient(90deg,#ff5f5f,#ffa04d); width:100%; }
+  #spFill { background:linear-gradient(90deg,#4fd0ff,#7ef0a0); width:100%; }
+  #hint { position:absolute; left:50%; bottom:96px; transform:translateX(-50%);
+    background:var(--glass); border:1px solid var(--line); backdrop-filter:blur(10px); color:#ffd98a; font-weight:700; padding:5px 14px; border-radius:16px; font-size:12px; display:none; }
+  #toast { position:absolute; top:16%; left:50%; transform:translateX(-50%); text-align:center; }
+  .toastMsg { background:rgba(14,12,20,.72); border:1px solid rgba(255,190,80,.35); color:#ffd98a; font-weight:700; font-size:12.5px;
+    padding:7px 16px; border-radius:8px; margin:5px auto; width:max-content; max-width:78vw; animation:toastIn 2.8s forwards; backdrop-filter:blur(8px); }
+  @keyframes toastIn { 0%{opacity:0; transform:translateY(-6px)} 8%{opacity:1; transform:none} 82%{opacity:1} 100%{opacity:0} }
+
+  /* ---- 對白 ---- */
+  #dlg { position:absolute; left:50%; bottom:18px; transform:translateX(-50%); width:min(90vw,540px); display:none;
+    background:rgba(12,11,18,.78); border:1px solid var(--line); border-radius:11px; padding:11px 15px; pointer-events:auto; backdrop-filter:blur(12px); }
+  #dlgName { color:var(--amber); font-weight:800; font-size:12px; margin-bottom:4px; letter-spacing:.05em; }
+  #dlgText { color:#ece8f4; font-size:13px; line-height:1.65; min-height:42px; }
+  #dlgNext { text-align:right; color:#6d6584; font-size:10px; margin-top:4px; }
+
+  /* ---- 小地圖 ---- */
+  #mmWrap { position:absolute; right:12px; bottom:12px; width:148px; height:148px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.22); overflow:hidden; background:#161320; box-shadow:0 6px 20px rgba(0,0,0,.45); }
+  #mm { width:100%; height:100%; }
+
+  /* ---- 觸控 ---- */
+  #joy { position:absolute; left:0; bottom:0; width:45%; height:60%; pointer-events:auto; display:none; }
+  #joyBase { position:absolute; width:96px; height:96px; border-radius:50%; border:1.5px solid rgba(255,255,255,.22);
+    background:rgba(255,255,255,.05); display:none; }
+  #joyKnob { position:absolute; width:46px; height:46px; border-radius:50%; background:rgba(255,210,80,.45); display:none; }
+  #btns { position:absolute; right:10px; bottom:170px; display:none; flex-direction:column; gap:10px; pointer-events:auto; }
+  .tbtn { width:58px; height:58px; border-radius:50%; border:1.5px solid rgba(255,255,255,.25); background:rgba(16,14,26,.55);
+    color:#ffd98a; font-weight:800; font-size:13px; font-family:inherit; display:flex; align-items:center; justify-content:center; }
+  .tbtn:active { background:rgba(255,190,60,.35); }
+
+  /* ---- 覆蓋層 ---- */
+  .cover { position:fixed; inset:0; z-index:90; display:none; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(9,7,14,.82); text-align:center; pointer-events:auto; backdrop-filter:blur(6px); }
+  .cover h2 { font-size:min(5.4vw,26px); font-weight:800; letter-spacing:.12em; margin-bottom:12px; }
+  .cover p { color:#c5bfd6; font-size:min(3vw,12.5px); line-height:1.9; }
+  .cover button { margin-top:20px; pointer-events:auto; cursor:pointer; border:none; font-family:inherit; font-weight:800;
+    font-size:13.5px; padding:10px 28px; border-radius:8px; color:#241405; background:linear-gradient(180deg,#ffd76e,#ff9d3c);
+    box-shadow:0 4px 0 #a05f16; }
+  #ending .wage { color:var(--mint); font-weight:800; font-size:min(5vw,22px); margin:10px 0; }
+  #hospital h2 { color:#ff7a7a; }
+  #busted h2 { color:#ffd23a; }
+  #quizOpts { display:flex; flex-direction:column; gap:10px; margin-top:14px; align-items:center; }
+  #quizOpts button { pointer-events:auto; cursor:pointer; font-family:inherit; font-size:13px; font-weight:600; color:#e5e0f0;
+    background:rgba(30,26,44,.8); border:1px solid var(--line); border-radius:8px; padding:9px 22px; min-width:min(66vw,260px); }
+  #quizOpts button:active { background:rgba(70,56,110,.8); }
+  #quizQ { font-size:14px !important; font-weight:800; color:#ffd98a; }
+  #quizFb { color:#ff8a8a; min-height:22px; font-weight:700; }
+  #bpBar { width:min(76vw,380px); height:22px; background:rgba(255,255,255,.06); border:1px solid var(--line); border-radius:11px; position:relative; margin:16px auto 8px; overflow:hidden; }
+  #bpZone { position:absolute; top:0; bottom:0; background:rgba(80,220,110,.4); border-left:1.5px solid #7ef08a; border-right:1.5px solid #7ef08a; }
+  #bpMark { position:absolute; top:-2px; bottom:-2px; width:4px; background:#fff; box-shadow:0 0 8px #fff; }
+  #bpScore { color:var(--mint); font-weight:800; font-size:18px; letter-spacing:.3em; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="start">
+  <div class="hardhat">⛑️</div>
+  <h1>香港地盤 GTA</h1>
+  <div class="sub">開 工 大 吉</div>
+  <div class="mapinfo">真實地圖 · 九龍灣 / 啟德 / 觀塘<br>地盤 · 天秤 · 斗車 · 白帽安全主任 · 平安卡</div>
+  <div class="card">
+    <b>🖥️ 電腦</b> WASD行 · Shift跑 · E互動/上落車 · G掟嘢 · 滑鼠轉鏡 · M靜音 · Esc暫停<br>
+    <b>📱 手機</b> 左邊搖桿行 · 右邊掣:跑 / E<br>
+    <b>▶️ 流程</b> 新仔入職(安全訓練+量血壓)→ 送外賣 → 搬磚 → 天秤危機 → 環保斗車 → 收工<br>
+    <b>⚠️ 切記</b> 帽帶扣好 · 唔好行天秤下面 · 小心倒車 · 環保罰款好貴!
+  </div>
+  <button id="btnStart">嘟平安卡開工</button>
+  <div style="margin-top:8px;color:#7ef0a0;font-size:11px;font-weight:700;letter-spacing:.1em">工人角色 · codex-rebound-v1（外觀修復版）</div>
+  <div class="credit">地圖數據 © OpenStreetMap contributors (ODbL)<br>遊戲純屲虛構惡搞,與真實機構無關 · 安全第一,工地危險</div>
+</div>
+
+<div id="hud">
+  <div id="missionCard"><div class="mt">任務</div><div class="md">—</div><div class="dist"></div></div>
+  <div id="stats">
+    <div class="stat" id="cash">人工 $0</div>
+    <div class="stat" id="starsBox">⚠ 0</div>
+    <div class="stat" id="warnBox">警告 ●○○</div>
+    <div class="stat" style="display:flex;gap:7px;align-items:center"><span style="font-size:10px">❤</span><div class="bar"><div id="hpFill"></div></div></div>
+    <div class="stat" style="display:flex;gap:7px;align-items:center"><span style="font-size:10px">⚡</span><div class="bar"><div id="spFill"></div></div></div>
+  </div>
+  <div id="hint"></div>
+  <div id="toast"></div>
+  <div id="dlg"><div id="dlgName"></div><div id="dlgText"></div><div id="dlgNext">▼ 撳 E 或點一下繼續</div></div>
+  <div id="mmWrap"><canvas id="mm" width="296" height="296"></canvas></div>
+  <div id="joy"><div id="joyBase"></div><div id="joyKnob"></div></div>
+  <div id="btns"><button class="tbtn" id="tRun">跑</button><button class="tbtn" id="tE">E</button></div>
+</div>
+
+<div class="cover" id="pause"><h2>⏸ 暫停</h2><p>WASD 行 · Shift 跑 · E 互動 · G 掟嘢 · M 靜音<br>避開白帽 · 3個警告=安全再培訓</p><button id="btnResume">繼續開工</button></div>
+<div class="cover" id="hospital"><h2>🚑 工傷入院</h2><p id="hospText"></p><button id="btnHosp">出院返工</button></div>
+<div class="cover" id="busted"><h2>📛 強制安全再培訓</h2><p>三個警告,平安卡被停…<br>上完堂先准返工,人工 -$500</p><button id="btnBust">上完堂了</button></div>
+<div class="cover" id="ending"><h2>🍺 收工!</h2><p id="endText"></p><div class="wage" id="endWage"></div><p style="color:#7a7390">地圖繼續自由咁玩~</p><button id="btnFree">自由活動</button></div>
+
+<!-- 安全訓練堂 -->
+<div class="cover" id="quiz" style="text-align:center">
+  <h2>⛑️ 安全訓練堂</h2>
+  <p id="quizQ"></p>
+  <div id="quizOpts"></div>
+  <p id="quizFb"></p>
+  <p style="color:#6d6584;font-size:10.5px">撳 1 / 2 / 3 或點選項 · 答錯由第一題再聽書</p>
+</div>
+
+<!-- 量血壓 -->
+<div class="cover" id="bp" style="text-align:center">
+  <h2>🩺 量血壓</h2>
+  <p id="bpTip"></p>
+  <div id="bpBar"><div id="bpZone"></div><div id="bpMark"></div></div>
+  <p id="bpScore"></p>
+</div>
+
+<script src="mapdata.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="boot.js"></script>
+</body>
+</html>

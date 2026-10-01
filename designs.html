@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人物設計比稿 · 香港地盤GTA</title>
+<style>
+  :root { --glass: rgba(12,14,20,.66); --line: rgba(255,255,255,.14); --amber:#ffb03a; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0d0b14; color:#eee;
+    font-family:"Segoe UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",system-ui,sans-serif; }
+  #c { position:fixed; inset:0; display:block; }
+  #top { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:10; text-align:center;
+    background:var(--glass); border:1px solid var(--line); border-radius:12px; padding:10px 22px; backdrop-filter:blur(10px); }
+  #top h1 { font-size:17px; font-weight:800; letter-spacing:.12em;
+    background:linear-gradient(180deg,#ffe2a0,#ff9d3c); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  #top p { margin-top:3px; color:#a79fc0; font-size:11.5px; letter-spacing:.04em; }
+  #walkBtn { position:fixed; top:14px; right:14px; z-index:10; cursor:pointer; border:1px solid var(--line);
+    background:var(--glass); color:#ffd98a; font-weight:800; font-family:inherit; font-size:13px;
+    padding:10px 18px; border-radius:10px; backdrop-filter:blur(10px); }
+  #walkBtn.on { background:rgba(80,200,110,.25); color:#8ef0a0; border-color:rgba(120,240,150,.5); }
+  #cards { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); z-index:10; display:flex; gap:8px;
+    max-width:96vw; flex-wrap:wrap; justify-content:center; }
+  .card { cursor:pointer; background:var(--glass); border:1px solid var(--line); border-radius:10px;
+    padding:9px 14px; width:150px; backdrop-filter:blur(10px); transition:border-color .15s, transform .15s; }
+  .card:hover { transform:translateY(-3px); }
+  .card.on { border-color:var(--amber); box-shadow:0 0 0 1px var(--amber), 0 8px 24px rgba(255,176,58,.15); }
+  .card .k { font-size:16px; font-weight:800; color:var(--amber); letter-spacing:.05em; }
+  .card .n { font-size:13px; font-weight:800; margin-top:1px; }
+  .card .d { font-size:10.5px; color:#a79fc0; line-height:1.5; margin-top:3px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="top">
+  <h1>⛑️ 人物設計比稿 — 香港地盤GTA</h1>
+  <p>全部著同一套反光衣+黃帽,比較身材風格 · 拖曳轉鏡 · 滾輪縮放 · 撳下面卡片或 1-5 聚焦</p>
+</div>
+<button id="walkBtn">🚶 行路示範:關</button>
+
+<div id="cards">
+  <div class="card" data-i="0"><div class="k">A</div><div class="n">寫實大隻</div><div class="d">8頭身 健身教練body 三角肌V型</div></div>
+  <div class="card" data-i="1"><div class="k">B</div><div class="n">美式卡通</div><div class="d">6頭身 大手大腳 英雄感 皮克斯味</div></div>
+  <div class="card" data-i="2"><div class="k">C</div><div class="n">Q版三頭身</div><div class="d">大頭可愛 治癒系 治唔治愈咗先講</div></div>
+  <div class="card" data-i="3"><div class="k">D</div><div class="n">港漫激肌</div><div class="d">誇張V型 龍虎門式爆肌 膊大過頭</div></div>
+  <div class="card" data-i="4"><div class="k">E</div><div class="n">復古低Poly</div><div class="d">PS1 方塊感 硬朗懷舊</div></div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module" src="designs.js"></script>
+</body>
+</html>

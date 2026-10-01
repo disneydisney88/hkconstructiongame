@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P0 · 最小人物測試 — 原始GLB裸測</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#202830; color:#eee;
+    font-family:"Cascadia Code","Consolas","Microsoft JhengHei",monospace; font-size:12px; }
+  #c { position:fixed; inset:0; display:block; }
+  #panel { position:fixed; top:12px; left:12px; z-index:10; width:340px;
+    background:rgba(10,14,18,.88); border:1px solid #3a4a58; border-radius:10px; padding:12px 14px; line-height:1.75; }
+  #panel h1 { font-size:13px; color:#ffd76e; letter-spacing:.08em; margin-bottom:6px; }
+  #panel .ok { color:#7ef0a0; } #panel .bad { color:#ff7a7a; } #panel .dim { color:#8ea0b8; }
+  #panel .val { color:#8fd0ff; }
+  #btns { position:fixed; bottom:12px; left:50%; transform:translateX(-50%); z-index:10; display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  #btns button { cursor:pointer; font:inherit; font-size:12px; padding:8px 14px; border-radius:8px;
+    border:1px solid #3a4a58; background:rgba(16,22,28,.9); color:#cfd8e0; }
+  #btns button.on { background:rgba(255,176,58,.25); border-color:#ffb03a; color:#ffd98a; }
+  #err { position:fixed; top:12px; right:12px; z-index:10; max-width:380px;
+    background:rgba(60,10,10,.92); border:1px solid #a04040; border-radius:10px; padding:10px 14px; color:#ffb0b0; display:none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="panel">
+  <h1>P0 · GLB裸測:<span id="mpath" style="color:#8fd0ff"></span></h1>
+  <div id="stats">載入中…</div>
+</div>
+<div id="err"></div>
+<div id="btns">
+  <button data-anim="Idle">Idle</button><button data-anim="Walk">Walk</button>
+  <button data-anim="Run">Run</button><button data-anim="TPose">TPose</button>
+  <span style="width:14px"></span>
+  <button data-view="front" class="on">正面</button><button data-view="side">側面</button><button data-view="back">背面</button>
+  <span style="width:14px"></span>
+  <button id="btnNorm">歸一化1.78m</button><button id="btnVest">+背心</button><button id="btnHelmet">+安全帽</button>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("c"), antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xb8c4d0); // 中性灰藍(像素測量用基準色)
+
+const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, .05, 200);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, .9, 0); controls.enableDamping = true;
+
+/* 日光 */
+scene.add(new THREE.HemisphereLight(0xe8f0ff, 0x6a6258, 1.0));
+const sun = new THREE.DirectionalLight(0xfff4e0, 2.2);
+sun.position.set(4, 8, 5); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -8; sun.shadow.camera.right = 8; sun.shadow.camera.top = 8; sun.shadow.camera.bottom = -8;
+scene.add(sun);
+
+/* 地面 + 米制網格 */
+const ground = new THREE.Mesh(new THREE.CircleGeometry(14, 48), new THREE.MeshStandardMaterial({ color: 0x707a68, roughness: .95 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const grid = new THREE.GridHelper(28, 28, 0x2a3a4a, 0x22303c); grid.position.y = .002; scene.add(grid);
+
+/* 外層歸一化group(唔掂model內部) */
+const wrap = new THREE.Group(); scene.add(wrap);
+let model = null, mixer = null, actions = {}, cur = null, tplAnims = [];
+let normalized = false, vestOn = false, helmetOn = false;
+const stat = document.getElementById("stats"), errBox = document.getElementById("err");
+const fail = msg => { errBox.style.display = "block"; errBox.textContent = "❌ 載入失敗:" + msg; stat.innerHTML = '<span class="bad">LOAD FAILED</span>'; };
+
+const MODEL_PATH = new URLSearchParams(location.search).get("m") || "models/Soldier.glb";
+document.getElementById("mpath").textContent = MODEL_PATH;
+new GLTFLoader().load(MODEL_PATH, (gltf) => {
+  model = gltf.scene;
+  model.traverse(o => { if (o.isMesh || o.isSkinnedMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  wrap.add(model);
+  mixer = new THREE.AnimationMixer(model);
+  tplAnims = gltf.animations;
+  for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
+  play("Idle");
+  initDone = true;
+}, undefined, fail);
+let initDone = false;
+
+function play(name) {
+  if (!actions[name]) return;
+  if (cur) cur.fadeOut(.2);
+  cur = actions[name]; cur.reset().fadeIn(.2).play();
+  document.querySelectorAll("#btns [data-anim]").forEach(b => b.classList.toggle("on", b.dataset.anim === name));
+}
+
+/* 視角 */
+const views = {
+  front: { pos: [0, 1.0, 5.2], tgt: [0, .95, 0] },
+  side:  { pos: [5.2, 1.0, 0], tgt: [0, .95, 0] },
+  back:  { pos: [0, 1.0, -5.2], tgt: [0, .95, 0] }
+};
+function setView(v) {
+  camera.position.set(...views[v].pos); controls.target.set(...views[v].tgt);
+  document.querySelectorAll("#btns [data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+}
+setView("front");
+
+/* 按鈕 */
+document.querySelectorAll("#btns [data-anim]").forEach(b => b.onclick = () => play(b.dataset.anim));
+document.querySelectorAll("#btns [data-view]").forEach(b => b.onclick = () => setView(b.dataset.view));
+document.getElementById("btnNorm").onclick = () => { normalized = !normalized; };
+document.getElementById("btnVest").onclick = () => { vestOn = !vestOn; if (vestMesh) vestMesh.visible = vestOn; };
+document.getElementById("btnHelmet").onclick = () => { helmetOn = !helmetOn; if (helmetMesh) helmetMesh.visible = helmetOn; };
+
+/* PPE(一次一件,挂骨骼) */
+let vestMesh = null, helmetMesh = null;
+const stats = { measuredH: null, feetY: null };
+const measure = () => {
+  if (!model) return;
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  stats.box = box;
+  stats.measuredH = box.max.y - box.min.y;
+  stats.feetY = box.min.y;
+};
+setInterval(() => {
+  if (!initDone) return;
+  measure();
+  /* root scale 監察(動畫會唔會覆寫尺寸?) */
+  const roots = model.children.map(c => ({ n: c.name, s: +c.scale.x.toFixed(3), y: +c.position.y.toFixed(2) }));
+  /* 動畫track清單:有冇track寫root scale/position */
+  let rootTracks = [];
+  for (const clip of tplAnims) for (const t of clip.tracks) {
+    const node = t.name.split(".")[0];
+    if (/scale|position/i.test(t.name) && model.getObjectByName(node) && model.children.some(c => c.name === node))
+      rootTracks.push(clip.name.split("|").pop() + ":" + t.name);
+  }
+  /* 像素級實測(螢幕上真實render高度) */
+  renderer.render(scene, camera);
+  const gl = renderer.getContext();
+  const w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let top = -1, bot = -1;
+  const bg = [0xb8, 0xc4, 0xd0];
+  for (let y = Math.floor(h * .1); y < Math.floor(h * .95); y++) {
+    for (let x = Math.floor(w * .35); x < Math.floor(w * .65); x += 3) {
+      const i = (y * w + x) * 4;
+      if (Math.abs(px[i] - bg[0]) > 28 || Math.abs(px[i + 1] - bg[1]) > 28 || Math.abs(px[i + 2] - bg[2]) > 28) {
+        if (top < 0) top = y; bot = y; break;
+      }
+    }
+  }
+  const pxH = top >= 0 ? bot - top : 0;
+  /* 像素高→世界高: camera距離/fov換算(以target平面計) */
+  const dist = camera.position.distanceTo(controls.target);
+  const worldH = pxH > 0 ? pxH / h * 2 * dist * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) : 0;
+  const wrapScale = wrap.scale.x;
+  stat.innerHTML =
+    `幾何bounds高:<span class="val">${stats.measuredH?.toFixed(2) ?? "?"}</span>單位(盒量) · 腳底Y:<span class="val">${stats.feetY?.toFixed(2) ?? "?"}</span><br>` +
+    `像素實測高:<span class="${pxH > 60 ? "ok" : "bad"}">${pxH}px</span> → 世界約 <span class="${worldH > .5 ? "ok" : "bad"}">${worldH.toFixed(2)}m</span>${normalized ? "(歸一化後)" : "(原始)"}<br>` +
+    `wrap縮放:<span class="val">${wrapScale.toFixed(4)}</span> · root節點:<span class="val">${roots.map(r => `${r.n}(s=${r.s},y=${r.y})`).join(" ") || "—"}</span><br>` +
+    `動畫root寫入track:<span class="${rootTracks.length ? "bad" : "ok"}">${rootTracks.slice(0, 3).join(", ") || "無 ✓"}</span><br>` +
+    `PPE:背心<span class="${vestOn ? "ok" : "dim"}">${vestOn ? "開" : "關"}</span> · 帽<span class="${helmetOn ? "ok" : "dim"}">${helmetOn ? "開" : "關"}</span>`;
+}, 600);
+
+/* 歸一化:用盒量高度,唔用accessor;PPE以世界座標attach落骨骼 */
+setInterval(() => {
+  if (!initDone || !normalized) { wrap.scale.setScalar(1); wrap.position.y = 0; return; }
+  measure();
+  if (stats.measuredH > 0.01) {
+    wrap.scale.setScalar(1.78 / stats.measuredH);
+    wrap.position.y = -stats.feetY * wrap.scale.x; // 腳底貼地
+  }
+  scene.updateMatrixWorld(true);
+  /* PPE:先以世界座標擺位(scene恆等縮放),再attach落骨骼 */
+  if (!vestMesh) {
+    const m = new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: .8 });
+    vestMesh = new THREE.Mesh(new THREE.BoxGeometry(.44, .58, .30), m);
+    vestMesh.castShadow = true; vestMesh.visible = vestOn;
+    vestMesh.position.set(0, 1.24, 0); scene.add(vestMesh); scene.updateMatrixWorld(true);
+    const spine = (() => { let f = null; model.traverse(b => { if (b.isBone && /spine1|spine/i.test(b.name) && !f) f = b; }); return f; })();
+    if (spine) spine.attach(vestMesh); // 保留世界變換,轉為骨骼local
+  }
+  if (!helmetMesh) {
+    const hg = new THREE.Group();
+    const hm = new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: .3 });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(.13, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), hm); hg.add(dome);
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(.15, .155, .02, 16), hm); brim.position.y = .004; hg.add(brim);
+    hg.traverse(o => o.castShadow = true);
+    hg.visible = helmetOn; hg.position.set(0, 1.64, 0); scene.add(hg); scene.updateMatrixWorld(true);
+    const head = (() => { let f = null; model.traverse(b => { if (b.isBone && /head$/i.test(b.name) && !f) f = b; }); return f; })();
+    if (head) head.attach(hg); else scene.add(hg);
+  }
+}, 300);
+
+addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+const clock = new THREE.Clock();
+window.__p0 = {
+  get scene() { return scene; },
+  get camera() { return camera; },
+  get model() { return model; },
+  THREE
+};
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), .05);
+  if (mixer) mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
