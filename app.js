@@ -2754,7 +2754,8 @@ function loop(now) {
 requestAnimationFrame(loop);
 
 /* 初始鏡頭 */
-camera.position.set(SPAWN[0] + 8, 6, SPAWN[1] + 8);
+/* 開場鏡頭:喺玩家背後5米,唔好攝入閘機房 */
+camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
 window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started });
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
