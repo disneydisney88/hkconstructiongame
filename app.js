@@ -1169,7 +1169,19 @@ npcTruck.wp = 0; npcTruck.mode = "drive"; npcTruck.timer = 0;
 hazards.push({ type: "npcTruck" });
 
 /* ---------- 角色 ---------- */
-const SPAWN = [-1129, 321]; // 零碳天地
+const SPAWN = [-1129, 321]; // 零碳天地(原點,留作座標參考)
+/* 場景規格§3「出生即見真實工地」:開場喺閘口外,對住閘機,即見工地 */
+(function fixSpawn() {
+  const g = GATE, gd = GATE_DIR_IN;
+  const gx = Math.cos(gd), gz = Math.sin(gd);
+  /* 搵閘外10米冇collider嘅開揚位 */
+  for (let a = 0; a < 8; a++) {
+    const spread = (a - 3.5) * .35;
+    const tx = g[0] - gx * 10 + Math.cos(spread) * 3, tz = g[1] - gz * 10 + Math.sin(spread) * 3;
+    const [cx, cz] = collide(tx, tz, 1.2);
+    if (Math.hypot(cx - tx, cz - tz) < .5) { SPAWN[0] = Math.round(cx); SPAWN[1] = Math.round(cz); break; }
+  }
+})();
 const player = {
   h: makeHuman({ vest: true, helmet: 0xffd23a, pants: 0x2a3a6a, boots: 0x4a2e1a, hatStrap: true, useMixamo: true }),
   x: SPAWN[0], z: SPAWN[1], heading: 0, vy: 0, y: 0, speed: 0,
@@ -1831,6 +1843,15 @@ function nearestInteract() {
 }
 function doInteract() {
   if (dlgActive) { dlgNext(); return; }
+  if (_nearNpc) { // 同NPC傾偈(情緒+TTS)
+    const rk = roleKeyOf(_nearNpc);
+    const lines = ROLE_LINES[rk] || [];
+    const mood = _nearNpc.mood || "chat";
+    const pool = MOOD_LINES[mood] ? MOOD_LINES[mood].concat(lines) : lines;
+    npcSay(_nearNpc, pool[randi(0, pool.length - 1)]);
+    _nearNpc.mood = "chat";
+    return;
+  }
   if (player.inTruck) { toggleTruck(); return; }
   const it = nearestInteract();
   if (it) { sClick(); it.action(); }
@@ -2086,7 +2107,174 @@ function updateHazards(dt) {
       damage(30, "跌落泥坑!(-30) 坑邊要有圍欄先啱!");
       player.x = PIT.x + Math.cos(PIT.rot) * (PIT.hw + 2.5); player.z = PIT.z + Math.sin(PIT.rot) * (PIT.hd + 2.5);
     }
+    /* 工友跌坑事件:附近工友隨機中招→跌入→工傷→安全主任到場(規格§5洞口/坑邊) */
+    pitWorkerAccident(dt);
   }
+
+/* ===== 工友泥坑意外:隨機工友跌入→工傷→白帽到場處理→救起覆檢 ===== */
+const PIT_ACCIDENT = { active: false, cd: 45000, victim: null, stage: "", t: 0 };
+function pitWorkerAccident(dt) {
+  const A = PIT_ACCIDENT;
+  if (!A.active) {
+    A.cd -= dt * 1000;
+    if (A.cd <= 0) {
+      // 揀一個泥坑附近(12米內)嘅工友做苦主
+      const near = workers.filter(w => d2(w.x, w.z, PIT.x, PIT.z) < 12);
+      if (near.length) {
+        A.victim = near[randi(0, near.length - 1)]; A.active = true; A.stage = "falling"; A.t = 0;
+        // 拖苦主入坑中心+跌落
+        A.victim.h.g.position.set(PIT.x, 0, PIT.z);
+        A.victim.x = PIT.x; A.victim.z = PIT.z;
+        sThud(); toast("🚨 意外!有工友跌入泥坑!");
+        if (typeof ttsSpeak === "function") ttsSpeak("哎吔!有人跌咗落坑!", "yue_male");
+      } else A.cd = 30000;
+    }
+    return;
+  }
+  const v = A.victim;
+  A.t += dt;
+  if (A.stage === "falling") { // 跌落動畫:沉入+傾斜
+    v.h.g.rotation.x = Math.min(.5, A.t * 1.2);
+    v.h.g.position.y = -Math.min(1.1, A.t * .8);
+    if (A.t > 1.2) { A.stage = "injured"; A.t = 0; toast("🚑 工友工傷!安全主任趕緊到場!"); beep(500, .2, "square", .3); beep(650, .25, "square", .3, .25); }
+  } else if (A.stage === "injured") { // 躺喺坑度叫救命
+    v.h.g.rotation.x = Math.PI / 2 * .9;
+    v.h.g.position.y = -0.9 + Math.sin(A.t * 6) * .03; // 微微掙扎
+    if (officers[0]) { // 白帽跑埋去
+      const o = officers[0];
+      const ang = Math.atan2(PIT.z - o.z, PIT.x - o.x);
+      o.x += Math.cos(ang) * 5 * dt; o.z += Math.sin(ang) * 5 * dt;
+      o.h.g.position.set(o.x, 0, o.z);
+      if (d2(o.x, o.z, PIT.x, PIT.z) < 3) { A.stage = "rescue"; A.t = 0; if (o.label) toast("🦺 安全主任:唔好心郁!我嚟救!"); }
+    }
+  } else if (A.stage === "rescue") { // 救起:升返地面+企返好
+    v.h.g.rotation.x = Math.max(0, Math.PI / 2 * .9 - A.t * 1.5);
+    v.h.g.position.y = Math.min(0, -0.9 + A.t * .8);
+    if (A.t > 1.8) {
+      v.h.g.rotation.x = 0; v.h.g.position.y = 0;
+      v.x = PIT.x + PIT.hw + 4; v.z = PIT.z;
+      v.h.g.position.set(v.x, 0, v.z);
+      toast("✅ 工友救起,送醫院檢查 — 坑邊圍欄已補裝");
+      if (typeof ttsSpeak === "function") ttsSpeak("救到喇!送醫院先。坑邊要裝返圍欄!", "yue_female");
+      A.active = false; A.victim = null; A.cd = 90000; // 90秒後再有機會
+    }
+  }
+}
+
+/* ========== 新角色+互動+情緒+廣東話對白+TASK(門禁規格§4-5) ========== */
+const NPC_MOOD = {};
+const MOOD_LINES = {
+  happy: ["今日天氣好,開工特別順!", "哈哈,做得幾靚仔喎!", "心情好,做嘢都快啲!"],
+  tired: ["攰呀…唞陣先。", "做咗成朝,腰都直唔切。", "畀啲氣力我啦師傅。"],
+  annoyed: ["喂!行開啲啦,阻住地球轉!", "你有冇睇路㗎?", "咪喺我度搞嚟搞去!"],
+  nervous: ["琴日先鬧完,今日小心啲。", "白帽喺附近,收手啦。", "做錯嘢又要寫report…"],
+  chat: ["喂,食咗飯未呀?", "琴日嗰碟叉燒飯真係正!", "聽朝早會記得早啲嚟。", "放工去唔去飲嘢?"]
+};
+const ROLE_LINES = {
+  femaleWorker: ["搬磚搬到手都軟…你幫手呀?", "帽帶記得扣好,白帽成日查!", "你係新嚟嘅?多多指教!"],
+  clerk: ["入職文件搞咗未?訓練堂上咗未?", "新工友要登記先可以入場。"],
+  genAffairs: ["唔夠嘢用嚟搵我,手套水鞋都有。", "休息室有水,記得飲多啲。"],
+  foreman: ["嗰邊搬緊料,行開啲!", "你嘅任務係跟住黃箭嘴行!"],
+  officer: ["安全第一!帽帶扣好未?", "見到危險即刻話我知!"],
+  machineOp: ["部機忙緊,行遠啲!", "倒車時唔准行過車尾!"]
+};
+let sitePeopleReady = false;
+function spawnSitePeople() {
+  if (sitePeopleReady) return;
+  sitePeopleReady = true;
+  const F = { sex: "F" };
+  const names = ["阿珍", "阿嫦", "細梅", "好姨"];
+  for (let i = 0; i < 4; i++) {
+    const a = rand(0, 6.28), r = rand(6, 20);
+    const w = spawnWorker(MAIN_SITE.c[0] + Math.cos(a) * r, MAIN_SITE.c[1] + Math.sin(a) * r, {
+      human: { vest: true, helmet: 0xffd23a, pants: 0x3a4a6a, boots: 0x4a2e1a, sex: "F", skin: [0xf0c8a0, 0xe8bd95, 0xdcae8a][i % 3] },
+      label: "女工 · " + names[i], labelColor: "#ffd98a"
+    });
+    w.role = "femaleWorker"; w.mood = randi(0, 1) ? "chat" : "happy";
+  }
+  const c = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.1) * 10, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.1) * 10, {
+    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#dce0e6", vestLabel: "地盤文員", shirt: 0xd8e0e8, pants: 0x22222a, boots: 0x1a1a1a, sex: "M", clipboard: true },
+    label: "地盤文員 · 明仔", labelColor: "#ffd76e"
+  });
+  c.role = "clerk"; c.mood = "happy";
+  const g = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.6) * 12, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.6) * 12, {
+    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#e6e9ee", vestLabel: "地盤總務", shirt: 0xc8d0da, pants: 0x2a2a34, boots: 0x1a1a1a, sex: "F", skin: 0xf0c8a0 },
+    label: "地盤總務 · May姐", labelColor: "#ffd76e"
+  });
+  g.role = "genAffairs"; g.female = true; g.mood = "happy";
+}
+function roleKeyOf(npc) {
+  if (npc.role === "officer") return "officer";
+  if (npc.role === "femaleWorker" || npc.role === "clerk" || npc.role === "genAffairs") return npc.role;
+  if (npc.label && /管工|判頭/.test(npc.label.textContent || npc.label)) return "foreman";
+  if (npc.label && /機手/.test(npc.label.textContent || npc.label)) return "machineOp";
+  return "femaleWorker";
+}
+function npcMoodOf(npc) { return npc.mood || "chat"; }
+function npcSay(npc, line) {
+  const nm = (npc.label && (npc.label.textContent || npc.label)) || "工友";
+  say(String(nm).replace(/[^·\u4e00-\u9fff]/g, "") || "工友", [line], null);
+  if (typeof ttsSpeak === "function") ttsSpeak(line, npc.female ? "yue_female" : "yue_male");
+}
+/* 互動:E掣對最近NPC(3米內)傾偈;推撞→嬲 */
+let _nearNpc = null, _nearD = 99;
+function updateNpcProximity() {
+  _nearNpc = null; _nearD = 99;
+  const check = (list, isOff) => {
+    for (const n of list) {
+      const d = d2(player.x, player.z, n.x, n.z);
+      if (d < 3 && d < _nearD) { _nearD = d; _nearNpc = n; }
+    }
+  };
+  check(workers, false); check(officers, true);
+}
+/* 玩家郁緊時撞埋去NPC→推撞(地盤經常) */
+function npcBumpCheck(dt) {
+  if (player.speed < 1.5 || dlgActive) return;
+  for (const w of workers) {
+    const d = d2(player.x, player.z, w.x, w.z);
+    if (d < .9) {
+      if (!w._bumpCd || performance.now() - w._bumpCd > 4000) {
+        w._bumpCd = performance.now();
+        w.mood = "annoyed";
+        const line = MOOD_LINES.annoyed[randi(0, MOOD_LINES.annoyed.length - 1)];
+        npcSay(w, line);
+        const ang = Math.atan2(w.z - player.z, w.x - player.x);
+        w.x += Math.cos(ang) * 1.2; w.z += Math.sin(ang) * 1.2;
+        beep(180, .12, "square", .18);
+      }
+    }
+  }
+}
+function sitePeopleTick(dt) {
+  spawnSitePeople();
+  updateNpcProximity();
+  npcBumpCheck(dt);
+  /* 提示最近NPC */
+  const hint = document.getElementById("hint");
+  if (_nearNpc && !dlgActive && hint) {
+    hint.style.display = "block";
+    hint.textContent = "E · 同" + (String(_nearNpc.label?.textContent || _nearNpc.label || "工友")) + "傾偈";
+  }
+}
+/* TASK流程:接單→領料→運送→交付→出糧(挂任務二送外賣示範) */
+const TASKFLOW = { stage: "none", log: [] };
+window.__taskflow = TASKFLOW;
+/* 廣東話TTS */
+let TTS_READY = null;
+function ttsSpeak(text, speaker) {
+  if (TTS_READY === false) return;
+  fetch("http://127.0.0.1:9881/tts", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, speaker: speaker || "yue_female", speed: 1.0 })
+  }).then(res => {
+    if (!res.ok) throw new Error(res.status);
+    return res.blob();
+  }).then(blob => {
+    const a = new Audio(URL.createObjectURL(blob)); a.volume = .8; a.play().catch(() => {});
+    TTS_READY = true;
+  }).catch(e => { if (TTS_READY === null) { TTS_READY = false; console.warn("TTS不可用,只用字幕"); } });
+}
   // NPC泥頭車
   {
     const t = npcTruck;
@@ -2234,12 +2422,18 @@ function togglePause() {
 }
 $("btnStart").addEventListener("click", () => {
   auInit(); sClick();
-  $("start").style.display = "none"; $("hud").style.display = "block";
-  started = true; paused = false;
-  nextMission();
-  say("陳判頭", ["阿明!你喺零碳天地做咩?即刻返嚟九龍灣地盤開工!",
-    "跟住黃色箭嘴行,唔好蕩失路!",
-    "提你:地盤入面有白帽安全主任巡緊,唔好俾佢捉到小辮子!"], null);
+  /* 載入狀態:53個V2 rig重幾何需時,即刻反饋唔畀玩家以為死機 */
+  const btn = $("btnStart");
+  btn.textContent = "⏳ 開工準備中…";
+  btn.style.pointerEvents = "none";
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    $("start").style.display = "none"; $("hud").style.display = "block";
+    started = true; paused = false;
+    nextMission();
+    say("陳判頭", ["阿明!你喺零碳天地做咩?即刻返嚟九龍灣地盤開工!",
+      "跟住黃色箭嘴行,唔好蕩失路!",
+      "提你:地盤入面有白帽安全主任巡緊,唔好俾佢捉到小辮子!"], null);
+  }));
 });
 /* ========== 門禁系統(specs/門禁規格§2):狀態機+全周界守衛+閘機狀態牌 ========== */
 function accessState() {
@@ -2496,6 +2690,7 @@ function tick(dt, now) {
   siteGuard();
   stuckGuard(now);
   safetyTick(dt);
+  if (typeof sitePeopleTick === "function") sitePeopleTick(dt);
   try {
     if (!started || paused) { renderer.render(scene, camera); return; }
   if (dlgActive) { player.freeze = Math.max(player.freeze, .05); dlgTick(dt); }
