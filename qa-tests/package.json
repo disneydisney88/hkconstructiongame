@@ -1,0 +1,11 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node runtime-check.mjs && node induction-check.mjs"
+  },
+  "devDependencies": {
+    "acorn": "8.18.0",
+    "three": "0.160.0"
+  }
+}

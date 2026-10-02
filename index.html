@@ -97,25 +97,60 @@
   #bpZone { position:absolute; top:0; bottom:0; background:rgba(80,220,110,.4); border-left:1.5px solid #7ef08a; border-right:1.5px solid #7ef08a; }
   #bpMark { position:absolute; top:-2px; bottom:-2px; width:4px; background:#fff; box-shadow:0 0 8px #fff; }
   #bpScore { color:var(--mint); font-weight:800; font-size:18px; letter-spacing:.3em; }
+
+/* Construction editorial landing: responsive, local assets, no remote fonts. */
+#start{box-sizing:border-box;overflow:auto;align-items:stretch;justify-content:space-between;background:#111b21;text-align:left;padding:32px 5vw 24px;color:#e9edeb}
+.site-top{display:flex;justify-content:space-between;gap:16px;align-items:center;color:#879c9e;font-size:11px;letter-spacing:.13em;border-bottom:1px solid #304048;padding-bottom:22px}
+.site-brand{font-size:26px;font-weight:900;color:#efc749;letter-spacing:-.06em}.site-brand span{font-size:10px;letter-spacing:.17em;color:#d3dcdd;margin-left:12px}
+.landing-layout{display:grid;grid-template-columns:1.05fr 1fr;gap:3vw;align-items:center;max-width:1200px;width:100%;margin:24px auto}
+.edition{color:#efc749;font-size:13px;font-weight:700;letter-spacing:.08em}.edition span{display:block;color:#7e969c;font-size:10px;margin-top:9px}
+#start h1{font-size:clamp(52px,7.4vw,110px);color:#f2f1e9;background:none;-webkit-text-fill-color:initial;letter-spacing:-.04em;line-height:1.04;margin:22px 0}#start h1 span{display:block;color:#efc749}
+.landing-intro{font-size:14px;line-height:1.9;color:#aebec2}.landing-route{display:flex;gap:10px;font-size:11px;color:#cbd5d7;margin-top:28px}.landing-route i{color:#5b727a;font-style:normal}
+#btnStart{display:block;border-radius:3px;box-shadow:none;background:#efc749;color:#172126;letter-spacing:.06em;margin-top:30px;min-width:230px;text-indent:0;padding:17px 24px;font-size:16px}#btnStart:hover:not(:disabled){background:#ffdb62}#btnStart:disabled{cursor:progress;background:#36444a;color:#b4c2c5}#btnStart:active{transform:translateY(1px);box-shadow:none}.entry-note{font-size:10px;color:#789197;margin-top:12px}
+#loadStatus{padding:9px 0!important;line-height:1.5;font-size:11px!important;color:#adbec1!important;max-width:340px!important}
+.site-art{position:relative;aspect-ratio:1/1.15;background:#182830;border:1px solid #31444c;overflow:hidden}.site-art-grid{position:absolute;inset:0;background-image:linear-gradient(#29404966 1px,transparent 1px),linear-gradient(90deg,#29404966 1px,transparent 1px);background-size:32px 32px}.site-art svg{position:absolute;inset:12% 0 0;width:100%;height:88%}.site-number{position:absolute;left:24px;top:24px;font-size:12px;color:#9cb0b1;letter-spacing:.15em}.site-number b{font-size:64px;line-height:1.1;color:#344a51;letter-spacing:-.05em}.site-stamp{position:absolute;right:20px;top:23px;border:1px solid #b5a34d;padding:10px;color:#dcc360;font-size:10px;line-height:1.8;transform:rotate(5deg)}.site-stamp strong{font-size:15px}.art-caption{position:absolute;bottom:14px;left:20px;font-size:10px;letter-spacing:.15em;color:#a7b4b8}
+.landing-bottom{display:flex;justify-content:space-between;gap:20px;align-items:center;border-top:1px solid #304048;padding-top:20px;font-size:10px;color:#93a6ac}.landing-bottom small{font-size:9px;line-height:1.8;text-align:right}kbd{border:1px solid #42565e;padding:4px 6px;margin-right:4px;margin-left:10px;font:10px monospace;border-radius:3px;color:#d5dfe1}kbd:first-child{margin-left:0}
+@media(max-width:650px){#start{padding:20px}.landing-layout{grid-template-columns:1fr}.site-art{display:none}#start h1{font-size:72px}.landing-bottom{align-items:start;flex-direction:column}.landing-bottom small{text-align:left}.site-top{font-size:9px}.landing-copy{padding:20px 0}}
+
+
+/* Readable gameplay UI; world labels have their own screen-space limit. */
+#missionCard{max-width:min(410px,calc(100vw - 190px));padding:15px 18px}
+#missionCard .mt{font-size:17px;line-height:1.5}#missionCard .md{font-size:15px;line-height:1.7}#missionCard .dist{font-size:14px}
+#dlg{max-width:780px;width:calc(100vw - 40px);padding:20px 24px;bottom:24px}
+#dlgName{font-size:18px}#dlgText{font-size:20px;line-height:1.8}#dlg .next{font-size:14px}
+#hint{font-size:17px;padding:12px 18px}.toastMsg{font-size:16px;line-height:1.5}.stat{font-size:15px}
+@media(max-width:650px){#missionCard{max-width:calc(100vw - 150px);padding:10px}#missionCard .mt{font-size:14px}#missionCard .md{font-size:13px}#dlgText{font-size:17px}}
+
+#quiz,#bp,#gatePanel{backdrop-filter:none;-webkit-backdrop-filter:none;background:linear-gradient(90deg,transparent 25%,#0c182dcc 100%);align-items:flex-end;justify-content:center;padding:24px 5vw;gap:16px;text-align:left!important}
+#quiz h2,#bp h2{font-size:28px}#quizQ{font-size:20px;max-width:390px;line-height:1.6}#quizOpts{max-width:390px;width:100%}#quizOpts button{font-size:17px;line-height:1.6;padding:12px 18px}
+#bp>p,#bp>h2{max-width:390px;text-shadow:0 2px 3px #000}#bpBar{width:min(390px,85vw)}
+.induction-card{background:#10202fef;border:1px solid #506571;padding:28px;max-width:380px;border-radius:5px;line-height:1.8}.induction-card h2{font-size:28px}.induction-card pre{font:17px/2 sans-serif;white-space:pre-wrap;margin:20px 0}.induction-card button{display:block;width:100%;margin-top:12px;background:#efc749;border:0;padding:14px;font:700 17px sans-serif;cursor:pointer}.induction-card button:disabled{background:#657078;cursor:not-allowed}
+.in-induction #hud{visibility:hidden} .in-induction details{top:auto!important;bottom:12px;right:12px!important}
+#quiz h2,#quizQ,#quizFb,#quiz>p{width:390px;max-width:85vw}#quiz h2{color:#fff}#quiz>p,#bp>p{font-size:16px;color:#e9eff2}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <div id="start">
-  <div class="hardhat">⛑️</div>
-  <h1>香港地盤 GTA</h1>
-  <div class="sub">開 工 大 吉</div>
-  <div class="mapinfo">真實地圖 · 九龍灣 / 啟德 / 觀塘<br>地盤 · 天秤 · 斗車 · 白帽安全主任 · 平安卡</div>
-  <div class="card">
-    <b>🖥️ 電腦</b> WASD行 · Shift跑 · E互動/上落車 · G掟嘢 · 滑鼠轉鏡 · M靜音 · Esc暫停<br>
-    <b>📱 手機</b> 左邊搖桿行 · 右邊掣:跑 / E<br>
-    <b>▶️ 流程</b> 新仔入職(安全訓練+量血壓)→ 送外賣 → 搬磚 → 天秤危機 → 環保斗車 → 收工<br>
-    <b>⚠️ 切記</b> 帽帶扣好 · 唔好行天秤下面 · 小心倒車 · 環保罰款好貴!
-  </div>
-  <button id="btnStart">嘟平安卡開工</button>
-  <div style="margin-top:8px;color:#7ef0a0;font-size:11px;font-weight:700;letter-spacing:.1em">工人角色 · codex-rebound-v1（外觀修復版）</div>
-  <div class="credit">地圖數據 © OpenStreetMap contributors (ODbL)<br>遊戲純屲虛構惡搞,與真實機構無關 · 安全第一,工地危險</div>
+  <header class="site-top"><span class="site-brand">KL <span>INTERACTIVE</span></span><span>HK / 九龍灣 · 施工中</span></header>
+  <main class="landing-layout">
+    <section class="landing-copy">
+      <div class="edition">香港地盤 GTA <span>VOL. 01 / 開工一日</span></div>
+      <h1>開工<span>大吉。</span></h1>
+      <p class="landing-intro">戴好頂帽，入嚟開工。<br>由新仔報到，到同班兄弟姊妹一齊收工。</p>
+      <div class="landing-route"><span>01 報到</span><i>→</i><span>02 接任務</span><i>→</i><span>03 出糧</span></div>
+      <button id="btnStart" disabled>⏳ 載入中…</button>
+      <p class="entry-note">由地盤門口開始 · 瀏覽器直接玩</p>
+    </section>
+    <section class="site-art" aria-label="吊機、竹棚及地盤圍板插畫">
+      <div class="site-art-grid"></div><div class="site-number">九龍灣<br><b>01</b></div>
+      <svg viewBox="0 0 460 450" aria-hidden="true"><g fill="none" stroke="#d6b747" stroke-width="3"><path d="M240 340V64L265 40V340M185 88H418L265 40M170 100H418M240 64L170 100M265 64L380 100M310 100V190L301 203H319L310 190M240 120L265 150L240 180L265 210L240 240L265 270L240 300"/></g><g fill="#263630" stroke="#648477" stroke-width="2"><path d="M42 355V171L181 132L222 170V355Z"/><path d="M42 171L181 209L222 170M42 230L181 268L222 230M42 289L181 327L222 289M77 181V355M111 190V355M147 200V355M181 209V355M203 188V355"/><path d="M47 170L177 327M177 135L47 294M47 230L177 355M47 355L177 209"/></g><path fill="#111c21" d="M0 355L460 314V450H0Z"/><g fill="#e9be3d"><path d="M20 374L78 367V422L20 429ZM86 366L145 360V416L86 422ZM153 359L212 353V410L153 416ZM220 352L279 346V404L220 410ZM287 345L346 339V398L287 404ZM354 338L413 332V392L354 398Z"/></g><g fill="#223138"><path d="M25 397L72 373V391L25 415ZM92 390L139 367V385L92 409ZM159 384L206 360V378L159 402ZM226 378L273 354V372L226 396ZM293 372L340 347V366L293 390ZM360 365L407 341V360L360 384Z"/></g></svg>
+      <div class="site-stamp">安全第一<br><strong>平安收工</strong></div>
+      <span class="art-caption">竹棚 · 天秤 · 街坊 · 人情味</span>
+    </section>
+  </main>
+  <footer class="landing-bottom"><div><kbd>W A S D</kbd> 行路 <kbd>SHIFT</kbd> 跑 <kbd>E</kbd> 互動 <kbd>ESC</kbd> 暫停</div><small>虛構遊戲 · 不作安全作業指引<br>地圖 © OpenStreetMap contributors</small></footer>
 </div>
 
 <div id="hud">
@@ -151,12 +186,14 @@
 
 <!-- 量血壓 -->
 <div class="cover" id="bp" style="text-align:center">
-  <h2>🩺 量血壓</h2>
+  <h2>入職訓練 · 血壓檢查</h2><p>由安全主任／安全督導員主持 · 遊戲節奏測試</p>
   <p id="bpTip"></p>
   <div id="bpBar"><div id="bpZone"></div><div id="bpMark"></div></div>
   <p id="bpScore"></p>
 </div>
 
+<div class="cover" id="gatePanel"><div class="induction-card"><p class="edition">SITE ACCESS / 入場核對</p><h2>嘟卡，平安開工。</h2><pre id="gateChecks"></pre><button id="gateScan">嘟卡入場</button><button id="gateBack">返回地盤門口</button></div></div>
+<script src="boot-ui.js"></script>
 <script src="mapdata.js"></script>
 <script type="importmap">
 { "imports": {

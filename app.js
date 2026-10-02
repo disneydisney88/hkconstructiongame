@@ -5,6 +5,7 @@
  * 敵人:白帽安全主任 | 危險源:天秤吊運/泥頭車倒後/吊重/坑洞 (參考勞工處意外類型)
  * ========================================================================= */
 import * as THREE from "three";
+import { createInductionRoom } from "./induction-room.js";
 import { createWorker } from "./worker-rig.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -696,6 +697,7 @@ function makeHumanGLB(o) {
   return r;
 }
 function makeHuman(o) {
+  if (o.helmet === null) return makeHumanProc(o);
   /* 全員worker-rig(用戶指示:其他人物都要改) — 失敗先退Soldier/程序化 */
   if (typeof MIXAMO_WORKER !== "undefined" && MIXAMO_WORKER) {
     try { const r = makeHumanMixamo(o); window.__rigLog = (window.__rigLog||[]).concat(['worker-rig']); return r; }
@@ -711,14 +713,18 @@ function makeHuman(o) {
 function makeHumanMixamo(o) {
   /* 帽色階級(本項目設定):管理人白帽(安全主任/督導/PM/地盤經理),其他黃帽;藍=機手,紅=管工 */
   const helmet = o.helmet;
-  const isWhite = helmet === 0xf4f4f4 || helmet === 0xf8f8f8 || helmet === 0xf0f0f0 || helmet === 0xd03030 || helmet === 0x2a9a4a;
-  const isBlue = helmet === 0x2a5ad0;
-  const isRed = helmet === 0xd04040;
-  return createWorker(MIXAMO_WORKER.obj, { hatColor: isWhite ? 0xf4f4f4 : isBlue ? 0x2a5ad0 : isRed ? 0xd03030 : 0xf5c522 });
+  const isWhite = [0xf4f4f4,0xf8f8f8,0xf0f0f0,0xd03030,0xd04040,0x2a9a4a].includes(helmet);
+  return createWorker(MIXAMO_WORKER.obj, {
+    hatColor: isWhite ? 0xf4f4f4 : 0xf5c522,
+    photo: !!o.useMixamo, female: o.sex === "F",
+    vest: isWhite ? "#dce0e6" : "#ed6810", shirt: o.sex === "F" ? "#737f8b" : "#687078"
+  });
 }
+const worldLabels = [];
 function makeSpriteLabel(text, color = "#fff", size = 8) {
   const p = textPill(text, color, "rgba(16,12,28,.75)", "#55486e", 700);
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: p.tex, transparent: true }));
+  sp.userData.labelSize = size; sp.userData.labelAspect = p.aspect; worldLabels.push(sp);
   sp.scale.set(size * p.aspect, size, 1); return sp;
 }
 
@@ -804,6 +810,7 @@ function makeContainer(x, z, rotY, color, label) {
     const p = textPill(label, "#ffffff", "rgba(28,60,120,.88)", "rgba(255,255,255,.5)");
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: p.tex, transparent: true }));
     sp.scale.set(2.6 * p.aspect, 2.6, 1); sp.position.set(0, 1.5, 1.35); g.add(sp);
+    sp.userData.labelSize = 2.6; sp.userData.labelAspect = p.aspect; worldLabels.push(sp);
   }
   g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g);
   const ca = Math.abs(Math.cos(rotY)), sa = Math.abs(Math.sin(rotY));
@@ -1195,7 +1202,7 @@ const boss = makeHuman({ vest: true, helmet: 0xd03030, pants: 0x333, boots: 0x22
 boss.g.position.set(GATE[0] + Math.cos(GATE_DIR_IN) * 4, 0, GATE[1] + Math.sin(GATE_DIR_IN) * 4);
 boss.g.rotation.y = GATE_DIR_IN + Math.PI;
 scene.add(boss.g);
-const bossLabel = makeSpriteLabel("陳判頭", "#ffd76e", 2.6); bossLabel.position.y = 2.25; boss.g.add(bossLabel);
+const bossLabel = makeSpriteLabel("老陳", "#ffd76e", 2.6); bossLabel.position.y = 2.25; boss.g.add(bossLabel);
 
 const officers = [];
 function spawnOfficer(nearX, nearZ) {
@@ -1207,7 +1214,7 @@ function spawnOfficer(nearX, nearZ) {
   const nrp = nearestRoadPt(x, z); if (nrp) { x = nrp[0]; z = nrp[1]; }
   h.g.position.set(x, 0, z);
   scene.add(h.g);
-  officers.push({ h, mark, x, z, heading: 0, state: "patrol", wp: null, wpT: 0, loseT: 0, speakT: 0, home: [nearX, nearZ] });
+  officers.push({ name: "安全主任", role: "officer", h, mark, x, z, heading: 0, state: "patrol", wp: null, wpT: 0, loseT: 0, speakT: 0, home: [nearX, nearZ] });
 }
 spawnOfficer(MAIN_SITE.c[0], MAIN_SITE.c[1]);
 spawnOfficer(MAIN_SITE.c[0], MAIN_SITE.c[1]);
@@ -1218,7 +1225,7 @@ const workers = [];
 function spawnWorker(x, z, opts = {}) {
   const h = makeHuman(opts.human || { vest: true, helmet: opts.helmet || (Math.random() < .8 ? 0xffd23a : 0x3a7ad0), pants: 0x3a4a6a, boots: 0x4a2e1a, sex: Math.random() < .3 ? "F" : "M" });
   h.g.position.set(x, 0, z); scene.add(h.g);
-  const w = { h, x, z, heading: rand(0, 6.28), state: "idle", t: rand(0, 4), target: null, role: opts.role || null, fed: false, label: opts.label ? makeSpriteLabel(opts.label, opts.labelColor || "#8ef0a0", 2.2) : null };
+  const w = { h, x, z, heading: rand(0, 6.28), state: "idle", t: rand(0, 4), target: null, name: opts.label || "工友", female: opts.human?.sex === "F", role: opts.role || (/管工/.test(opts.label || "") ? "foreman" : /機手/.test(opts.label || "") ? "machineOp" : "worker"), fed: false, label: opts.label ? makeSpriteLabel(opts.label, opts.labelColor || "#8ef0a0", 2.2) : null };
   if (w.label) { w.label.position.y = 2.25; h.g.add(w.label); }
   workers.push(w); return w;
 }
@@ -1228,7 +1235,7 @@ for (let i = 0; i < 22; i++) {
   spawnWorker(zone.c[0] + Math.cos(a) * r, zone.c[1] + Math.sin(a) * r);
 }
 
-/* 地盤階級:管工/機手/安全督導員/老總PM/地盤經理/雜工 (判頭=陳判頭, 安全主任=白帽已有) */
+/* 地盤階級:管工/機手/安全督導員/老總PM/地盤經理/雜工 (判頭=老陳, 安全主任=白帽已有) */
 spawnWorker(OFFICE[0] + 4, OFFICE[1] + 4, { human: { vest: true, helmet: 0xf8f8f8, vestColor: "#c8d0da", vestLabel: "PROJECT MGR", shirt: 0xd8e0e8, pants: 0x22222a, boots: 0x1a1a1a, clipboard: true }, label: "老總 PM · Richard", labelColor: "#ffd76e" });
 spawnWorker(MAIN_SITE.c[0] + 2, MAIN_SITE.c[1] - 4, { human: { vest: true, helmet: 0xf0f0f0, vestColor: "#dce0e6", vestLabel: "地盤經理", shirt: 0x4a5a7a, pants: 0x22222a, boots: 0x1a1a1a, clipboard: true }, label: "地盤經理 · 雄哥", labelColor: "#ffd76e" });
 spawnWorker(GATE[0] - Math.cos(GATE_DIR_IN) * 10, GATE[1] - Math.sin(GATE_DIR_IN) * 10, { human: { vest: true, helmet: 0xd04040, shirt: 0x3d4a66, pants: 0x2a3a5a, clipboard: true }, label: "管工 · 阿強", labelColor: "#8ef0a0" });
@@ -1374,11 +1381,12 @@ function makePickup(x, z, label, onPick) {
   const glow = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, 18, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x7ef08a, transparent: true, opacity: .22, side: THREE.DoubleSide }));
   glow.position.y = 9; g.add(glow);
   g.position.set(x, 0, z); scene.add(g);
-  const it = { x, z, mesh: g, label, onPick, active: true };
+  const it = { x, z, mesh: g, label, onPick, action: onPick, active: true };
   interactables.push(it); return it;
 }
 
 /* ---------- 新入職流程:安全訓練堂 + 量血壓 ---------- */
+let inductionMode = null, inductionView = null;
 const QUIZ_STATE = { open: false, qi: 0 };
 const BP_STATE = { open: false, pos: 0, dir: 1, speed: 55, zone: [60, 78], hits: 0, miss: 0, iv: null, cb: null, sprinted: false };
 const QUIZ = [
@@ -1389,6 +1397,7 @@ const QUIZ = [
   { q: "新入職第一日,要完成咩先入得地盤?", o: ["咩都唔使", "安全入職訓練+量血壓,過關先", "簽個名就算"], a: 1 }
 ];
 function runQuiz(cb) {
+  inductionMode = "training";
   QUIZ_STATE.open = true; QUIZ_STATE.qi = 0; QUIZ_STATE.cb = cb;
   $("quiz").style.display = "flex"; $("quizFb").textContent = "";
   quizShow();
@@ -1409,8 +1418,8 @@ function quizAnswer(i) {
   if (i === item.a) {
     sDing(); QUIZ_STATE.qi++;
     if (QUIZ_STATE.qi >= QUIZ.length) {
-      QUIZ_STATE.open = false; $("quiz").style.display = "none";
-      sCash(); toast("⛑️ 安全訓練合格!去量血壓");
+      QUIZ_STATE.open = false; inductionMode = null; $("quiz").style.display = "none";
+      sCash(); toast("⛑️ 安全訓練合格！留喺訓練區搵安全督導員量血壓");
       const cb = QUIZ_STATE.cb; QUIZ_STATE.cb = null; if (cb) cb();
     } else quizShow();
   } else {
@@ -1420,13 +1429,14 @@ function quizAnswer(i) {
   }
 }
 function runBP(cb) {
+  inductionMode = "health";
   BP_STATE.open = true; BP_STATE.pos = 0; BP_STATE.dir = 1; BP_STATE.speed = 55;
   BP_STATE.hits = 0; BP_STATE.miss = 0; BP_STATE.cb = cb;
   BP_STATE.sprinted = performance.now() - (player._lastSprintEnd || 0) < 8000;
   BP_STATE.zone = [rand(50, 74), 0]; BP_STATE.zone[1] = BP_STATE.zone[0] + rand(16, 24);
   $("bpTip").innerHTML = BP_STATE.sprinted
     ? "⚠️ 你啱啱跑完步,血壓高!<b>慢慢行返陣先再嚟量!</b>"
-    : "等指示器行入<b style=\"color:#7ef08a\">綠色區</b>撳 E / Space(要中 3 次)";
+    : "安全督導員量度中。等指示器行入<b style=\"color:#7ef08a\">綠色區</b>撳 E / Space(要中 3 次)";
   $("bp").style.display = "flex"; bpRender();
   BP_STATE.iv = setInterval(() => {
     BP_STATE.pos += BP_STATE.dir * BP_STATE.speed * .016;
@@ -1455,20 +1465,23 @@ function bpHit() {
     if (BP_STATE.hits >= 3) bpPass();
   } else {
     BP_STATE.miss++; sThud();
-    if (BP_STATE.miss >= 3) bpFail("血壓唔穩定…唞10秒再量過!");
+    if (BP_STATE.miss >= 3) bpFail("血壓唔穩定…唞8秒再返訓練室量過!");
   }
   bpRender();
 }
 function bpPass() {
-  bpClose(); sCash(); toast("🩺 血壓正常 PASS!閘機開綠燈");
+  BP_STATE.lastFail = false;
+  bpClose(); sCash(); toast("🩺 健康檢查合格！領齊 PPE 後到閘機拍卡");
   const cb = BP_STATE.cb; BP_STATE.cb = null; if (cb) cb(true);
 }
 function bpFail(msg) {
+  BP_STATE.lastFail = true;
   bpClose(); toast("⛔ " + msg);
   BP_STATE.cooldownUntil = performance.now() + 8000;
   const cb = BP_STATE.cb; BP_STATE.cb = null; if (cb) cb(false);
 }
 function bpClose() {
+  inductionMode = null;
   BP_STATE.open = false; $("bp").style.display = "none";
   if (BP_STATE.iv) { clearInterval(BP_STATE.iv); BP_STATE.iv = null; }
 }
@@ -1477,7 +1490,7 @@ $("bp").addEventListener("pointerdown", () => bpHit());
 /* 訓練室貨櫃 + 血壓站 + 閘機(閘外) */
 const GATE_OUT = GATE_DIR_IN + Math.PI;
 const TRAIN_POS = [GATE[0] + Math.cos(GATE_OUT) * 18 + Math.cos(GATE_DIR_IN + Math.PI / 2) * 8, GATE[1] + Math.sin(GATE_OUT) * 18 + Math.sin(GATE_DIR_IN + Math.PI / 2) * 8];
-const BP_POS = [GATE[0] + Math.cos(GATE_OUT) * 9 - Math.cos(GATE_DIR_IN + Math.PI / 2) * 6, GATE[1] + Math.sin(GATE_OUT) * 9 - Math.sin(GATE_DIR_IN + Math.PI / 2) * 6];
+const BP_POS = [TRAIN_POS[0] + Math.cos(GATE_DIR_IN + Math.PI / 2) * 5, TRAIN_POS[1] + Math.sin(GATE_DIR_IN + Math.PI / 2) * 5];
 makeContainer(TRAIN_POS[0], TRAIN_POS[1], GATE_OUT, 0x2a6ad0, "安全訓練室");
 {
   const kiosk = new THREE.Group();
@@ -1487,7 +1500,7 @@ makeContainer(TRAIN_POS[0], TRAIN_POS[1], GATE_OUT, 0x2a6ad0, "安全訓練室")
   screen.position.set(0, 1.05, .29); kiosk.add(screen);
   const cuff = new THREE.Mesh(new THREE.TorusGeometry(.16, .05, 8, 16), new THREE.MeshLambertMaterial({ color: 0x3a5a8a }));
   cuff.position.set(0, .8, .4); kiosk.add(cuff);
-  const lbl = makeSpriteLabel("血壓站 🩺", "#7ef08a", 2.2); lbl.position.y = 2.0; kiosk.add(lbl);
+  const lbl = makeSpriteLabel("入職健康檢查 · 安全督導員", "#7ef08a", 2.2); lbl.position.y = 2.0; kiosk.add(lbl);
   kiosk.position.set(BP_POS[0], 0, BP_POS[1]); kiosk.rotation.y = GATE_DIR_IN; scene.add(kiosk);
 }
 const gateLights = [];
@@ -1501,8 +1514,15 @@ const gateLights = [];
   }
 }
 function setGateOpen(open) { gateLights.forEach(l => l.material.color.setHex(open ? 0x30ff50 : 0xff3030)); beep(open ? 1200 : 300, .18, "square", .2); beep(open ? 1600 : 240, .18, "square", .2, .2); }
-const trainIt = { x: TRAIN_POS[0], z: TRAIN_POS[1], r: 4.5, label: "上安全訓練堂(新入職)", active: false, action: () => { runQuiz(() => { M.data.quizDone = true; }); } };
-const bpIt = { x: BP_POS[0], z: BP_POS[1], r: 3, label: "量血壓", active: false, action: () => { if (BP_STATE.cooldownUntil && performance.now() < BP_STATE.cooldownUntil) { toast("⏳ 唔好急,唂多陣先再量!"); return; } runBP(ok => { if (ok) { player.registered = true; setGateOpen(true); } }); } };
+const trainIt = { x: TRAIN_POS[0], z: TRAIN_POS[1], r: 4.5, label: "上安全訓練堂(新入職)", active: false, action: () => {
+  const healthCheck = () => {
+    if (performance.now() < (BP_STATE.cooldownUntil || 0)) { toast("⏳ 先休息，稍後再返訓練室量度。"); return; }
+    runBP(ok => { if (ok) player.registered = true; });
+  };
+  if (M.data.quizDone) healthCheck();
+  else runQuiz(() => { M.data.quizDone = true; healthCheck(); });
+} };
+const bpIt = { x: BP_POS[0], z: BP_POS[1], r: 3, label: "由安全督導員量血壓", active: false, action: () => { if (BP_STATE.cooldownUntil && performance.now() < BP_STATE.cooldownUntil) { toast("⏳ 唔好急,唂多陣先再量!"); return; } runBP(ok => { if (ok) { player.registered = true; } }); } };
 interactables.push(trainIt, bpIt);
 function sitePoint(a, rmin = 5, rmax = 24) {
   const a2 = rand(a, a + Math.PI * 2), r = rand(rmin, rmax);
@@ -1510,23 +1530,26 @@ function sitePoint(a, rmin = 5, rmax = 24) {
 }
 addMission({ // 0 開工報到(新入職:安全訓練+量血壓)
   title: "① 新仔入職:訓練堂+量血壓",
-  desc: "去九龍灣地盤閘口搵陳判頭。新入職要:①上安全訓練堂 ②量血壓過關,閘機先開綠燈(跑完步去量血壓會FAIL!)",
+  desc: "去九龍灣地盤閘口搵老陳。新入職先上安全堂，再由安全督導員喺訓練區量血壓；合格同領齊PPE先入閘。",
   start() { setMarker(GATE[0], GATE[1]); M.data.introDone = false; M.data.quizDone = false; },
   tick() {
     if (!M.data.introDone && d2(player.x, player.z, GATE[0], GATE[1]) < 7) {
       M.data.introDone = true; setMarker(TRAIN_POS[0], TRAIN_POS[1]);
-      say("陳判頭", ["阿明!新入職嗎?而家規矩:先去「安全訓練室」上堂,再喺閘口血壓站量血壓。",
+      say("老陳", ["阿明!新入職嗎?而家規矩:先去「安全訓練室」上堂,再由安全督導員喺訓練區量血壓。",
         "過晒兩關,閘機先開綠燈。血壓FAIL就入唔到㗎,咪走去跑 sprint 先量!",
         "入面有白帽安全主任巡緊,帽帶扣好,自己執生!"]);
     }
-    trainIt.active = (M.idx === 0 && M.data.introDone && !M.data.quizDone);
+    trainIt.active = (M.idx === 0 && M.data.introDone && !player.registered);
+    trainIt.label = M.data.quizDone ? "返訓練室由督導員量血壓" : "上安全訓練堂(新入職)";
     bpIt.active = (M.idx === 0 && M.data.quizDone && !player.registered);
-    if (M.data.quizDone && !player.registered && !BP_STATE.open) setMarker(BP_POS[0], BP_POS[1]);
-    if (player.registered) this.done();
+    if (M.data.quizDone && !player.registered && !BP_STATE.open) setMarker(TRAIN_POS[0], TRAIN_POS[1]);
+    if (player.registered && !player.ppe) setMarker(PPE_POS[0], PPE_POS[1]);
+    if (player.registered && player.ppe && !player.admitted) setMarker(GATE[0],GATE[1]);
+    if (player.admitted) this.done();
   },
   done() {
     nextMission();
-    say("陳判頭", ["平安卡——嘟!綠燈!歡迎返工!",
+    say("老陳", ["平安卡——嘟!綠燈!歡迎返工!",
       "而家有單急job:去寫字樓攞外賣,送畀地盤入面嗰五個工友!"], () => {
       toast("任務完成 +$50"); player.wage += 50; sCash();
     });
@@ -1580,7 +1603,7 @@ addMission({ // 2 搬磚
   },
   done() {
     nextMission();
-    say("陳判頭", ["好嘢!跟住嗰單夠晒刺激:有師傅唔覺意跌咗個工具箱喺天秤吊住嘅貨下面,你去執返!"]);
+    say("老陳", ["好嘢!跟住嗰單夠晒刺激:有師傅唔覺意跌咗個工具箱喺天秤吊住嘅貨下面,你去執返!"]);
   }
 });
 addMission({ // 3 天秤危機
@@ -1604,7 +1627,7 @@ addMission({ // 3 天秤危機
   },
   done() {
     nextMission(); player.carrying = null; player.wage += 150; sCash(); toast("化險為夷!+$150");
-    say("陳判頭", ["執到!抵錫!最後一單:開斗車,車啲建築廢料去指定地點。穩陣揸,唔好亂咁撞!"]);
+    say("老陳", ["執到!抵錫!最後一單:開斗車,車啲建築廢料去指定地點。穩陣揸,唔好亂咁撞!"]);
   }
 });
 addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
@@ -1659,7 +1682,7 @@ addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
   },
   done() {
     nextMission();
-    say("陳判頭", ["收貨!泥頭冇撒、車轆乾淨,環保署都冇得告!去街口茶餐廳,判頭請你飲凍檸茶!"]);
+    say("老陳", ["收貨!泥頭冇撒、車轆乾淨,環保署都冇得告!去街口茶餐廳,判頭請你飲凍檸茶!"]);
   }
 });
 addMission({ // 5 收工
@@ -1783,6 +1806,7 @@ if ("ontouchstart" in window) {
 }
 
 function playerMove(dt) {
+  if (inductionMode || QUIZ_STATE.open || BP_STATE.open) { player.h.animate(dt,0); return; }
   if (player.freeze > 0) { player.freeze -= dt; player.h.animate(dt, 0); return; }
   let ix = 0, iz = 0;
   if (keys.KeyW || keys.ArrowUp) iz -= 1;
@@ -1843,6 +1867,9 @@ function nearestInteract() {
 }
 function doInteract() {
   if (dlgActive) { dlgNext(); return; }
+  if (player.inTruck) { toggleTruck(); return; }
+  const it = nearestInteract();
+  if (it) { sClick(); it.action(); return; }
   if (_nearNpc) { // 同NPC傾偈(情緒+TTS)
     const rk = roleKeyOf(_nearNpc);
     const lines = ROLE_LINES[rk] || [];
@@ -1852,9 +1879,6 @@ function doInteract() {
     _nearNpc.mood = "chat";
     return;
   }
-  if (player.inTruck) { toggleTruck(); return; }
-  const it = nearestInteract();
-  if (it) { sClick(); it.action(); }
 }
 /* 掟低手上嘢 — 跳起掟=高空擲物(真實罰則$2,000) */
 function dropItem() {
@@ -1940,6 +1964,7 @@ function violate(n, msg, gameFee, source) {
 function updateOfficers(dt) {
   let anyChase = false;
   for (const o of officers) {
+    if (PIT_ACCIDENT.active && PIT_ACCIDENT.stage === "injured" && o === officers[0]) continue;
     const dP = d2(o.x, o.z, player.x, player.z);
     const seePlayer = dP < (player.stars > 0 ? 60 : 20) && !player.inTruck || (dP < 26 && player.inTruck);
     if (o.state === "patrol") {
@@ -2008,6 +2033,8 @@ function busted() {
 /* ---------- 工友 ---------- */
 function updateWorkers(dt) {
   for (const w of workers) {
+    if (w.injured) continue;
+    if (w.stationary) { w.h.animate(dt,0); continue; }
     if (d2(w.x, w.z, player.x, player.z) > 130) { w.h.g.visible = false; continue; }
     w.h.g.visible = true;
     w.t -= dt;
@@ -2103,7 +2130,7 @@ function updateHazards(dt) {
     const cos = Math.cos(PIT.rot), sin = Math.sin(PIT.rot);
     const dx = player.x - PIT.x, dz = player.z - PIT.z;
     const lx = dx * cos - dz * sin, lz = dx * sin + dz * cos;
-    if (Math.abs(lx) < PIT.hw && Math.abs(lz) < PIT.hd && !player.inTruck && player.invuln <= 0) {
+    if (!PIT.covered && Math.abs(lx) < PIT.hw && Math.abs(lz) < PIT.hd && !player.inTruck && player.invuln <= 0) {
       damage(30, "跌落泥坑!(-30) 坑邊要有圍欄先啱!");
       player.x = PIT.x + Math.cos(PIT.rot) * (PIT.hw + 2.5); player.z = PIT.z + Math.sin(PIT.rot) * (PIT.hd + 2.5);
     }
@@ -2111,170 +2138,6 @@ function updateHazards(dt) {
     pitWorkerAccident(dt);
   }
 
-/* ===== 工友泥坑意外:隨機工友跌入→工傷→白帽到場處理→救起覆檢 ===== */
-const PIT_ACCIDENT = { active: false, cd: 45000, victim: null, stage: "", t: 0 };
-function pitWorkerAccident(dt) {
-  const A = PIT_ACCIDENT;
-  if (!A.active) {
-    A.cd -= dt * 1000;
-    if (A.cd <= 0) {
-      // 揀一個泥坑附近(12米內)嘅工友做苦主
-      const near = workers.filter(w => d2(w.x, w.z, PIT.x, PIT.z) < 12);
-      if (near.length) {
-        A.victim = near[randi(0, near.length - 1)]; A.active = true; A.stage = "falling"; A.t = 0;
-        // 拖苦主入坑中心+跌落
-        A.victim.h.g.position.set(PIT.x, 0, PIT.z);
-        A.victim.x = PIT.x; A.victim.z = PIT.z;
-        sThud(); toast("🚨 意外!有工友跌入泥坑!");
-        if (typeof ttsSpeak === "function") ttsSpeak("哎吔!有人跌咗落坑!", "yue_male");
-      } else A.cd = 30000;
-    }
-    return;
-  }
-  const v = A.victim;
-  A.t += dt;
-  if (A.stage === "falling") { // 跌落動畫:沉入+傾斜
-    v.h.g.rotation.x = Math.min(.5, A.t * 1.2);
-    v.h.g.position.y = -Math.min(1.1, A.t * .8);
-    if (A.t > 1.2) { A.stage = "injured"; A.t = 0; toast("🚑 工友工傷!安全主任趕緊到場!"); beep(500, .2, "square", .3); beep(650, .25, "square", .3, .25); }
-  } else if (A.stage === "injured") { // 躺喺坑度叫救命
-    v.h.g.rotation.x = Math.PI / 2 * .9;
-    v.h.g.position.y = -0.9 + Math.sin(A.t * 6) * .03; // 微微掙扎
-    if (officers[0]) { // 白帽跑埋去
-      const o = officers[0];
-      const ang = Math.atan2(PIT.z - o.z, PIT.x - o.x);
-      o.x += Math.cos(ang) * 5 * dt; o.z += Math.sin(ang) * 5 * dt;
-      o.h.g.position.set(o.x, 0, o.z);
-      if (d2(o.x, o.z, PIT.x, PIT.z) < 3) { A.stage = "rescue"; A.t = 0; if (o.label) toast("🦺 安全主任:唔好心郁!我嚟救!"); }
-    }
-  } else if (A.stage === "rescue") { // 救起:升返地面+企返好
-    v.h.g.rotation.x = Math.max(0, Math.PI / 2 * .9 - A.t * 1.5);
-    v.h.g.position.y = Math.min(0, -0.9 + A.t * .8);
-    if (A.t > 1.8) {
-      v.h.g.rotation.x = 0; v.h.g.position.y = 0;
-      v.x = PIT.x + PIT.hw + 4; v.z = PIT.z;
-      v.h.g.position.set(v.x, 0, v.z);
-      toast("✅ 工友救起,送醫院檢查 — 坑邊圍欄已補裝");
-      if (typeof ttsSpeak === "function") ttsSpeak("救到喇!送醫院先。坑邊要裝返圍欄!", "yue_female");
-      A.active = false; A.victim = null; A.cd = 90000; // 90秒後再有機會
-    }
-  }
-}
-
-/* ========== 新角色+互動+情緒+廣東話對白+TASK(門禁規格§4-5) ========== */
-const NPC_MOOD = {};
-const MOOD_LINES = {
-  happy: ["今日天氣好,開工特別順!", "哈哈,做得幾靚仔喎!", "心情好,做嘢都快啲!"],
-  tired: ["攰呀…唞陣先。", "做咗成朝,腰都直唔切。", "畀啲氣力我啦師傅。"],
-  annoyed: ["喂!行開啲啦,阻住地球轉!", "你有冇睇路㗎?", "咪喺我度搞嚟搞去!"],
-  nervous: ["琴日先鬧完,今日小心啲。", "白帽喺附近,收手啦。", "做錯嘢又要寫report…"],
-  chat: ["喂,食咗飯未呀?", "琴日嗰碟叉燒飯真係正!", "聽朝早會記得早啲嚟。", "放工去唔去飲嘢?"]
-};
-const ROLE_LINES = {
-  femaleWorker: ["搬磚搬到手都軟…你幫手呀?", "帽帶記得扣好,白帽成日查!", "你係新嚟嘅?多多指教!"],
-  clerk: ["入職文件搞咗未?訓練堂上咗未?", "新工友要登記先可以入場。"],
-  genAffairs: ["唔夠嘢用嚟搵我,手套水鞋都有。", "休息室有水,記得飲多啲。"],
-  foreman: ["嗰邊搬緊料,行開啲!", "你嘅任務係跟住黃箭嘴行!"],
-  officer: ["安全第一!帽帶扣好未?", "見到危險即刻話我知!"],
-  machineOp: ["部機忙緊,行遠啲!", "倒車時唔准行過車尾!"]
-};
-let sitePeopleReady = false;
-function spawnSitePeople() {
-  if (sitePeopleReady) return;
-  sitePeopleReady = true;
-  const F = { sex: "F" };
-  const names = ["阿珍", "阿嫦", "細梅", "好姨"];
-  for (let i = 0; i < 4; i++) {
-    const a = rand(0, 6.28), r = rand(6, 20);
-    const w = spawnWorker(MAIN_SITE.c[0] + Math.cos(a) * r, MAIN_SITE.c[1] + Math.sin(a) * r, {
-      human: { vest: true, helmet: 0xffd23a, pants: 0x3a4a6a, boots: 0x4a2e1a, sex: "F", skin: [0xf0c8a0, 0xe8bd95, 0xdcae8a][i % 3] },
-      label: "女工 · " + names[i], labelColor: "#ffd98a"
-    });
-    w.role = "femaleWorker"; w.mood = randi(0, 1) ? "chat" : "happy";
-  }
-  const c = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.1) * 10, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.1) * 10, {
-    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#dce0e6", vestLabel: "地盤文員", shirt: 0xd8e0e8, pants: 0x22222a, boots: 0x1a1a1a, sex: "M", clipboard: true },
-    label: "地盤文員 · 明仔", labelColor: "#ffd76e"
-  });
-  c.role = "clerk"; c.mood = "happy";
-  const g = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.6) * 12, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.6) * 12, {
-    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#e6e9ee", vestLabel: "地盤總務", shirt: 0xc8d0da, pants: 0x2a2a34, boots: 0x1a1a1a, sex: "F", skin: 0xf0c8a0 },
-    label: "地盤總務 · May姐", labelColor: "#ffd76e"
-  });
-  g.role = "genAffairs"; g.female = true; g.mood = "happy";
-}
-function roleKeyOf(npc) {
-  if (npc.role === "officer") return "officer";
-  if (npc.role === "femaleWorker" || npc.role === "clerk" || npc.role === "genAffairs") return npc.role;
-  if (npc.label && /管工|判頭/.test(npc.label.textContent || npc.label)) return "foreman";
-  if (npc.label && /機手/.test(npc.label.textContent || npc.label)) return "machineOp";
-  return "femaleWorker";
-}
-function npcMoodOf(npc) { return npc.mood || "chat"; }
-function npcSay(npc, line) {
-  const nm = (npc.label && (npc.label.textContent || npc.label)) || "工友";
-  say(String(nm).replace(/[^·\u4e00-\u9fff]/g, "") || "工友", [line], null);
-  if (typeof ttsSpeak === "function") ttsSpeak(line, npc.female ? "yue_female" : "yue_male");
-}
-/* 互動:E掣對最近NPC(3米內)傾偈;推撞→嬲 */
-let _nearNpc = null, _nearD = 99;
-function updateNpcProximity() {
-  _nearNpc = null; _nearD = 99;
-  const check = (list, isOff) => {
-    for (const n of list) {
-      const d = d2(player.x, player.z, n.x, n.z);
-      if (d < 3 && d < _nearD) { _nearD = d; _nearNpc = n; }
-    }
-  };
-  check(workers, false); check(officers, true);
-}
-/* 玩家郁緊時撞埋去NPC→推撞(地盤經常) */
-function npcBumpCheck(dt) {
-  if (player.speed < 1.5 || dlgActive) return;
-  for (const w of workers) {
-    const d = d2(player.x, player.z, w.x, w.z);
-    if (d < .9) {
-      if (!w._bumpCd || performance.now() - w._bumpCd > 4000) {
-        w._bumpCd = performance.now();
-        w.mood = "annoyed";
-        const line = MOOD_LINES.annoyed[randi(0, MOOD_LINES.annoyed.length - 1)];
-        npcSay(w, line);
-        const ang = Math.atan2(w.z - player.z, w.x - player.x);
-        w.x += Math.cos(ang) * 1.2; w.z += Math.sin(ang) * 1.2;
-        beep(180, .12, "square", .18);
-      }
-    }
-  }
-}
-function sitePeopleTick(dt) {
-  spawnSitePeople();
-  updateNpcProximity();
-  npcBumpCheck(dt);
-  /* 提示最近NPC */
-  const hint = document.getElementById("hint");
-  if (_nearNpc && !dlgActive && hint) {
-    hint.style.display = "block";
-    hint.textContent = "E · 同" + (String(_nearNpc.label?.textContent || _nearNpc.label || "工友")) + "傾偈";
-  }
-}
-/* TASK流程:接單→領料→運送→交付→出糧(挂任務二送外賣示範) */
-const TASKFLOW = { stage: "none", log: [] };
-window.__taskflow = TASKFLOW;
-/* 廣東話TTS */
-let TTS_READY = null;
-function ttsSpeak(text, speaker) {
-  if (TTS_READY === false) return;
-  fetch("http://127.0.0.1:9881/tts", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, speaker: speaker || "yue_female", speed: 1.0 })
-  }).then(res => {
-    if (!res.ok) throw new Error(res.status);
-    return res.blob();
-  }).then(blob => {
-    const a = new Audio(URL.createObjectURL(blob)); a.volume = .8; a.play().catch(() => {});
-    TTS_READY = true;
-  }).catch(e => { if (TTS_READY === null) { TTS_READY = false; console.warn("TTS不可用,只用字幕"); } });
-}
   // NPC泥頭車
   {
     const t = npcTruck;
@@ -2340,6 +2203,172 @@ function ttsSpeak(text, speaker) {
     violate(1, "未有經指定入口登記進入地盤!", 150, "未有登記進入地盤 $3,000");
   }
 }
+/* ===== 工友泥坑意外:隨機工友跌入→工傷→白帽到場處理→救起覆檢 ===== */
+const PIT_ACCIDENT = { active: false, cd: 45000, victim: null, stage: "", t: 0 };
+function pitWorkerAccident(dt) {
+  const A = PIT_ACCIDENT;
+  if (!A.active) {
+    if (PIT.covered) return;
+    A.cd -= dt * 1000;
+    if (A.cd <= 0) {
+      // 揀一個泥坑附近(12米內)嘅工友做苦主
+      const near = workers.filter(w => d2(w.x, w.z, PIT.x, PIT.z) < 12);
+      if (near.length) {
+        A.victim = near[randi(0, near.length - 1)]; A.victim.injured = true; A.active = true; A.stage = "falling"; A.t = 0;
+        // 拖苦主入坑中心+跌落
+        A.victim.h.g.position.set(PIT.x, 0, PIT.z);
+        A.victim.x = PIT.x; A.victim.z = PIT.z;
+        sThud(); toast("🚨 意外!有工友跌入泥坑!");
+        if (typeof ttsSpeak === "function") ttsSpeak("哎吔!有人跌咗落坑!", "yue_adult_male");
+      } else A.cd = 30000;
+    }
+    return;
+  }
+  const v = A.victim;
+  A.t += dt;
+  if (A.stage === "falling") { // 跌落動畫:沉入+傾斜
+    v.h.g.rotation.x = Math.min(.5, A.t * 1.2);
+    v.h.g.position.y = -Math.min(1.1, A.t * .8);
+    if (A.t > 1.2) { A.stage = "injured"; A.t = 0; toast("🚑 工友工傷!安全主任趕緊到場!"); beep(500, .2, "square", .3); beep(650, .25, "square", .3, .25); }
+  } else if (A.stage === "injured") { // 躺喺坑度叫救命
+    v.h.g.rotation.x = Math.PI / 2 * .9;
+    v.h.g.position.y = -0.9 + Math.sin(A.t * 6) * .03; // 微微掙扎
+    if (officers[0]) { // 白帽跑埋去
+      const o = officers[0];
+      const ang = Math.atan2(PIT.z - o.z, PIT.x - o.x);
+      o.x += Math.cos(ang) * 5 * dt; o.z += Math.sin(ang) * 5 * dt;
+      o.h.g.position.set(o.x, 0, o.z);
+      if (d2(o.x, o.z, PIT.x, PIT.z) < 3) { A.stage = "rescue"; A.t = 0; if (o.label) toast("🦺 安全主任:唔好心郁!我嚟救!"); }
+    }
+  } else if (A.stage === "rescue") { // 救起:升返地面+企返好
+    v.h.g.rotation.x = Math.max(0, Math.PI / 2 * .9 - A.t * 1.5);
+    v.h.g.position.y = Math.min(0, -0.9 + A.t * .8);
+    if (A.t > 1.8) {
+      v.h.g.rotation.x = 0; v.h.g.position.y = 0; v.injured = false; v.state = "idle"; v.t = 5;
+      v.x = PIT.x + PIT.hw + 4; v.z = PIT.z;
+      v.h.g.position.set(v.x, 0, v.z);
+      toast("✅ 工友已移到安全位置，安排檢查；洞口仍需蓋好");
+      if (typeof ttsSpeak === "function") ttsSpeak("救到喇!送醫院先。坑邊要裝返圍欄!", "yue_adult_female");
+      A.active = false; A.victim = null; A.cd = 90000; // 90秒後再有機會
+    }
+  }
+}
+
+/* ========== 新角色+互動+情緒+廣東話對白+TASK(門禁規格§4-5) ========== */
+const NPC_MOOD = {};
+const MOOD_LINES = {
+  happy: ["今日天氣好,開工特別順!", "哈哈,做得幾靚仔喎!", "心情好,做嘢都快啲!"],
+  tired: ["攰呀…唞陣先。", "做咗成朝,腰都直唔切。", "畀啲氣力我啦師傅。"],
+  annoyed: ["喂!行開啲啦,阻住地球轉!", "你有冇睇路㗎?", "咪喺我度搞嚟搞去!"],
+  nervous: ["琴日先鬧完,今日小心啲。", "白帽喺附近,收手啦。", "做錯嘢又要寫report…"],
+  chat: ["喂,食咗飯未呀?", "琴日嗰碟叉燒飯真係正!", "聽朝早會記得早啲嚟。", "放工去唔去飲嘢?"]
+};
+const ROLE_LINES = {
+  safetyTrainer: ["上完入職安全堂，就過嚟量血壓。未合格先休息，再安排重試。"],
+  worker: ["做嘢慢慢嚟，安全最緊要。", "有咩要幫手，出聲啦。"],
+  femaleWorker: ["搬磚搬到手都軟…你幫手呀?", "帽帶記得扣好,白帽成日查!", "你係新嚟嘅?多多指教!"],
+  clerk: ["入職文件搞咗未?訓練堂上咗未?", "新工友要登記先可以入場。"],
+  genAffairs: ["唔夠嘢用嚟搵我,手套水鞋都有。", "休息室有水,記得飲多啲。"],
+  foreman: ["嗰邊搬緊料,行開啲!", "你嘅任務係跟住黃箭嘴行!"],
+  officer: ["安全第一!帽帶扣好未?", "見到危險即刻話我知!"],
+  machineOp: ["部機忙緊,行遠啲!", "倒車時唔准行過車尾!"]
+};
+let sitePeopleReady = false;
+function spawnSitePeople() {
+  if (sitePeopleReady) return;
+  sitePeopleReady = true;
+  const trainer = spawnWorker(BP_POS[0] + Math.cos(GATE_DIR_IN) * 1.5, BP_POS[1] + Math.sin(GATE_DIR_IN) * 1.5, {
+    human: {vest:true, helmet:0xf4f4f4, clipboard:true}, role:"safetyTrainer", label:"安全督導員 · 入職健康檢查"
+  });
+  trainer.stationary = true;
+  const F = { sex: "F" };
+  const names = ["阿珍", "阿嫦", "細梅", "好姨"];
+  for (let i = 0; i < 4; i++) {
+    const a = rand(0, 6.28), r = rand(6, 20);
+    const w = spawnWorker(MAIN_SITE.c[0] + Math.cos(a) * r, MAIN_SITE.c[1] + Math.sin(a) * r, {
+      human: { vest: true, helmet: 0xffd23a, pants: 0x3a4a6a, boots: 0x4a2e1a, sex: "F", skin: [0xf0c8a0, 0xe8bd95, 0xdcae8a][i % 3] },
+      label: "女工 · " + names[i], labelColor: "#ffd98a"
+    });
+    w.role = "femaleWorker"; w.mood = randi(0, 1) ? "chat" : "happy";
+  }
+  const c = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.1) * 10, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.1) * 10, {
+    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#dce0e6", vestLabel: "地盤文員", shirt: 0xd8e0e8, pants: 0x22222a, boots: 0x1a1a1a, sex: "M", clipboard: true },
+    label: "地盤文員 · 明仔", labelColor: "#ffd76e"
+  });
+  c.role = "clerk"; c.mood = "happy";
+  const g = spawnWorker(OFFICE[0] + Math.cos(GATE_DIR_IN + 2.6) * 12, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.6) * 12, {
+    human: { vest: true, helmet: 0xf4f4f4, vestColor: "#e6e9ee", vestLabel: "地盤總務", shirt: 0xc8d0da, pants: 0x2a2a34, boots: 0x1a1a1a, sex: "F", skin: 0xf0c8a0 },
+    label: "地盤總務 · May姐", labelColor: "#ffd76e"
+  });
+  g.role = "genAffairs"; g.female = true; g.mood = "happy";
+}
+function roleKeyOf(npc) { return npc.role || "worker"; }
+function npcMoodOf(npc) { return npc.mood || "chat"; }
+function npcSay(npc, line) {
+  const nm = npc.name || "工友";
+  say(String(nm).replace(/[^·\u4e00-\u9fff]/g, "") || "工友", [line], null);
+  if (typeof ttsSpeak === "function") ttsSpeak(line, npc.female ? "yue_adult_female" : "yue_adult_male");
+}
+/* 互動:E掣對最近NPC(3米內)傾偈;推撞→嬲 */
+let _nearNpc = null, _nearD = 99;
+function updateNpcProximity() {
+  _nearNpc = null; _nearD = 99;
+  const check = (list, isOff) => {
+    for (const n of list) {
+      const d = d2(player.x, player.z, n.x, n.z);
+      if (d < 3 && d < _nearD) { _nearD = d; _nearNpc = n; }
+    }
+  };
+  check(workers, false); check(officers, true);
+}
+/* 玩家郁緊時撞埋去NPC→推撞(地盤經常) */
+function npcBumpCheck(dt) {
+  if (player.speed < 1.5 || dlgActive) return;
+  for (const w of workers) {
+    const d = d2(player.x, player.z, w.x, w.z);
+    if (d < .9) {
+      if (!w._bumpCd || performance.now() - w._bumpCd > 4000) {
+        w._bumpCd = performance.now();
+        w.mood = "annoyed";
+        const line = MOOD_LINES.annoyed[randi(0, MOOD_LINES.annoyed.length - 1)];
+        npcSay(w, line);
+        const ang = Math.atan2(w.z - player.z, w.x - player.x);
+        w.x += Math.cos(ang) * 1.2; w.z += Math.sin(ang) * 1.2;
+        beep(180, .12, "square", .18);
+      }
+    }
+  }
+}
+function sitePeopleTick(dt) {
+  spawnSitePeople();
+  updateNpcProximity();
+  npcBumpCheck(dt);
+  /* 提示最近NPC */
+  const hint = document.getElementById("hint");
+  if (_nearNpc && !dlgActive && hint) {
+    hint.style.display = "block";
+    hint.textContent = "E · 同" + (_nearNpc.name || "工友") + "傾偈";
+  }
+}
+/* TASK流程:接單→領料→運送→交付→出糧(挂任務二送外賣示範) */
+const TASKFLOW = { stage: "none", log: [] };
+window.__taskflow = TASKFLOW;
+/* 廣東話TTS */
+let TTS_READY = null;
+function ttsSpeak(text, speaker) {
+  if (TTS_READY === false) return;
+  fetch("http://127.0.0.1:9881/tts", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, speaker: speaker || "yue_adult_female", speed: 1.0 })
+  }).then(res => {
+    if (!res.ok) throw new Error(res.status);
+    return res.blob();
+  }).then(blob => {
+    const a = new Audio(URL.createObjectURL(blob)); a.volume = .8; a.play().catch(() => {});
+    TTS_READY = true;
+  }).catch(e => { if (TTS_READY === null) { TTS_READY = false; console.warn("TTS不可用,只用字幕"); } });
+}
+
 const _v1 = new THREE.Vector3();
 
 /* ---------- 小地圖 ---------- */
@@ -2412,6 +2441,34 @@ function updateHUD(dt) {
   } else $("missionCard").querySelector(".dist").textContent = "";
 }
 
+function renderScene() {
+  document.body.classList.toggle("in-induction", !!inductionMode);
+  if (inductionMode === "training" || inductionMode === "health") {
+    inductionView ||= createInductionRoom(makeHuman, canvasTex);
+    inductionView.update(inductionMode,performance.now());
+    renderer.render(inductionView.scene,inductionView.camera); return;
+  }
+  if (inductionMode === "gate") {
+    const view = new THREE.PerspectiveCamera(58,innerWidth/innerHeight,.1,4000);
+    view.position.set(GATE[0]+Math.cos(GATE_OUT)*3,1.65,GATE[1]+Math.sin(GATE_OUT)*3);
+    view.lookAt(GATE[0]+Math.cos(GATE_DIR_IN)*3,1.3,GATE[1]+Math.sin(GATE_DIR_IN)*3);
+    for (const label of worldLabels) label.material.opacity=0;
+    renderer.render(scene,view);return;
+  }
+  camera.updateMatrixWorld();
+  const pos = new THREE.Vector3();
+  const factor = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(innerHeight, 1);
+  for (const label of worldLabels) {
+    label.getWorldPosition(pos);
+    const distance = camera.position.distanceTo(pos);
+    const aspect = label.userData.labelAspect;
+    const size = Math.min(label.userData.labelSize * .65, distance * factor * 28, distance * factor * 200 / aspect);
+    label.scale.set(size * aspect, size, 1);
+    label.material.opacity = THREE.MathUtils.clamp((distance - 2.5) / 3, 0, 1);
+  }
+  renderer.render(scene, camera);
+}
+
 /* ---------- 主循環 ---------- */
 let paused = true, started = false, last = performance.now();
 function togglePause() {
@@ -2420,29 +2477,25 @@ function togglePause() {
   $("pause").style.display = paused && !dlgActive ? "flex" : "none";
   if (paused) $("pause").style.display = "flex"; else $("pause").style.display = "none";
 }
-$("btnStart").addEventListener("click", () => {
-  auInit(); sClick();
-  /* 載入狀態:53個V2 rig重幾何需時,即刻反饋唔畀玩家以為死機 */
-  const btn = $("btnStart");
-  btn.textContent = "⏳ 開工準備中…";
-  btn.style.pointerEvents = "none";
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    $("start").style.display = "none"; $("hud").style.display = "block";
-    started = true; paused = false;
-    nextMission();
-    say("陳判頭", ["阿明!你喺零碳天地做咩?即刻返嚟九龍灣地盤開工!",
-      "跟住黃色箭嘴行,唔好蕩失路!",
-      "提你:地盤入面有白帽安全主任巡緊,唔好俾佢捉到小辮子!"], null);
-  }));
-});
+function startGame() {
+  if (started || $("btnStart").disabled) return;
+  started = true; paused = false;
+  $("start").style.display = "none"; $("hud").style.display = "block";
+  nextMission();
+  say("老陳", ["阿明！到咗閘口喇。先報到、上安全堂，再量血壓同領PPE。", "跟住黃色箭嘴行，有問題搵地盤同事。", "安全第一，帽帶扣好先開工！"], null);
+  try { auInit(); sClick(); } catch (error) { console.warn('音效未能啟動，遊戲繼續', error); }
+}
+$("btnStart").addEventListener("pointerdown", startGame);
+$("btnStart").addEventListener("click", startGame);
 /* ========== 門禁系統(specs/門禁規格§2):狀態機+全周界守衛+閘機狀態牌 ========== */
 function accessState() {
-  if (player.registered && player.ppe) return { id: "admitted", name: "✅ 可入施工區", next: null };
-  if (player.registered) return { id: "ppewait", name: "🦺 PPE未齊", reason: "已過訓練+健康:去接待區裝備架領PPE(E)再入場", next: [SITE_ZONES[0].x, SITE_ZONES[0].z] };
-  if (M.data.quizDone && BP_STATE.lastFail) return { id: "docwait", name: "📄 文件待核實", reason: "血壓未合格:要醫生意見文件,搵安全部核實", next: [BP_POS[0], BP_POS[1]] };
+  if (player.admitted && player.registered && player.ppe) return { id: "admitted", name: "✅ 可入施工區", next: null };
+  if (player.registered && player.ppe) return { id:"ready", name:"拍卡入閘", reason:"訓練、健康及PPE已齊，到閘機按E拍卡", next:[GATE[0],GATE[1]] };
+  if (player.registered) return { id: "ppewait", name: "🦺 PPE未齊", reason: "已過訓練+健康:去接待區裝備架領PPE(E)再入場", next: [PPE_POS[0], PPE_POS[1]] };
+  if (M.data.quizDone && BP_STATE.lastFail) return { id: "healthretry", name: "🩺 健康檢查未合格", reason: "暫停入場，休息後返血壓站重試（遊戲節奏測試）", next: [BP_POS[0], BP_POS[1]] };
   if (M.data.quizDone) return { id: "healthwait", name: "🩺 健康待評估", reason: "已上堂,未量血壓:去血壓站(綠色箭嘴)", next: [BP_POS[0], BP_POS[1]] };
-  if (M.data.introDone) return { id: "trainwait", name: "📚 訓練待完成", reason: "未上安全訓練堂:去訓練室(跟任務箭嘴)", next: [GATE[0], GATE[1]] };
-  return { id: "unreg", name: "🚫 未登記", reason: "未完成入職:搵閘口陳判頭報到", next: [GATE[0], GATE[1]] };
+  if (M.data.introDone) return { id: "trainwait", name: "📚 訓練待完成", reason: "未上安全訓練堂:去訓練室(跟任務箭嘴)", next: [TRAIN_POS[0], TRAIN_POS[1]] };
+  return { id: "unreg", name: "🚫 未登記", reason: "未完成入職:搵閘口老陳報到", next: [GATE[0], GATE[1]] };
 }
 let _gateLabel = null, _gateLabelState = "";
 /* R8真閘機重建:有頂貨櫃通道+三棍轉閘+面容識別屏+行人通道黃牌(用戶實拍照) */
@@ -2464,7 +2517,7 @@ function buildGatehouse() {
   roof.position.y = 2.72; roof.castShadow = true; house.add(roof);
   const armM = new THREE.MeshLambertMaterial({ color: 0xb8bcc2 });
   for (let i = -1; i <= 1; i++) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(.55, 1.05, .5), new THREE.MeshLambertMaterial({ color: 0x1a1d22 }));
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.55, 1.05, .5), new THREE.MeshLambertMaterial({ color: 0xa9b0b8 }));
     post.position.set(i * 1.75, .52, 0); post.castShadow = true; house.add(post);
     for (const a of [0, 2.09, 4.19]) {
       const arm = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, 1.7, 6), armM);
@@ -2480,12 +2533,12 @@ function buildGatehouse() {
   }
   const sign = canvasTex(512, 128, g => { g.fillStyle = "#e8c020"; g.fillRect(0, 0, 512, 128); g.fillStyle = "#1c1c1c"; g.font = "900 52px 'Microsoft JhengHei',sans-serif"; g.textAlign = "center"; g.fillText("行人通道 請靠左", 256, 82); });
   const sp = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .85), new THREE.MeshBasicMaterial({ map: sign, side: THREE.DoubleSide }));
-  sp.position.set(0, 2.35, -4.35); house.add(sp);
+  sp.position.set(0, 2.35, -4.35); sp.rotation.y = Math.PI; house.add(sp);
   house.position.set(GATE[0], 0, GATE[1]);
-  house.rotation.y = -GATE_DIR_IN + Math.PI;
+  house.rotation.y = Math.PI / 2 - GATE_DIR_IN;
   scene.add(house);
-  colliders.push({ x: GATE[0] - pxv * 2.6, z: GATE[1] - pzv * 2.6, hw: .15 + 1.3, hd: .15 + 4, rot: -GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
-  colliders.push({ x: GATE[0] + pxv * 2.6, z: GATE[1] + pzv * 2.6, hw: .15 + 1.3, hd: .15 + 4, rot: -GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
+  colliders.push({ x: GATE[0] - pxv * 2.6, z: GATE[1] - pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
+  colliders.push({ x: GATE[0] + pxv * 2.6, z: GATE[1] + pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
 }
 function siteGuard() {
   buildGatehouse();
@@ -2519,6 +2572,7 @@ function stuckGuard(now) {
   }
 }
 /* ========== 30×30m精細區八分區(specs場景規格§3):色帶地坪+雙語告示牌+事件區域數據 ========== */
+const PPE_POS = [GATE[0] + Math.cos(GATE_OUT) * 12, GATE[1] + Math.sin(GATE_OUT) * 12];
 const SITE_ZONES = [];
 {
   const c = MAIN_SITE.c, gd = GATE_DIR_IN;
@@ -2565,7 +2619,7 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
   const e = mkEvent("ppe", "入場PPE檢查", SITE_ZONES[0], "啟德2022會議文件13A(項目設定)");
   const zp = SITE_ZONES[0];
   e.rack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, .5), new THREE.MeshLambertMaterial({ color: 0x2a6ad0 }));
-  e.rack.position.set(zp.x, .9, zp.z - zp.d / 2 + 1.5); e.rack.castShadow = true; scene.add(e.rack);
+  e.rack.position.set(PPE_POS[0], .9, PPE_POS[1]); e.rack.castShadow = true; scene.add(e.rack);
   e.label = makeSpriteLabel("🦺 領PPE(E)", "#8fd0ff", 3); e.label.position.set(0, 2.4, 0); e.rack.add(e.label);
   e.checkEnter = () => {
     if (!player.ppe) {
@@ -2632,12 +2686,14 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
   interactables.push({
     x: e.cover.position.x, z: e.cover.position.z, r: 2.5, label: "搬蓋板", active: true, mesh: e.cover,
     action: () => {
-      e.cover.position.set(PIT.x, .08, PIT.z); e.sign.visible = false;
+      if (PIT.covered) return;
+      PIT.covered = true;
+      e.cover.position.set(PIT.x, .08, PIT.z); e.cover.rotation.y = PIT.rot; e.sign.visible = false;
       e.state = "rectified"; sDing(); toast("✅ 蓋板已放好,等安全督導覆檢…");
       setTimeout(() => { e.state = "normal"; toast("✅ 覆檢通過:洞口防護恢復"); }, 4000);
     }
   });
-  e.tick = () => { if (e.state === "normal" && e.sign.visible === false) e.sign.visible = true; };
+  e.tick = () => { e.sign.visible = !PIT.covered; };
 }
 /* E5 物料通道:物料阻塞走廊→搬三堆回物料區(文件13G不安全擺放) */
 {
@@ -2651,6 +2707,8 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
     interactables.push({
       x: p.position.x, z: p.position.z, r: 2, label: "搬開", active: true, mesh: p,
       action: () => {
+        if (p.userData.moved) return;
+        p.userData.moved = true;
         p.position.set(zn.x + 4 + (i - 1) * 1.6, .45, zn.z + 3); sDing();
         e.moved = (e.moved || 0) + 1;
         if (e.moved >= 3) { e.state = "rectified"; toast("✅ 通道清空,等覆檢…"); setTimeout(() => { e.state = "normal"; toast("✅ 覆檢通過:物料通道恢復"); }, 3000); }
@@ -2687,12 +2745,13 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
 }
 function safetyTick(dt) { for (const e of EVENTS) if (e.tick) e.tick(dt); }
 function tick(dt, now) {
+  if (!started || paused || inductionMode) { renderScene(); return; }
   siteGuard();
   stuckGuard(now);
   safetyTick(dt);
   if (typeof sitePeopleTick === "function") sitePeopleTick(dt);
   try {
-    if (!started || paused) { renderer.render(scene, camera); return; }
+    if (!started || paused) { renderScene(); return; }
   if (dlgActive) { player.freeze = Math.max(player.freeze, .05); dlgTick(dt); }
   playerMove(dt);
   truckDrive(dt);
@@ -2718,7 +2777,7 @@ function tick(dt, now) {
   } else navArrow.visible = false;
   // 攝影機
   if (manualCamT > 0) manualCamT -= dt;
-  else if (player.speed > .5) camYaw = angLerp(camYaw, player.heading + Math.PI, dt * 1.8);
+  else if (player.speed > .5 && (player.inTruck || ((keys.KeyW || keys.ArrowUp) && !keys.KeyA && !keys.KeyD))) camYaw = angLerp(camYaw, player.heading + Math.PI, dt * 1.8);
   const eyeDist = player.inTruck ? camDist + 4 : camDist;
   const ex = player.x + Math.cos(camYaw) * eyeDist, ez = player.z + Math.sin(camYaw) * eyeDist;
   const ey = (player.inTruck ? 4.5 : 3.2) + (camDist - 8.5) * .5;
@@ -2727,21 +2786,21 @@ function tick(dt, now) {
   // 光源跟玩家
   sun.position.set(player.x - 140, 300, player.z + 50);
   sun.target.position.set(player.x, 0, player.z);
-  // 判頭望玩家
+  // 老陳望玩家
   boss.g.rotation.y = Math.atan2(player.z - boss.g.position.z, player.x - boss.g.position.x) - Math.PI / 2 + Math.PI;
   boss.animate(dt, 0);
   updateHUD(dt);
   drawMinimap();
   /* 安全獎:連續3分鐘零警告 */
-  if (player.warnings === 0 && player.stars === 0) {
+  if (player.registered && player.ppe && player.warnings === 0 && player.stars === 0) {
     player.streakT = (player.streakT || 0) + dt;
     if (player.streakT >= 180) {
       player.streakT = 0; player.wage += 50; player.safeAwards = (player.safeAwards || 0) + 1;
       toast("🏅 連續3分鐘零警告 · 安全獎 +$50"); sCash();
     }
   } else player.streakT = 0;
-  renderer.render(scene, camera);
-  } catch (err) { window.__errs.push("LOOP: " + String(err && err.stack || err).slice(0, 400)); renderer.render(scene, camera); }
+  renderScene();
+  } catch (err) { window.__errs.push("LOOP: " + String(err && err.stack || err).slice(0, 400)); renderScene(); }
 }
 window.__game = window.__game || {};
 window.__game.zones = SITE_ZONES; window.__game.zoneAt = zoneAt;
@@ -2758,6 +2817,7 @@ requestAnimationFrame(loop);
 camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
 window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started });
+window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 
 // Explicit local QA controls: exercise the same movement function at a fixed
@@ -2784,3 +2844,37 @@ if (new URLSearchParams(location.search).has('characterCheck')) {
   }
   document.body.append(panel);
 }
+
+// Explicit QA mode exposes real controls and read-only evidence; no teleport,
+// mission completion, health pass or currency mutation is provided here.
+if (new URLSearchParams(location.search).has('qa')) {
+  const panel = document.createElement('details'); panel.open = true;
+  panel.style.cssText = 'position:fixed;right:10px;top:220px;z-index:120;background:#10202fee;color:white;padding:10px;max-width:330px;font:12px monospace';
+  panel.innerHTML = '<summary>驗收工具 · 真實按鍵 / 無跳關</summary>';
+  const state = document.createElement('pre'); state.id = 'qa-state'; state.style.whiteSpace = 'pre-wrap';
+  const refresh = () => {
+    state.textContent = JSON.stringify({...window.__game.audit(), workers:undefined, events:undefined, player:[+player.x.toFixed(2),+player.z.toFixed(2)], target:M.target, cameraYaw:+camYaw.toFixed(3), near:nearestInteract()?.label, bp:BP_STATE.open?{pos:+BP_STATE.pos.toFixed(1),zone:BP_STATE.zone,hits:BP_STATE.hits}:null},null,1);
+  };
+  for (const [label,key] of [['W 行 1 秒','KeyW'],['S 行 1 秒','KeyS'],['A 行 1 秒','KeyA'],['D 行 1 秒','KeyD']]) {
+    const b=document.createElement('button');b.textContent=label;b.style.margin='3px';
+    b.onclick=()=>{keys[key]=true;setTimeout(()=>{keys[key]=false;refresh();},1000);};panel.append(b);
+  }
+  const e=document.createElement('button');e.textContent='E 互動';e.onclick=()=>{doInteract();refresh();};panel.append(e);
+  const download=document.createElement('button');download.textContent='下載驗收 JSON';download.onclick=()=>{
+    const blob=new Blob([JSON.stringify({capturedAt:new Date().toISOString(),...window.__game.audit()},null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='game-audit.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };panel.append(download,state);document.body.append(panel);setInterval(refresh,1000);refresh();
+}
+
+// Gate inspection uses the same admission state as the perimeter guard.
+interactables.push({x:GATE[0]+Math.cos(GATE_OUT)*4,z:GATE[1]+Math.sin(GATE_OUT)*4,r:4.5,label:"拍卡入閘",active:true,action:()=>{
+  inductionMode="gate";$("gatePanel").style.display="flex";
+  $("gateChecks").textContent = `入職訓練：${M.data.quizDone?"合格":"未完成"}\n健康檢查：${player.registered?"合格":"未完成／未合格"}\nPPE：${player.ppe?"齊備":"未領齊"}`;
+  $("gateScan").disabled=!(M.data.quizDone&&player.registered&&player.ppe);
+}});
+$("gateBack").onclick=()=>{inductionMode=null;$("gatePanel").style.display="none";};
+$("gateScan").onclick=()=>{
+  if(!(M.data.quizDone&&player.registered&&player.ppe))return;
+  player.admitted=true;setGateOpen(true);inductionMode=null;$("gatePanel").style.display="none";
+  toast("嘟！入閘核對通過，請沿行人通道入場。");
+};

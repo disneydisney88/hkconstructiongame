@@ -2,6 +2,8 @@ import { splitAndCap } from './mesh-repair.js';
 import * as THREE from 'three';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
+const preparedGeometry = new WeakMap();
+
 // Rebind the existing shape in its actual arms-down rest pose. The source FBX
 // shoulder joints are at hip height, so its bind skeleton/clips cannot be reused.
 export function createWorker(source, options) {
@@ -9,16 +11,7 @@ export function createWorker(source, options) {
   let original;
   source.traverse(o => { if (o.isSkinnedMesh && !original) original = o; });
   if (!original) throw new Error('Worker source has no skinned geometry');
-  let geo = original.geometry.clone();
-  geo.computeBoundingBox();
-  const box = geo.boundingBox;
-  const scale = 1.78 / (box.max.y - box.min.y);
-  geo.translate(-(box.min.x + box.max.x)/2, -box.min.y, -(box.min.z + box.max.z)/2);
-  geo.scale(scale, scale, scale);
-  geo.deleteAttribute('normal');
-  geo.deleteAttribute('skinIndex');geo.deleteAttribute('skinWeight');
-  geo=mergeVertices(geo,.00001);geo.computeVertexNormals();
-  geo=geo.toNonIndexed();
+  let geo;
   const bones=[], indices={}, rest={};
   const joint=(name,parent,x,y,z)=>{
     const b=new THREE.Bone(); b.name=name;
@@ -40,13 +33,29 @@ export function createWorker(source, options) {
     joint(s+'Shin',s+'Thigh',sign*.137,.46,-.045);
     joint(s+'Foot',s+'Shin',sign*.16,.10,-.07);
   }
-  const pos=geo.attributes.position;
-  const weights=new Float32Array(pos.count*4), skinIndices=new Uint16Array(pos.count*4);
-  const colors=new Float32Array(pos.count*3), regions=new Uint8Array(pos.count), splitDistance=new Float32Array(pos.count);
   const palette={skin:new THREE.Color('#c78e67'),shirt:new THREE.Color('#687078'),vest:new THREE.Color('#ed6810'),silver:new THREE.Color('#bec6c8'),pants:new THREE.Color('#192b49'),boots:new THREE.Color('#654933'),hat:new THREE.Color('#f5c522')};
   /* 帽色階級(項目設定):工人=黃帽,管理人=白帽;透過options.hatColor覆寫 */
   if(options&&options.hatColor)palette.hat=new THREE.Color(options.hatColor);
+  for (const part of ["skin","shirt","vest","pants","boots"]) if (options[part] !== undefined) palette[part] = new THREE.Color(options[part]);
   const smooth=(a,b,x)=>{let t=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
+  let cache = preparedGeometry.get(original.geometry);
+  if (!cache) { cache = new Map(); preparedGeometry.set(original.geometry, cache); }
+  const cacheKey = Object.values(palette).map(c => c.getHexString()).join(':');
+  if (cache.has(cacheKey)) geo = cache.get(cacheKey);
+  else {
+  geo = original.geometry.clone();
+  geo.computeBoundingBox();
+  const box = geo.boundingBox;
+  const scale = 1.78 / (box.max.y - box.min.y);
+  geo.translate(-(box.min.x + box.max.x)/2, -box.min.y, -(box.min.z + box.max.z)/2);
+  geo.scale(scale, scale, scale);
+  geo.deleteAttribute('normal');
+  geo.deleteAttribute('skinIndex');geo.deleteAttribute('skinWeight');
+  geo=mergeVertices(geo,.00001);geo.computeVertexNormals();
+  geo=geo.toNonIndexed();
+  const pos=geo.attributes.position;
+  const weights=new Float32Array(pos.count*4), skinIndices=new Uint16Array(pos.count*4);
+  const colors=new Float32Array(pos.count*3), regions=new Uint8Array(pos.count), splitDistance=new Float32Array(pos.count);
   const blend=(a,b,t)=>[[indices[a],1-t],[indices[b],t]];
   for(let i=0;i<pos.count;i++) {
     const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),ax=Math.abs(x),s=x>0?'left':'right';
@@ -127,9 +136,11 @@ export function createWorker(source, options) {
   geo.setAttribute('photoBlend',new THREE.Float32BufferAttribute(photoBlend,1));
   const repaired=splitAndCap(geo,splitDistance,count);
   geo.dispose();geo=repaired;
+  cache.set(cacheKey, geo);
+  }
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.82});
   // Front reference projection is explicitly a first pass, not a full UV atlas.
-  if(typeof document!=='undefined') {
+  if(typeof document!=='undefined' && options.photo !== false) {
     const photo=new THREE.TextureLoader().load('assets/worker/appearance-reference.png');
     photo.colorSpace=THREE.SRGBColorSpace;
     const rear=new THREE.TextureLoader().load('assets/worker/rear-reference-ai.png');
@@ -200,6 +211,7 @@ export function createWorker(source, options) {
   const buckle=new THREE.Mesh(new THREE.BoxGeometry(.014,.022,.007),new THREE.MeshStandardMaterial({color:'#22272b',roughness:.65}));
   buckle.position.set(.106,1.526,.065).sub(rest.head);buckle.rotation.z=-.4;bones[indices.head].add(buckle);
   const group=new THREE.Group();group.add(mesh);
+  if(options.female) group.scale.set(.96,.97,1);
   let phase=0,amount=0,runAmount=0;
   const set=(n,x=0,y=0,z=0)=>bones[indices[n]].rotation.set(x,y,z);
   const feet=[];
