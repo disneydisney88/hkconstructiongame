@@ -61,3 +61,9 @@
 2. 灰模截圖只覆蓋 truck 主鏡頭一個角度
 3. IAB tab 長時間後 renderer/rAF 會壞死(環境問題;boot 已不會因此掛死,會顯示可重試狀態)— 遊戲 loop 本身仍依賴 rAF,壞死 tab 內無法遊玩,需要重新載入
 4. 招牌/簾窗 variation 只做 hero 樓;其餘 3 棟維持 3 欄
+
+## 補充(用戶回報「工人前面錯色」)— 2026-10-03
+**Root cause**:worker-rig.js 相片投影用 `TextureLoader`(Image 載入),喺退化 IAB 環境靜默失敗/掛起 → shader sampler 黑色 → `mix()` 蓋過頂點色 → 工人前面全黑(頭盔係獨立 mesh 所以正常)。
+**決定性實驗**:暫時換走 onBeforeCompile 材質 → 玩家即刻正常(橙背心/藍褲/膚色),證明幾何頂點色健康、問題喺 shader 相片採樣。
+**修復(worker-rig.js)**:相片改 fetch→createImageBitmap(12s timeout+一次重試);初始白 1×1 + `uPhotoOK`/`uRearOK` uniform;成功先換真圖。shader:photo/rear mix 乘對應 OK flag;**uPhotoOK<0.5 時背心 overwrite 擴展到前面**(降級都有橙背心,唔會黑)。健康環境載入後效果同原本完全一致。
+**驗證**:player_fixed2.jpg — 玩家前面正確(橙背心/膚色手臂/藍褲/黃盔);regression:上車/開 8.1m/落車/NPC 車閘 ✓,0 console error。
