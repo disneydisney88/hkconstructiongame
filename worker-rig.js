@@ -152,6 +152,7 @@ export function createWorker(source, options) {
       uPhotoOK:{value:0}, uRearOK:{value:0}
     };
     const loadBmp=async url=>{
+      if(typeof location!=='undefined' && location.search.includes('photofail')) throw new Error('simulated photo fail (?photofail)');
       const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status+' '+url);
       const bmp=await createImageBitmap(await r.blob());
       const t=new THREE.Texture(bmp); t.colorSpace=THREE.SRGBColorSpace; t.needsUpdate=true; return t;

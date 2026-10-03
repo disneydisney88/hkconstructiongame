@@ -55,3 +55,12 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - 貨櫃門絞+角鑄件;載入系統hardening(fetch→parse/static import/parse timeout+降級/paint race)
 - 性能:median 16.7(平基線),draw calls 1063→450,tri −12%
 - 證據: qa-evidence/p10-1-correction/(before C1-5/after D1-7含灰模+UI minimal)
+
+## 2026-10-03 — P10.1R Visual rejection corrective pass
+- 工人黑面:相片投影降級修復驗證(4角度+photofail模擬,零黑面)
+- 泥頭車重造:香港cab-over比例/前單後雙胎/薄殼輪拱/斗底厚+肋+尾閘+液壓頂罐/底盤結構(灰模T1-T3+彩色T4)
+- 棚架重造:香港竹棚(密排全高竹杆+橫擔+斜撐+工作台+綠網層次+通道開口)
+- 車旁施工樓圍封:竹棚+連續圍街板(InstancedMesh+colliders同源)
+- 磚籠重造:卡板+168磚IM+角柱(啡色方盒消失)
+- 性能:median 16.7(iso)/33.2(NPC地板=基線行為);calls 1063→1384(來源已解釋);tri +4%
+- 證據: qa-evidence/p10-1R/(W1-W5/T1-T4/S1/B1)

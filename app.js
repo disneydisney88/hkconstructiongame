@@ -501,10 +501,114 @@ const colliders = []; // {x,z,hw,hd,rot,minx,maxx,minz,maxz}
     colliders.push({ x, z, hw, hd, rot, minx: x - ew, maxx: x + ew, minz: z - ed, maxz: z + ed });
   }
 }
+/* ========== P10.1R-D:香港竹棚 helper — 密排竹杆(帶微傾斜抖動)/橫擔/斜撐/工作台/綠網前後層次 ========== */
+function bambooScaffoldFaces(px, pz, w, d, h, liftH, opts = {}) {
+  const lift = liftH || 2.9;
+  const lifts = Math.max(2, Math.round(h / lift));
+  const H = lifts * lift;
+  const off = opts.offset ?? .8;
+  const bambooA = new THREE.MeshLambertMaterial({ color: 0xc9a96b });
+  const bambooB = new THREE.MeshLambertMaterial({ color: 0xb5924f });
+  const verts = [], ledgers = [], diags = [];
+  const faces = [
+    { x: px, z: pz - d / 2 - off, ax: 0, len: w },
+    { x: px, z: pz + d / 2 + off, ax: 0, len: w },
+    { x: px - w / 2 - off, z: pz, ax: 1, len: d },
+    { x: px + w / 2 + off, z: pz, ax: 1, len: d }
+  ];
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3(), E = new THREE.Euler(), UP = new THREE.Vector3(0, 1, 0);
+  const pushStd = (x, y, z, len, ax) => {
+    verts.push([x + rand(-.05, .05), y, z + rand(-.05, .05), len, ax === 0 ? rand(-.035, .035) : 0, ax === 1 ? rand(-.035, .035) : 0, Math.random() < .5 ? 0 : 1]);
+  };
+  for (const f of faces) {
+    const bays = Math.max(3, Math.round(f.len / 1.05));
+    const step = f.len / bays;
+    const dirX = f.ax === 0 ? 1 : 0, dirZ = f.ax === 0 ? 0 : 1;
+    for (let b = 0; b <= bays; b++) {
+      pushStd(f.x + dirX * (-f.len / 2 + b * step), H / 2, f.z + dirZ * (-f.len / 2 + b * step), H * 1.02, f.ax);
+    }
+    for (let lf = 0; lf <= lifts; lf++) {
+      ledgers.push([f.x, lf * lift + .06, f.z, f.len + .15, f.ax]);
+    }
+    for (let b = 0; b < bays; b += 3) for (let lf = 0; lf < lifts; lf++) {
+      const x0 = f.x + dirX * (-f.len / 2 + b * step), x1 = f.x + dirX * (-f.len / 2 + (b + 1) * step);
+      const z0 = f.z + dirZ * (-f.len / 2 + b * step), z1 = f.z + dirZ * (-f.len / 2 + (b + 1) * step);
+      const y0 = lf * lift, y1 = y0 + lift;
+      const flip = (b + lf) % 2 === 0 ? 1 : -1;
+      const dx = (x1 - x0) * flip, dy = y1 - y0, dz = (z1 - z0) * flip;
+      const L = Math.hypot(dx, dy, dz);
+      diags.push([(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, L, dx / L, dy / L, dz / L]);
+    }
+  }
+  const stdIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.042, .048, 1, 5, 1, true), bambooA, verts.length);
+  verts.forEach((v, i) => {
+    S.set(1, v[3], 1);
+    Q.setFromEuler(E.set(v[5], 0, v[4]));
+    P.set(v[0], v[1], v[2]); M.compose(P, Q, S); stdIM.setMatrixAt(i, M);
+  });
+  stdIM.castShadow = false; scene.add(stdIM);
+  const ledIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.05, .05, 1, 5, 1, true), bambooB, ledgers.length);
+  ledgers.forEach((l, i) => {
+    S.set(1, l[3], 1);
+    if (l[4] === 0) Q.setFromEuler(E.set(0, 0, Math.PI / 2)); else Q.setFromEuler(E.set(Math.PI / 2, 0, 0));
+    P.set(l[0], l[1], l[2]); M.compose(P, Q, S); ledIM.setMatrixAt(i, M);
+  });
+  scene.add(ledIM);
+  if (diags.length) {
+    const dgIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.035, .035, 1, 5, 1, true), bambooB, diags.length);
+    diags.forEach((dg, i) => {
+      S.set(1, dg[3], 1);
+      Q.setFromUnitVectors(UP, new THREE.Vector3(dg[4], dg[5], dg[6]).normalize());
+      P.set(dg[0], dg[1], dg[2]); M.compose(P, Q, S); dgIM.setMatrixAt(i, M);
+    });
+    scene.add(dgIM);
+  }
+  /* 綠網:每面獨立 plane,offset 喺杆件外 0.16(杆件前後層次),半透明 */
+  const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .5, side: THREE.DoubleSide, depthWrite: false });
+  for (let fi = 0; fi < faces.length; fi++) {
+    const f = faces[fi];
+    const alongX = f.ax === 0;
+    const mw = alongX ? f.len : .1, md = alongX ? .1 : f.len;
+    const nOff = off + .18;
+    const nx = f.x + (alongX ? 0 : (f.x > px ? nOff : -nOff));
+    const nz = f.z + (alongX ? (f.z > pz ? nOff : -nOff) : 0);
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(mw, H), netMat);
+    net.position.set(alongX ? f.x : nx, H / 2, alongX ? nz : f.z);
+    net.rotation.y = alongX ? 0 : Math.PI / 2;
+    scene.add(net);
+  }
+  return { lifts, H };
+}
+/* 工作台+踢腳板(指定面,每 lift 一塊) */
+function bambooPlatforms(px, pz, w, d, h, liftH, face = 0) {
+  const lift = liftH || 2.9;
+  const lifts = Math.max(2, Math.round(h / lift));
+  const off = .8;
+  const plankM = new THREE.MeshLambertMaterial({ color: 0x9a7a42 });
+  const faces = [
+    { x: px, z: pz - d / 2 - off, ax: 0, len: w, nx: 0, nz: -1 },
+    { x: px, z: pz + d / 2 + off, ax: 0, len: w, nx: 0, nz: 1 },
+    { x: px - w / 2 - off, z: pz, ax: 1, len: d, nx: -1, nz: 0 },
+    { x: px + w / 2 + off, z: pz, ax: 1, len: d, nx: 1, nz: 0 }
+  ];
+  const f = faces[face] || faces[0];
+  for (let lf = 1; lf <= lifts; lf++) {
+    const y = lf * lift - .12;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(f.ax === 0 ? f.len * .96 : .6, .05, f.ax === 0 ? .6 : f.len * .96), plankM);
+    plank.position.set(f.x - f.nx * .35, y, f.z - f.nz * .35);
+    plank.castShadow = true; scene.add(plank);
+    const toe = new THREE.Mesh(new THREE.BoxGeometry(f.ax === 0 ? f.len * .96 : .05, .14, f.ax === 0 ? .05 : f.len * .96), plankM);
+    toe.position.set(f.x + f.nx * .02, y + .1, f.z + f.nz * .02);
+    scene.add(toe);
+  }
+}
+
 /* 施工中樓宇:水泥框 + 綠網 + 塔吊感 */
 const craneSpots = [];
+const hWalls = [], hCaps = [], hPosts = []; /* P10.1R-E:demo zone 圍板 colliders+visual 同源 */
 {
   const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .88, side: THREE.DoubleSide });
+  /* P10.1R-E:demo zone 圍板牆/頂/post 收納入全域 InstancedMesh(draw-call guardrail) */
   for (const b of BUILDINGS) {
     if (b[6] !== 1) continue;
     const [x, z, hw, hd, rot, h0] = b;
@@ -512,11 +616,35 @@ const craneSpots = [];
     const g = new THREE.Group();
     const core = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, h, hd * 2), new THREE.MeshLambertMaterial({ color: 0xbcb6a8 }));
     core.position.y = h / 2; core.castShadow = true; core.receiveShadow = true; g.add(core);
-    const net = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.06, h * 1.08, hd * 2 * 1.06), netMat);
-    net.position.y = h / 2; g.add(net);
-    for (let lv = 1; lv < h / 3.2; lv++) { // 棚架橫桿
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.07, .12, hd * 2 * 1.07), new THREE.MeshLambertMaterial({ color: 0x7a6a3a }));
-      edge.position.y = lv * 3.2; g.add(edge);
+    const demo = d2(x, z, GATE[0], GATE[1]) < 130 * 130;
+    if (demo) {
+      /* P10.1R-D/E:demo zone 施工中樓宇 — 竹棚(杆件+綠網層次)+基座圍街板帶,唔再係綠色 grid 盒 */
+      bambooScaffoldFaces(x, z, hw * 2 + .9, hd * 2 + .9, h, 3.2, { offset: .55 });
+      const faces = [
+        { x: x, z: z - hd - .42, ax: 0, len: hw * 2 + 1 },
+        { x: x, z: z + hd + .42, ax: 0, len: hw * 2 + 1 },
+        { x: x - hw - .42, z: z, ax: 1, len: hd * 2 + 1 },
+        { x: x + hw + .42, z: z, ax: 1, len: hd * 2 + 1 }
+      ];
+      for (const f of faces) {
+        hWalls.push([f.x, f.z, f.ax === 0 ? f.len : .14, f.ax === 0 ? .14 : f.len]);
+        hCaps.push([f.x, f.z, f.ax === 0 ? f.len : .2, f.ax === 0 ? .2 : f.len]);
+        const nP = Math.max(2, Math.round(f.len / 3.6));
+        for (let pp = 0; pp <= nP; pp++) {
+          const t = -f.len / 2 + pp * (f.len / nP);
+          hPosts.push([f.ax === 0 ? f.x + t : f.x, f.ax === 0 ? f.z : f.z + t]);
+        }
+        /* 圍板碰撞(4 面薄牆) */
+        const ew = f.ax === 0 ? f.len / 2 : .1, ed = f.ax === 0 ? .1 : f.len / 2;
+        colliders.push({ x: f.x, z: f.z, hw: ew, hd: ed, rot: 0, minx: f.x - ew, maxx: f.x + ew, minz: f.z - ed, maxz: f.z + ed });
+      }
+    } else {
+      const net = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.06, h * 1.08, hd * 2 * 1.06), netMat);
+      net.position.y = h / 2; g.add(net);
+      for (let lv = 1; lv < h / 3.2; lv++) { // 棚架橫桿
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.07, .12, hd * 2 * 1.07), new THREE.MeshLambertMaterial({ color: 0x7a6a3a }));
+        edge.position.y = lv * 3.2; g.add(edge);
+      }
     }
     g.position.set(x, 0, z); g.rotation.y = -rot; scene.add(g);
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
@@ -524,6 +652,27 @@ const craneSpots = [];
     colliders.push({ x, z, hw, hd, rot, minx: x - ew, maxx: x + ew, minz: z - ed, maxz: z + ed });
   }
 }
+
+  {
+    const hoardM = new THREE.MeshLambertMaterial({ color: 0x2a7a4a });
+    const capM = new THREE.MeshLambertMaterial({ color: 0x1e5a3a });
+    const postM2 = new THREE.MeshLambertMaterial({ color: 0x3a4046 });
+    const mkIM = (geo, mat, list, fn) => {
+      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+      list.forEach((it, i) => { P.set(it[0], 0, it[1]); Q.identity(); S.set(1, 1, 1); const ex = fn(it); if (ex) { P.set(it[0], 0, it[1]); } M.compose(P, Q, S); im.setMatrixAt(i, M); });
+      scene.add(im); return im;
+    };
+    const wallIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 2.2, 1), hoardM, hWalls.length);
+    const capIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .1, 1), capM, hCaps.length);
+    const postIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.14, 2.4, .14), postM2, hPosts.length);
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
+    hWalls.forEach((w2, i) => { S.set(w2[2], 1, w2[3]); P.set(w2[0], 1.1, w2[1]); M.compose(P, Q, S); wallIM.setMatrixAt(i, M); });
+    hCaps.forEach((w2, i) => { S.set(w2[2], 1, w2[3]); P.set(w2[0], 2.25, w2[1]); M.compose(P, Q, S); capIM.setMatrixAt(i, M); });
+    hPosts.forEach((w2, i) => { S.set(1, 1, 1); P.set(w2[0], 1.2, w2[1]); M.compose(P, Q, S); postIM.setMatrixAt(i, M); });
+    wallIM.castShadow = true; postIM.castShadow = true;
+    scene.add(wallIM, capIM, postIM);
+  }
 
 /* ---------- 霓虹招牌 ---------- */
 {
@@ -1106,27 +1255,24 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
     }
     scene.add(rbIM);
   }
-  /* 竹棚(四邊) + 綠網 */
+  /* 竹棚(P10.1R-D 重造):密排竹杆+橫擔+斜撐+工作台+綠網層次+通道開口 */
   {
-    const poles = [];
-    for (let x = -W / 2; x <= W / 2 + .1; x += 2.5) { poles.push([cx + x, H / 2, cz - D / 2 - .8, 0]); poles.push([cx + x, H / 2, cz + D / 2 + .8, 0]); }
-    for (let z = -D / 2; z <= D / 2 + .1; z += 2.5) { poles.push([cx - W / 2 - .8, H / 2, cz + z, 1]); poles.push([cx + W / 2 + .8, H / 2, cz + z, 1]); }
-    for (let f = 0; f <= floors; f++) {
-      const y = f * floorH;
-      poles.push([cx, y, cz - D / 2 - .8, 2]); poles.push([cx, y, cz + D / 2 + .8, 2]);
-      poles.push([cx - W / 2 - .8, y, cz, 3]); poles.push([cx + W / 2 + .8, y, cz, 3]);
-    }
-    const bIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.06, .06, 1, 5), new THREE.MeshLambertMaterial({ color: 0xc8a86a }), poles.length);
-    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3(), E = new THREE.Euler();
-    poles.forEach((p, i) => {
-      if (p[3] === 0 || p[3] === 1) { S.set(1, H + 1, 1); Q.identity(); }
-      else if (p[3] === 2) { S.set(W + 2, 1, 1); Q.setFromEuler(E.set(0, 0, Math.PI / 2)); }
-      else { S.set(D + 2, 1, 1); Q.setFromEuler(E.set(Math.PI / 2, 0, 0)); }
-      P.set(p[0], p[1], p[2]); M.compose(P, Q, S); bIM.setMatrixAt(i, M);
-    });
-    scene.add(bIM);
-    const net = new THREE.Mesh(new THREE.BoxGeometry(W * 1.08, H * 1.04, D * 1.08), new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .8, side: THREE.DoubleSide }));
-    net.position.set(cx, H / 2, cz); scene.add(net);
+    bambooScaffoldFaces(cx, cz, W + 1.4, D + 1.4, H + .6, floorH, { offset: .8 });
+    bambooPlatforms(cx, cz, W + 1.4, D + 1.4, H + .6, floorH, 0);
+    /* 綠網:前後兩面 plane(留一面通道開口:前面分兩截留 1.4m 空位),左右兩面 */
+    const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .5, side: THREE.DoubleSide, depthWrite: false });
+    const off = .8 + .18, FW = W + 1.4, FD = D + 1.4;
+    const mkNet = (w2, h2, x2, z2, rotY2) => {
+      const net = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), netMat);
+      net.position.set(x2, h2 / 2, z2); net.rotation.y = rotY2; scene.add(net);
+      return net;
+    };
+    const openW = 1.5, openAt = cx - FW / 2 + 3; // 通道開口(前面偏左)
+    mkNet(openAt - openW / 2 - (cx - FW / 2), H, (cx - FW / 2 + openAt - openW / 2) / 2, cz - D / 2 - off, 0);
+    mkNet(cx + FW / 2 - (openAt + openW / 2), H, (openAt + openW / 2 + cx + FW / 2) / 2, cz - D / 2 - off, 0);
+    mkNet(FW, H, cx, cz + D / 2 + off, 0);
+    mkNet(FD, H, cx - FW / 2 - off, cz, Math.PI / 2);
+    mkNet(FD, H, cx + FW / 2 + off, cz, Math.PI / 2);
     /* 安全橫額掛棚 */
     const slogans = [["高高興興上班去 · 平平安安回家來", "#1a7a3a"], ["安全第一 · 零意外", "#c02525"]];
     for (let s = 0; s < 2; s++) {
@@ -1273,8 +1419,39 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
     const x = GATE[0] + Math.cos(GO3) * t + Math.cos(GO3 + pp) * side * 6.5;
     const z = GATE[1] + Math.sin(GO3) * t + Math.sin(GO3 + pp) * side * 6.5;
     if (i % 2) {
-      const cage = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1, 1.1), new THREE.MeshLambertMaterial({ color: 0xc07830 }));
-      cage.position.set(x, .5, z); cage.castShadow = true; scene.add(cage);
+      /* P10.1R-F:磚疊重造 — 卡板+實磚排列(色差)+四角鋼柱+頂帶,唔再係啡色方盒 */
+      const cageG = new THREE.Group();
+      const palM = new THREE.MeshLambertMaterial({ color: 0x7a5a32 });
+      for (const pz of [-.5, 0, .5]) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(1.35, .09, .16), palM);
+        slat.position.set(0, .065, pz); cageG.add(slat);
+      }
+      for (const px of [-.62, .62]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(.14, .09, 1.15), palM);
+        rail.position.set(px, .065, 0); cageG.add(rail);
+      }
+      const brickIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.21, .1, .1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .92 }), 168);
+      const c = new THREE.Color();
+      let bi = 0;
+      const M5 = new THREE.Matrix4(), Q5 = new THREE.Quaternion(), S5 = new THREE.Vector3(1, 1, 1), P5 = new THREE.Vector3();
+      for (let row = 0; row < 7; row++) for (let cx2 = 0; cx2 < 6; cx2++) for (let cz2 = 0; cz2 < 4; cz2++) {
+        c.setHSL(.05 + Math.random() * .02, .55 + Math.random() * .15, .3 + Math.random() * .12);
+        brickIM.setColorAt(bi, c);
+        Q5.identity(); P5.set(-.53 + cx2 * .213 + (row % 2) * .02, .17 + row * .105, -.35 + cz2 * .225 + (row % 2) * .015);
+        M5.compose(P5, Q5, S5); brickIM.setMatrixAt(bi, M5); bi++;
+      }
+      brickIM.castShadow = true; cageG.add(brickIM);
+      const postM = new THREE.MeshLambertMaterial({ color: 0x4a4f56 });
+      for (const [px, pz] of [[-.66, -.56], [-.66, .56], [.66, -.56], [.66, .56]]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.05, .06), postM);
+        post.position.set(px, .58, pz); post.castShadow = true; cageG.add(post);
+      }
+      for (const pz of [-.56, .56]) {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(1.38, .05, .05), postM);
+        strap.position.set(0, .92, pz); cageG.add(strap);
+      }
+      cageG.position.set(x, 0, z); cageG.rotation.y = rand(0, Math.PI);
+      scene.add(cageG);
     } else {
       const drum = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .95, 10), new THREE.MeshLambertMaterial({ color: 0x2a5ad0 }));
       drum.position.set(x, .48, z); drum.castShadow = true; scene.add(drum);
@@ -1283,135 +1460,160 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
 }
 
 /* 斗車(可駕駛) + NPC泥頭車 */
-/* P2:程序化高細節泥頭車(6輪3軸,介面不變:g/wheels/beacon/x/z/heading/v)
-   材質分層:車漆(Standard 低rough)/黑膠/金屬/玻璃;footprint 同舊版一致(長~5.4m 闊2.3m)唔影響碰撞/任務 */
+/* P10.1R-B:泥頭車重造 — 香港cab-over重型泥頭車比例
+   cab 闊2.35/高3.0、前軸單胎+後軸雙胎(duals)、薄殼輪拱、斗有底板厚/側肋/頂欄/尾閘/液壓頂罐
+   介面不變:g/wheels/beacon/x/z/heading/v */
 function makeTruck(x, z, rotY, color) {
   const g = new THREE.Group();
   const M = {
-    paint: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(rand(.86, 1)), roughness: .38, metalness: .15 }), /* P8f:每架車漆有微量差 */
-    paintDark: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.55), roughness: .5, metalness: .2 }),
-    rubber: new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: .95, metalness: 0 }),
+    paint: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(rand(.86, 1)), roughness: .35, metalness: .2 }),
+    paintDark: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.5), roughness: .55, metalness: .2 }),
+    rubber: new THREE.MeshStandardMaterial({ color: 0x141519, roughness: .96 }),
+    rubber2: new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: .9 }),
     metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: .35, metalness: .85 }),
-    darkMetal: new THREE.MeshStandardMaterial({ color: 0x3a3d44, roughness: .55, metalness: .7 }),
-    glass: new THREE.MeshStandardMaterial({ color: 0x9ac8e8, roughness: .12, metalness: .4, transparent: true, opacity: .72 }),
-    chrome: new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: .2, metalness: .95 }),
-    bed: new THREE.MeshStandardMaterial({ color: 0x4a4d55, roughness: .7, metalness: .35 }),
-    bedIn: new THREE.MeshStandardMaterial({ color: 0x2e3036, roughness: .9, metalness: .1 }),
+    darkMetal: new THREE.MeshStandardMaterial({ color: 0x33363c, roughness: .55, metalness: .7 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x8fb8d8, roughness: .1, metalness: .5, transparent: true, opacity: .68 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: .18, metalness: .95 }),
+    bed: new THREE.MeshStandardMaterial({ color: 0x51545c, roughness: .68, metalness: .4 }),
+    bedIn: new THREE.MeshStandardMaterial({ color: 0x2c2e34, roughness: .92, metalness: .1 }),
     stripe: new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: .5 }),
-    lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .7, roughness: .3 }),
-    red: new THREE.MeshStandardMaterial({ color: 0x992222, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
+    lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .75, roughness: .3 }),
+    red: new THREE.MeshStandardMaterial({ color: 0x9c1f1f, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
   };
-  const B = (w, h, d, mat, px, py, pz, cast = false) => { // P6:細件預設唔投影,大件明確開
+  const B = (w, h, d, mat, px, py, pz, cast = false) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
   };
-  /* --- 底盤 --- */
-  for (const s of [-1, 1]) B(5.0, .2, .12, M.darkMetal, -.2, .82, s * .45);
-  for (let i = 0; i < 5; i++) B(.14, .16, 1.0, M.darkMetal, 2.2 - i * 1.15, .82, 0);
-  /* 油缸+電池箱+排氣管 */
-  const tank = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1.15, 14), M.metal);
-  tank.rotation.x = Math.PI / 2; tank.position.set(1.0, .62, -.82); tank.castShadow = true; g.add(tank);
-  B(.9, .5, .42, M.darkMetal, 1.0, .6, .82);
-  const exh = new THREE.Mesh(new THREE.CylinderGeometry(.055, .055, 1.7, 8), M.chrome);
-  exh.position.set(.95, 1.85, -1.05); exh.castShadow = true; g.add(exh);
-  const exhTip = new THREE.Mesh(new THREE.CylinderGeometry(.075, .055, .16, 8), M.chrome);
-  exhTip.position.set(.95, 2.75, -1.05); g.add(exhTip);
-  /* --- 駕駛室(P10.1-D:斜擋風玻璃+A柱+上寬下窄 cab 輪廓+門縫門柄) --- */
-  B(1.5, .9, 2.2, M.paint, 1.7, 1.32, 0, true);            // cab 下段(腰線以下)
-  const cabUpper = B(1.5, .52, 2.0, M.paint, 1.62, 2.02, 0, true); // cab 上段(內收,形成層次)
+  const CYL = (r, len, mat, px, py, pz, axis, cast = false, seg = 14) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
+    if (axis === 'z') m.rotation.x = Math.PI / 2;
+    else if (axis === 'x') m.rotation.z = Math.PI / 2;
+    m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
+  };
+  /* --- 底盤:琵琶架+橫樑+軸殼+傳動軸+葉片彈簧hint --- */
+  for (const s of [-1, 1]) B(5.7, .24, .1, M.darkMetal, -.15, .8, s * .44, true);
+  for (let i = 0; i < 4; i++) B(.16, .2, .92, M.darkMetal, 2.35 - i * 1.5, .8, 0);
+  CYL(.11, 2.1, M.darkMetal, 1.95, .54, 0, 'z', true);
+  CYL(.13, 1.9, M.darkMetal, -1.45, .54, 0, 'z', true);
+  CYL(.06, 2.0, M.metal, .3, .62, 0, 'x');
+  CYL(.09, .5, M.darkMetal, -.75, .6, 0, 'x');
+  for (const [ax, az] of [[1.95, .95], [1.95, -.95], [-1.45, .95], [-1.45, -.95]])
+    B(.95, .07, .1, M.darkMetal, ax, .74, az);
+  CYL(.3, 1.2, M.metal, .55, .6, -.88, 'z', true);
+  B(.95, .55, .5, M.darkMetal, .55, .58, .86);
+  CYL(.06, 1.55, M.chrome, 1.18, 2.2, -1.16, 'y', true);
+  CYL(.085, .18, M.chrome, 1.18, 3.05, -1.16, 'y');
+  /* --- 駕駛室(cab-over 2.35闊×高3.0,大斜擋風+A柱+門+踏級+鏡) --- */
+  B(1.6, 1.42, 2.35, M.paint, 1.95, 1.66, 0, true);
+  B(1.52, .68, 2.26, M.paint, 1.9, 2.68, 0, true);
+  B(1.56, .16, 2.4, M.paintDark, 1.95, .88, 0, true);
+  const ws = B(.07, .88, 2.1, M.glass, 2.72, 2.62, 0, true);
+  ws.rotation.z = -.18;
   for (const s of [-1, 1]) {
-    const ap = B(.14, .62, .12, M.paint, 2.36, 1.95, s * .98, true); // A柱(斜面兩側)
-    ap.rotation.x = 0;
+    const ap = B(.16, .95, .16, M.paint, 2.68, 2.6, s * 1.1, true);
+    ap.rotation.z = -.18;
+    B(.72, .52, .06, M.glass, 2.02, 2.66, s * 1.14, false);
+    B(.78, .07, .08, M.paintDark, 2.02, 2.95, s * 1.13);
+    B(.025, .95, .04, M.darkMetal, 1.55, 1.62, s * 1.19, false);
+    B(.19, .045, .06, M.chrome, 1.82, 1.78, s * 1.2, false);
+    B(.45, .07, .8, M.darkMetal, 1.28, .58, s * .95);
+    B(.4, .07, .7, M.darkMetal, 1.42, .28, s * .95);
+    B(.5, .05, .05, M.darkMetal, 2.78, 2.85, s * 1.2);
+    B(.05, .3, .05, M.darkMetal, 2.98, 2.7, s * 1.38);
+    B(.05, .34, .22, M.chrome, 2.98, 2.44, s * 1.38, false);
+    B(.09, .07, .11, M.lamp, 2.52, 3.06, s * .62, false);
   }
-  const ws = B(.06, .78, 1.8, M.glass, 2.42, 1.95, 0); ws.rotation.z = -.24; // 擋風玻璃:更大更斜
-  B(.06, .1, 1.86, M.paintDark, 2.5, 2.36, 0);         // 玻璃頂框
+  B(.09, .07, .11, M.lamp, 2.52, 3.06, 0, false);
+  B(1.58, .1, 2.3, M.paintDark, 1.95, 2.37, 0);
+  B(1.5, .12, 2.28, M.paintDark, 2.62, 3.03, 0);
+  /* --- 前臉 --- */
+  B(.08, .6, 1.78, M.darkMetal, 2.78, 1.55, 0);
+  for (let i = 0; i < 4; i++) B(.05, .08, 1.66, M.chrome, 2.82, 1.36 + i * .13, 0, false);
+  B(.34, .44, 2.42, M.darkMetal, 2.86, .5, 0, true);
+  B(.04, .3, .5, M.stripe, 3.03, .5, 0, false);
   for (const s of [-1, 1]) {
-    B(.7, .5, .05, M.glass, 1.82, 2.02, s * 1.02, false);   // 側窗(上段內)
-    B(.74, .06, .07, M.paintDark, 1.82, 2.29, s * 1.04);    // 側窗框
-    B(.02, .42, .03, M.chrome, 2.28, 1.35, s * 1.11, false); // 門縫
-    B(.16, .04, .05, M.chrome, 2.05, 1.42, s * 1.13, false); // 門柄
+    B(.07, .22, .44, M.lamp, 2.84, .78, s * .95);
+    B(.06, .09, .14, M.lamp, 2.88, .38, s * 1.0, false);
   }
-  B(1.5, .1, 2.2, M.paintDark, 1.7, 2.3, 0);           // 遮陽簷
-  /* cab 前臉(P10.1-D):前後層次 — 格柵凹入+保險槓+頭燈+頂 marker 燈 */
-  B(.1, .62, 1.6, M.darkMetal, 2.5, 1.05, 0);          // 水箱罩
-  for (let i = 0; i < 3; i++) B(.04, .09, 1.5, M.chrome, 2.57, .9 + i * .18, 0, false); // 格柵橫條
-  B(.32, .38, 2.3, M.darkMetal, 2.6, .45, 0);          // 前防撞槓
+  /* --- 泥斗:底板厚+外肋+頂欄+尾閘+前擋+液壓頂罐 --- */
+  B(3.5, .16, 2.14, M.bedIn, -1.45, 1.05, 0, true);
   for (const s of [-1, 1]) {
-    B(.06, .2, .4, M.lamp, 2.62, .62, s * .8);         // 頭燈
-    B(.05, .07, .12, M.lamp, 2.55, 2.34, s * .75, false); // 頂 marker 燈
-    const arm = B(.56, .05, .05, M.darkMetal, 2.3, 2.28, s * 1.16);
-    B(.34, .24, .04, M.chrome, 2.45, 2.16, s * 1.3, false); // 倒後鏡
+    B(3.5, .92, .15, M.bed, -1.45, 1.58, s * 1.09, true);
+    B(3.4, .8, .05, M.bedIn, -1.45, 1.55, s * 1.0, false);
+    B(3.58, .1, .22, M.stripe, -1.45, 2.08, s * 1.09, true);
+    for (let i = 0; i < 6; i++) B(.1, .78, .09, M.paintDark, -2.95 + i * .66, 1.58, s * 1.2);
   }
-  /* --- 泥斗(開口 U 形,內外壁) — P10.1-D:斗側壁加厚+頂邊外翻+肋升級 --- */
-  B(3.3, .14, 2.2, M.bedIn, -1.05, .96, 0);            // 斗底(內面深色)
-  for (const s of [-1, 1]) {
-    B(3.3, .9, .16, M.bed, -1.05, 1.45, s * 1.06, true);      // 外側壁(加厚 .1→.16)
-    B(3.22, .8, .05, M.bedIn, -1.05, 1.43, s * .96, false);   // 內壁襯
-    B(3.42, .1, .2, M.stripe, -1.05, 1.95, s * 1.06);  // 頂部黃欄(外翻)
-    for (let i = 0; i < 5; i++) B(.12, .82, .1, M.paintDark, -2.5 + i * .72, 1.45, s * 1.17); // 外加勁肋(凸出更多)
-  }
-  B(.12, 1.0, 2.2, M.bed, .58, 1.42, 0);               // 前擋板
-  B(.12, .88, 2.1, M.bedIn, -.52, 1.42, 0, false);     // 前內襯
-  const gate = B(.1, .85, 2.1, M.bed, -2.88, 1.44, 0); // 尾門
-  B(.1, .12, 2.15, M.stripe, -2.9, 1.9, 0);            // 尾門黃欄
-  /* P8f:泥污 — 斗底外側/沙板/尾門下部嘅泥漬條 */
-  const mudM = new THREE.MeshStandardMaterial({ color: 0x4a3d2e, roughness: .98 });
-  for (const s of [-1, 1]) B(3.1, .3, .06, mudM, -1.05, .68, s * 1.11, false); 
-  B(.06, .3, 2.05, mudM, -2.94, .68, 0, false);
-  for (const s of [-1, 1]) B(1.6, .12, .04, mudM, -.45 + (s > 0 ? .8 : 0), 1.02, s * 1.13, false);
-  /* --- 車輪(24邊:P10.1-D 胎加闊 .42→.55,胎面塊狀;繞輪軸 z 滾動) --- */
+  B(.16, 1.42, 2.24, M.bed, .3, 1.72, 0, true);
+  B(.14, .34, 2.2, M.stripe, .3, 2.5, 0, true);
+  B(.1, .88, 2.08, M.bed, -3.14, 1.6, 0, true);
+  B(.1, .1, 2.12, M.stripe, -3.16, 2.08, 0);
+  for (const s of [-1, 1]) CYL(.04, .16, M.chrome, -3.2, 2.12, s * .7, 'y');
+  CYL(.09, .85, M.darkMetal, -.1, .92, 0, 'x', true);
+  const rod = CYL(.05, .75, M.chrome, .32, 1.06, 0, 'x');
+  rod.rotation.z = -.35;
+  /* --- 車輪:前單胎+後雙胎 --- */
   const wheels = [];
-  const mkWheel = (wx, side) => {
+  const mkWheel = (wx, wz, tw) => {
     const w = new THREE.Group();
-    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .55, 24), M.rubber);
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.54, .54, tw, 24), M.rubber);
     tyre.rotation.x = Math.PI / 2; tyre.castShadow = true; w.add(tyre);
-    // 胎面塊(tread blocks):8條沿圓周,膠色深淺唔同
-    for (let i = 0; i < 8; i++) {
-      const tb = new THREE.Mesh(new THREE.BoxGeometry(.56, .09, .13), i % 2 ? M.rubber : M.darkMetal);
-      const a = i / 8 * Math.PI * 2;
-      tb.position.set(Math.cos(a) * .53, Math.sin(a) * .53, 0); tb.rotation.z = a;
+    for (let i = 0; i < 10; i++) {
+      const tb = new THREE.Mesh(new THREE.BoxGeometry(.55, .1, .1), i % 2 ? M.rubber : M.rubber2);
+      const a = i / 10 * Math.PI * 2;
+      tb.position.set(Math.cos(a) * .5, Math.sin(a) * .5, 0); tb.rotation.z = a;
       w.add(tb);
     }
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(.31, .31, .56, 16), M.metal);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, tw + .02, 14), M.metal);
     rim.rotation.x = Math.PI / 2; w.add(rim);
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, .58, 10), M.chrome);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, tw + .06, 10), M.chrome);
     hub.rotation.x = Math.PI / 2; w.add(hub);
-    for (let i = 0; i < 5; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.02, .5, .08), M.metal); b.rotation.z = i * Math.PI / 2.5; b.position.x = side * .27; w.add(b); } // 輪輻
-    w.position.set(wx, .55, side * 1.02); g.add(w); wheels.push(w);
+    const spokeSide = wz >= 0 ? 1 : -1;
+    for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.02, .46, .07), M.darkMetal); b.rotation.z = i * Math.PI / 3; b.position.x = spokeSide * (tw / 2 + .01); w.add(b); }
+    w.position.set(wx, .54, wz); g.add(w); wheels.push(w);
   };
-  [[1.7, 1], [1.7, -1], [-.45, 1], [-.45, -1], [-1.65, 1], [-1.65, -1]].forEach(([wx, s]) => mkWheel(wx, s));
-  /* --- 沙板/擋泥板(P10.1-D:半徑加大包住厚胎) --- */
-  const fender = (fx, len) => { for (const s of [-1, 1]) {
-    const f = new THREE.Mesh(new THREE.CylinderGeometry(.82, .82, len, 12, 1, false, 0, Math.PI), M.darkMetal);
-    f.rotation.x = Math.PI / 2; f.rotation.y = Math.PI; f.position.set(fx, .78, s * 1.04); f.castShadow = true; g.add(f);
-  } };
-  fender(1.7, .68); fender(-1.05, 2.6);
+  mkWheel(1.95, 1.02, .42); mkWheel(1.95, -1.02, .42);
+  for (const s of [-1, 1]) { mkWheel(-1.45, s * .72, .34); mkWheel(-1.45, s * 1.14, .34); }
+  /* --- 薄殼輪拱(openEnded 殼,唔係實心半圓板) --- */
+  const guardMat = new THREE.MeshStandardMaterial({ color: 0x33363c, roughness: .55, metalness: .7, side: THREE.DoubleSide });
+  const guard = (fx, fz, len) => {
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.68, .68, len, 12, 1, true, 0, Math.PI), guardMat);
+    f.rotation.x = Math.PI / 2;
+    f.position.set(fx, .6, fz); f.castShadow = true; g.add(f);
+  };
+  guard(1.95, 1.02, .6); guard(1.95, -1.02, .6);
+  guard(-1.45, .93, 1.05); guard(-1.45, -.93, 1.05);
+  for (const s of [-1, 1]) B(.05, .55, .5, M.rubber, -2.2, .38, s * .93, false);
   /* --- 車尾 --- */
   for (const s of [-1, 1]) {
-    B(.08, .22, .3, M.red, -2.93, 1.0, s * .85);       // 尾燈
-    B(.5, .55, .04, M.rubber, -3.0, .35, s * .98, false); // 擋泥膠簾
+    B(.08, .24, .32, M.red, -3.16, .95, s * .8);
+    B(.06, .3, .1, M.red, -3.16, .72, s * .55, false);
   }
+  B(.08, .1, 1.7, M.darkMetal, -3.05, .55, 0);
   /* --- 警示燈(介面保留) --- */
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
-  beacon.position.set(1.7, 2.42, 0); g.add(beacon);
-  B(.3, .1, .3, M.stripe, 1.7, 2.32, 0);               // 燈座
-  /* P6:LOD — LOD0 高細節(0m) / LOD1 積木版(70m) / LOD2 剪影(170m) */
+  beacon.position.set(1.9, 3.2, 0); g.add(beacon);
+  B(.34, .1, .34, M.stripe, 1.9, 3.08, 0);
+  const mudM = new THREE.MeshStandardMaterial({ color: 0x453a2c, roughness: .98 });
+  for (const s of [-1, 1]) B(3.3, .32, .07, mudM, -1.45, .72, s * 1.14, false);
+  B(.07, .34, 2.0, mudM, -3.18, .72, 0, false);
+  /* P6:LOD — 輪廓跟新版 */
   const lod = new THREE.LOD();
   lod.addLevel(g, 0);
   const g1 = new THREE.Group();
   const lam = new THREE.MeshLambertMaterial({ color });
-  const cab1 = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), lam); cab1.position.set(1.7, 1.45, 0); g1.add(cab1);
-  const bed1 = new THREE.Mesh(new THREE.BoxGeometry(3.3, 1, 2.1), new THREE.MeshLambertMaterial({ color: 0x5c5c66 })); bed1.position.set(-1.05, 1.3, 0); g1.add(bed1);
-  const wg1 = new THREE.CylinderGeometry(.55, .55, .4, 10); wg1.rotateX(Math.PI / 2);
+  const cab1 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.1, 2.32), lam); cab1.position.set(2.0, 1.95, 0); g1.add(cab1);
+  const bed1 = new THREE.Mesh(new THREE.BoxGeometry(3.55, 1.0, 2.2), new THREE.MeshLambertMaterial({ color: 0x5c5c66 })); bed1.position.set(-1.45, 1.55, 0); g1.add(bed1);
+  const wg1 = new THREE.CylinderGeometry(.54, .54, .42, 10); wg1.rotateX(Math.PI / 2);
   const wm1 = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-  [[1.7, 1], [1.7, -1], [-.45, 1], [-.45, -1], [-1.65, 1], [-1.65, -1]].forEach(([wx, s]) => { const w = new THREE.Mesh(wg1, wm1); w.position.set(wx, .55, s * 1.02); g1.add(w); });
+  [[1.95, 1.02], [1.95, -1.02], [-1.45, 1.02], [-1.45, -1.02], [-1.45, .62], [-1.45, -.62]].forEach(([wx, wz]) => { const w = new THREE.Mesh(wg1, wm1); w.position.set(wx, .54, wz); g1.add(w); });
   lod.addLevel(g1, 70);
   const g2 = new THREE.Group();
-  const s2 = new THREE.Mesh(new THREE.BoxGeometry(5.4, 1.8, 2.2), new THREE.MeshLambertMaterial({ color })); s2.position.set(-.2, 1.1, 0); g2.add(s2);
+  const s2 = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.5, 2.3), new THREE.MeshLambertMaterial({ color })); s2.position.set(-.1, 1.45, 0); g2.add(s2);
   lod.addLevel(g2, 170);
   lod.position.set(x, 0, z); lod.rotation.y = rotY; scene.add(lod);
   return { g: lod, wheels, beacon, x, z, heading: rotY, v: 0 };
 }
+
 const playerTruck = makeTruck(OFFICE[0] + Math.cos(GATE_DIR_IN) * 16, OFFICE[1] + Math.sin(GATE_DIR_IN) * 16, GATE_DIR_IN + Math.PI / 2, 0x3a8a4a);
 /* NPC 泥頭車:繞圈 + 倒車入地盤 */
 const npcTruck = makeTruck(0, 0, 0, 0x8a3a3a);
