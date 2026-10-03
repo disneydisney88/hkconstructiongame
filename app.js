@@ -820,6 +820,16 @@ function buildHoarding(zone, openings) {
     P.set(p[0], 1.15, p[1]); M.compose(P, Q, S); im.setMatrixAt(i, M);
   });
   im.castShadow = true; im.receiveShadow = true; scene.add(im);
+  /* P10.2:雨痕變化 — 約1/8板用深色共享材質(修補/污漬 variation),唔逐板開新材質 */
+  const fixMat = new THREE.MeshLambertMaterial({ color: 0x23623e });
+  const fixIdx = panels.map((_, i) => i).filter(i => i % 7 === 3);
+  const fixIM = new THREE.InstancedMesh(geo, fixMat, fixIdx.length);
+  fixIdx.forEach((pi, k) => {
+    const p = panels[pi];
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 1.15, p[1]); M.compose(P, Q, S); fixIM.setMatrixAt(k, M);
+  });
+  scene.add(fixIM);
   // P8b:立柱(深色金屬)+壓頂(同板數)+基座
   const postIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.16, 2.55, .16), new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: .5, metalness: .6 }), posts.length);
   posts.forEach((p, i) => {
@@ -844,7 +854,7 @@ function buildHoarding(zone, openings) {
 buildHoarding(MAIN_SITE, MAIN_OPENINGS);
 buildHoarding(SITE2, SITE2_OPENINGS);
 
-/* 水馬(可以撞跌) */
+/* 水馬(可以撞跌)— P10.1 重造:真實梯形水馬輪廓(上窄下闊)+白反光帶+凹手位 */
 const barrier = { mesh: null, state: [], anim: [] };
 {
   const spots = [];
@@ -853,29 +863,41 @@ const barrier = { mesh: null, state: [], anim: [] };
   addRow(GATE[0] - Math.cos(GATE_DIR_IN) * 3.5 - Math.cos(GATE_DIR_IN + Math.PI / 2) * 7.6, GATE[1] - Math.sin(GATE_DIR_IN) * 3.5 - Math.sin(GATE_DIR_IN + Math.PI / 2) * 7.6, GATE_DIR_IN + Math.PI / 2, 4);
   const rp = nearestRoadPt(MAIN_SITE.c[0], MAIN_SITE.c[1]);
   if (rp) addRow(rp[0], rp[1], 0.4, 5);
-  const geo = new THREE.BoxGeometry(1.8, 1.05, .55);
-  const mat = new THREE.MeshLambertMaterial({ color 	: 0xff8c1a });
-  barrier.mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+  /* 梯形輪廓:P10.1 改 InstancedMesh(3 個 instanced 部件,共用 state)— clone group 27×3 mesh 令 draw call 惡化 */
+  const bodyM = new THREE.MeshLambertMaterial({ color: 0xff8c1a });
+  const bandM = new THREE.MeshLambertMaterial({ color: 0xf2f2ee });
+  const N = spots.length;
+  const mkIM = (w, h, d, mat, y) => {
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(w, h, d), mat, N);
+    im.castShadow = true; scene.add(im); return im;
+  };
+  barrier.ims = [
+    { im: mkIM(1.72, .55, .55, bodyM, .275), ly: .275 },
+    { im: mkIM(1.5, .55, .35, bodyM, .825), ly: .825 },
+    { im: mkIM(1.56, .18, .42, bandM, .82), ly: .82 }
+  ];
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
-  spots.forEach((s, i) => {
-    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -s[2]); P.set(s[0], .55, s[1]);
-    M.compose(P, Q, S); barrier.mesh.setMatrixAt(i, M);
-    barrier.state.push({ x: s[0], z: s[1], rot: s[2], vx: 0, vz: 0, spin: 0, y: .55, fly: false });
-  });
-  barrier.mesh.castShadow = true; scene.add(barrier.mesh);
+  barrier.state = spots.map(s => ({ x: s[0], z: s[1], rot: s[2], vx: 0, vz: 0, spin: 0, y: .55, fly: false }));
+  barrier.ims.forEach(({ im, ly }) => barrier.state.forEach((s, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -s.rot);
+    P.set(s.x, ly, s.z); M.compose(P, Q, S); im.setMatrixAt(i, M);
+  }));
 }
 function updateBarriers(dt) {
-  let dirty = false;
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+  let dirty = false;
   for (let i = 0; i < barrier.state.length; i++) {
     const b = barrier.state[i];
     if (!b.fly) continue;
     b.x += b.vx * dt; b.z += b.vz * dt; b.y += 2.2 * dt; b.vz -= 9.8 * dt * .35; b.rot += b.spin * dt;
     if (b.y <= .55) { b.y = .55; b.fly = false; }
-    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -b.rot); P.set(b.x, b.y, b.z);
-    M.compose(P, Q, S); barrier.mesh.setMatrixAt(i, M); dirty = true;
+    barrier.ims.forEach(({ im, ly }) => {
+      Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -b.rot);
+      P.set(b.x, ly + (b.y - .55), b.z); M.compose(P, Q, S); im.setMatrixAt(i, M);
+    });
+    dirty = true;
   }
-  if (dirty) barrier.mesh.instanceMatrix.needsUpdate = true;
+  if (dirty) barrier.ims.forEach(({ im }) => im.instanceMatrix.needsUpdate = true);
 }
 
 /* 貨櫃(寫字樓/儲物) */
@@ -883,8 +905,20 @@ function makeContainer(x, z, rotY, color, label) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.6, 2.44), new THREE.MeshLambertMaterial({ color }));
   body.position.y = 1.3; body.castShadow = true; body.receiveShadow = true; g.add(body);
-  const rib = new THREE.Mesh(new THREE.BoxGeometry(6.14, 2.6, 2.3), new THREE.MeshLambertMaterial({ color: 0x000000, wireframe: false }));
-  g.add(rib); rib.visible = false;
+  /* P10.1:瓦楞肋(側面凹槽)+角柱+門縫 — 共享材質,唔再用無 rib 嘅實心盒 */
+  const darker = new THREE.Color(color).multiplyScalar(.82);
+  const ribM = new THREE.MeshLambertMaterial({ color: darker });
+  const sideOfs = 1.23;
+  for (const s of [-1, 1]) for (let i = 0; i < 9; i++) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(.08, 2.55, .05), ribM);
+    r.position.set(-2.75 + i * .69, 1.3, s * sideOfs); g.add(r);
+  }
+  for (const [cx, cz] of [[-2.95, -1.15], [-2.95, 1.15], [2.95, -1.15], [2.95, 1.15]]) {
+    const corner = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.66, .18), ribM);
+    corner.position.set(cx, 1.33, cz); g.add(corner);
+  }
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(.02, 2.5, .04), new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+  seam.position.set(0, 1.3, sideOfs + .02); g.add(seam);
   if (label) {
     const p = textPill(label, "#ffffff", "rgba(28,60,120,.88)", "rgba(255,255,255,.5)");
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: p.tex, transparent: true }));
@@ -1522,13 +1556,13 @@ function setMarker(x, z) {
   if (x === null) { marker.visible = false; M.target = null; return; }
   M.target = [x, z]; marker.visible = true; marker.position.set(x, 8, z);
 }
-/* 任務旗幟 + 箭嘴 */
+/* 任務旗幟 + 箭嘴 — P10.5:halo 縮細+低透明(低調 world marker,唔蓋場景) */
 const marker = new THREE.Group();
 {
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 16, 20, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: .3, side: THREE.DoubleSide }));
-  cyl.position.y = 8; marker.add(cyl);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.8, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: .7, side: THREE.DoubleSide }));
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 14, 18, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: .14, side: THREE.DoubleSide, depthWrite: false }));
+  cyl.position.y = 7; marker.add(cyl);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.9, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: .38, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .15; marker.add(ring);
   marker.userData.ring = ring;
 }
@@ -2676,10 +2710,12 @@ function renderScene() {
   if (!(window.__iso && window.__iso.labels)) for (const label of worldLabels) { // P9.3 隔離開關
     label.getWorldPosition(pos);
     const distance = camera.position.distanceTo(pos);
+    /* P10.5:標籤距離裁剪 — >32m 淡出,>42m 隱藏;近距離先顯示 */
+    if (distance > 32) { label.material.opacity = Math.max(0, 1 - (distance - 32) / 10); if (distance > 42) { label.material.opacity = 0; continue; } }
+    else label.material.opacity = THREE.MathUtils.clamp((distance - 2.5) / 3, 0, 1);
     const aspect = label.userData.labelAspect;
     const size = Math.min(label.userData.labelSize * .65, distance * factor * 28, distance * factor * 200 / aspect);
     label.scale.set(size * aspect, size, 1);
-    label.material.opacity = THREE.MathUtils.clamp((distance - 2.5) / 3, 0, 1);
   }
   renderer.render(scene, camera);
 }
@@ -2730,12 +2766,29 @@ function buildGatehouse() {
   }
   const roof = new THREE.Mesh(new THREE.BoxGeometry(5.6, .18, 8.6), wallM);
   roof.position.y = 2.72; roof.castShadow = true; house.add(roof);
+  /* P10.2:結構柱+屋簷邊(drip edge) */
+  for (const [sx, sz] of [[-2.6, -3.9], [-2.6, 3.9], [2.6, -3.9], [2.6, 3.9]]) {
+    const col = new THREE.Mesh(new THREE.BoxGeometry(.24, 2.6, .24), new THREE.MeshLambertMaterial({ color: 0x8a9096 }));
+    col.position.set(sx, 1.3, sz); col.castShadow = true; house.add(col);
+  }
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(5.8, .12, .22), blueM);
+  edge.position.set(0, 2.66, 4.32); house.add(edge);
+  const edge2 = edge.clone(); edge2.position.z = -4.32; house.add(edge2);
   const armM = new THREE.MeshLambertMaterial({ color: 0xb8bcc2 });
   for (let i = -1; i <= 1; i++) {
+    /* P10.1:stainless steel housing(圓角柱身)+底座plate+頂蓋,唔再係裸方柱 */
+    const steelM = new THREE.MeshStandardMaterial({ color: 0xb9bfc6, roughness: .28, metalness: .85 });
+    const darkM = new THREE.MeshStandardMaterial({ color: 0x2a2d32, roughness: .5, metalness: .4 });
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(.24, .26, 1.1, 12), steelM);
+    housing.position.set(i * 1.75, .55, 0); housing.castShadow = true; house.add(housing);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(.26, .24, .12, 12), darkM);
+    top.position.set(i * 1.75, 1.16, 0); house.add(top);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(.66, .06, .6), darkM);
+    base.position.set(i * 1.75, .03, 0); house.add(base);
     const post = new THREE.Mesh(new THREE.BoxGeometry(.55, 1.05, .5), new THREE.MeshLambertMaterial({ color: 0xa9b0b8 }));
-    post.position.set(i * 1.75, .52, 0); post.castShadow = true; house.add(post);
+    post.visible = false; house.add(post); // 舊方柱停用(保留結構避免index依賴)
     for (const a of [0, 2.09, 4.19]) {
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, 1.7, 6), armM);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, 1.7, 8), armM);
       arm.rotation.z = Math.PI / 2; arm.rotation.y = a;
       arm.position.set(i * 1.75, 1.02, 0); house.add(arm);
     }
@@ -2918,12 +2971,30 @@ function buildDemoStreet() {
     const gr = new THREE.Mesh(new THREE.BoxGeometry(.9, .05, .5), mhMat);
     gr.rotation.y = rotY + Math.PI / 2; gr.position.set(qx - nx * (swW + .2), .12, qz - nz * (swW + .2)); scene.add(gr);
   }
-  /* 班馬線(連接行人路↔行人閘) */
+  /* 班馬線(連接行人路↔行人閘) — P10.4:斑紋有厚度貼地 */
   {
     const gx0 = ped.x - nx * (gap + 1.2), gz0 = ped.z - nz * (gap + 1.2);
-    const stripeG = new THREE.PlaneGeometry(3.2, .55), stripeM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: .7 });
+    const stripeG = new THREE.BoxGeometry(3.2, .02, .55), stripeM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: .7 });
     const nSt = 7;
-    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.x = -Math.PI / 2; s.rotation.z = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .108, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
+    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.y = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .105, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
+  }
+  /* P10.4:行人路混凝土接縫線(每3m)+閘前輪胎帶泥(只喺車閘口兩側,有邏輯位置) */
+  {
+    const jointM = new THREE.MeshStandardMaterial({ color: 0x8f8b83, roughness: .95 });
+    const nJ = Math.floor(len / 3);
+    for (let i = 1; i < nJ; i++) {
+      const [qx, qz] = P(tA + i * 3);
+      const j = new THREE.Mesh(new THREE.BoxGeometry(.025, .012, swW - .1), jointM);
+      j.rotation.y = rotY + Math.PI / 2;
+      j.position.set(qx - nx * (swW / 2), .162, qz - nz * (swW / 2)); scene.add(j);
+    }
+    const dirtM = new THREE.MeshStandardMaterial({ color: 0x5a4a34, roughness: .99, transparent: true, opacity: .55 });
+    for (const s of [-1, 1]) {
+      const [vx2, vz2] = [veh.x + ux * (s > 0 ? 3 : -3), veh.z + uz * (s > 0 ? 3 : -3)];
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.4), dirtM);
+      d.rotation.x = -Math.PI / 2; d.rotation.z = rotY + Math.PI / 2;
+      d.position.set(vx2 + nx * (gap - 1), .106, vz2 + nz * (gap - 1)); scene.add(d);
+    }
   }
   /* 閘內:卸貨區+車道分隔(黃黑 hazard 邊+地面標線) */
   {
@@ -2989,6 +3060,96 @@ function buildDemoStreet() {
   scene.add(winIM, frameIM, acIM);
 }
 buildDemoStreet();
+
+/* ========== P10.3:左側近景 façade attachment(閘口視野內樓宇加深度,唔換 base box) ========== */
+{
+  /* 揾出閘口前 ~70m 視錐內、離閘 <90m 嘅樓(用 BUILDINGS OBB centre),加:
+     window frame recess(InstancedMesh)、AC 機、外露水管、地下舖面/招牌、天台邊 */
+  const near = [];
+  for (const b of BUILDINGS) {
+    const [bx, bz, bhw, bhd, brot, bh] = b;
+    if (b[6] === 1) continue; // 排除特別類別
+    const d = d2(bx, bz, GATE[0], GATE[1]);
+    if (d < 90 * 90 && Math.max(bhw, bhd) * 2 > 8) near.push({ cx: bx, cz: bz, w: bhw * 2, d: bhd * 2, h: bh });
+  }
+  const pick = near.sort((a, b) => d2(a.cx, a.cz, GATE[0], GATE[1]) - d2(b.cx, b.cz, GATE[0], GATE[1])).slice(0, 4);
+  const winIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.3, 1.1, .12), new THREE.MeshStandardMaterial({ color: 0x3a4854, roughness: .18, metalness: .55 }), 220);
+  const frIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 1.28, .1), new THREE.MeshStandardMaterial({ color: 0xd4cec0, roughness: .75 }), 220);
+  const acIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.75, .5, .45), new THREE.MeshStandardMaterial({ color: 0xdcdcd6, roughness: .82 }), 40);
+  const pipeIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .07, 3, 6), new THREE.MeshStandardMaterial({ color: 0x8a8578, roughness: .8 }), 36);
+  let wi = 0, ai = 0, pi = 0;
+  const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(1, 1, 1), P4 = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  for (const b of pick) {
+    // 揾最接近閘口嘅立面軸向
+    const faceX = Math.abs(b.cx - GATE[0]) > Math.abs(b.cz - GATE[1]);
+    const dir = faceX ? [Math.sign(GATE[0] - b.cx) || 1, 0] : [0, Math.sign(GATE[1] - b.cz) || 1];
+    const ry = faceX ? (dir[0] > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir[1] > 0 ? 0 : Math.PI);
+    const fx = b.cx + dir[0] * (faceX ? b.w / 2 : 0), fz = b.cz + dir[1] * (faceX ? 0 : b.d / 2);
+    const ux2 = faceX ? 0 : 1, uz2 = faceX ? 1 : 0; // 沿立面
+    const half = (faceX ? b.d : b.w) / 2 - 2;
+    const floors = Math.max(3, Math.min(10, Math.floor(b.h / 3.1)));
+    for (let f = 1; f <= floors; f++) for (let k = -1; k <= 1; k++) {
+      if (wi >= 218) break;
+      const off = k * 2.7;
+      const wx = fx + ux2 * off + dir[0] * .12, wz = fz + uz2 * off + dir[1] * .12;
+      Q4.setFromAxisAngle(UP, ry); P4.set(wx, f * 3.1 - .4, wz); M4.compose(P4, Q4, S4);
+      frIM.setMatrixAt(wi, M4);
+      P4.set(wx + dir[0] * .1, f * 3.1 - .4, wz + dir[1] * .1); M4.compose(P4, Q4, S4);
+      winIM.setMatrixAt(wi, M4); wi++;
+      if (f % 2 === 0 && k === 0 && ai < 39) { P4.set(wx + dir[0] * .55, f * 3.1 - .9, wz + dir[1] * .55); M4.compose(P4, Q4, S4); acIM.setMatrixAt(ai, M4); ai++; }
+    }
+    // 外露水管(角落兩條)
+    for (const s of [-1, 1]) {
+      if (pi >= 35) break;
+      const px = fx + ux2 * s * (half + .5) + dir[0] * .18, pz = fz + uz2 * s * (half + .5) + dir[1] * .18;
+      Q4.setFromAxisAngle(UP, ry); P4.set(px, (floors * 3.1) / 2, pz); M4.compose(P4, Q4, S4); pipeIM.setMatrixAt(pi, M4); pi++;
+    }
+    // 地下舖面+簷篷+招牌板
+    const gr = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .3 : Math.min(9, b.w * .7), 2.8, faceX ? Math.min(9, b.d * .7) : .3), new THREE.MeshStandardMaterial({ color: 0x303840, roughness: .25, metalness: .4 }));
+    gr.position.set(fx + dir[0] * .1, 1.45, fz + dir[1] * .1); scene.add(gr);
+    const can = new THREE.Mesh(new THREE.BoxGeometry(faceX ? 1.5 : Math.min(9, b.w * .72), .16, faceX ? Math.min(9, b.d * .72) : 1.5), new THREE.MeshStandardMaterial({ color: 0x6a2a24, roughness: .8 }));
+    can.position.set(fx + dir[0] * .8, 3.1, fz + dir[1] * .8); can.castShadow = true; scene.add(can);
+    // 天台邊欄
+    const par = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .2 : b.w, .8, faceX ? b.d : .2), new THREE.MeshStandardMaterial({ color: 0x9a9488, roughness: .85 }));
+    par.position.set(fx - dir[0] * .1, b.h + .4, fz - dir[1] * .1); scene.add(par);
+  }
+  winIM.count = wi; frIM.count = wi; acIM.count = ai; pipeIM.count = pi;
+  scene.add(winIM, frIM, acIM, pipeIM);
+}
+
+/* ========== P10.6:實體告示牌(有支架/厚度/位置理由,原創 generic 香港地盤風格) ========== */
+{
+  const signDefs = [
+    { txt: "進入地盤\n必須佩戴安全帽", sub: "WEAR SAFETY HELMET", bg: "#1a5aa8", pos: [ped => [ped.x + 2.2, ped.z - 3.2]], h: 1.6 },
+    { txt: "行人通道\n請靠左", sub: "KEEP LEFT", bg: "#c8a018", pos: [ped => [ped.x - 2.4, ped.z - 2.6]], h: 1.4 },
+    { txt: "車輛出入口\n慢駛 · 倒車響號", sub: "VEHICLES SLOW", bg: "#b03028", pos: [veh => [veh.x - 5.6, veh.z + 3.4]], h: 1.6 },
+    { txt: "地盤重地\n閒人免進", sub: "AUTHORISED PERSONNEL ONLY", bg: "#2a7a3a", pos: [() => [GATE[0] + Math.cos(GATE_DIR_IN + Math.PI / 2) * 9, GATE[1] + Math.sin(GATE_DIR_IN + Math.PI / 2) * 9]], h: 1.5 }
+  ];
+  const ped = MAIN_OPENINGS.list.find(o => o.type === "pedestrian"), vehG = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const postM = new THREE.MeshLambertMaterial({ color: 0x5a6068 });
+  for (const def of signDefs) {
+    const [sx, sz] = def.pos[0](ped) || [0, 0];
+    const tex = canvasTex(512, 640, g => {
+      g.fillStyle = def.bg; g.fillRect(0, 0, 512, 640);
+      g.strokeStyle = "#f2f2f2"; g.lineWidth = 10; g.strokeRect(14, 14, 484, 612);
+      g.fillStyle = "#ffffff"; g.textAlign = "center";
+      const lines = def.txt.split("\n");
+      g.font = "900 92px 'Microsoft JhengHei',sans-serif";
+      lines.forEach((l, i) => g.fillText(l, 256, 180 + i * 130));
+      g.font = "700 34px Arial,sans-serif"; g.fillStyle = "rgba(255,255,255,.85)";
+      g.fillText(def.sub, 256, 600 - 40 * (2 - lines.length));
+    });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(def.h * .8, def.h, .06), [postM, postM, postM, postM, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex, side: THREE.BackSide })]);
+    board.position.set(sx, 1.45 + def.h / 2, sz);
+    board.rotation.y = -Math.atan2(MAIN_SITE.c[1] - sz, MAIN_SITE.c[0] - sx); // 面向場外行人
+    board.castShadow = true; scene.add(board);
+    for (const px of [-.28, .28]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, 1.5 + def.h, 8), postM);
+      pole.position.set(sx + px * Math.cos(board.rotation.y + Math.PI / 2) * .8, (1.5 + def.h) / 2, sz - px * Math.sin(board.rotation.y + Math.PI / 2) * .8);
+      pole.castShadow = true; scene.add(pole);
+    }
+  }
+}
 
 function siteGuard() {
   buildGatehouse();
@@ -3068,9 +3229,37 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
 {
   const e = mkEvent("ppe", "入場PPE檢查", SITE_ZONES[0], "啟德2022會議文件13A(項目設定)");
   const zp = SITE_ZONES[0];
-  e.rack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, .5), new THREE.MeshLambertMaterial({ color: 0x2a6ad0 }));
-  e.rack.position.set(PPE_POS[0], .9, PPE_POS[1]); e.rack.castShadow = true; scene.add(e.rack);
-  e.label = makeSpriteLabel("🦺 領PPE(E)", "#8fd0ff", 3); e.label.position.set(0, 2.4, 0); e.rack.add(e.label);
+  /* P10.1:真實 PPE 裝備架(鋼框+兩層板+掛住頭盔/反光衣),唔再係藍色實心盒 */
+  e.rack = new THREE.Group();
+  const rackM = new THREE.MeshLambertMaterial({ color: 0x6a7078 });
+  const shelfM = new THREE.MeshLambertMaterial({ color: 0x8a5a2a });
+  for (const s of [-1, 1]) for (const hh of [.02, .92, 1.78]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(1.5, .06, .06), rackM);
+    bar.position.set(s * .72, hh, 0); e.rack.add(bar);
+  }
+  for (const zz of [-.25, .25]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.82, .06), rackM);
+    post.position.set(-1.45, .91, zz); e.rack.add(post);
+    const post2 = post.clone(); post2.position.x = 1.45; e.rack.add(post2);
+  }
+  for (const yy of [.55, 1.25]) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.5, .05, .5), shelfM);
+    shelf.position.set(0, yy, 0); e.rack.add(shelf);
+  }
+  const hat = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffd23a }));
+  hat.position.set(-.5, 1.32, 0); e.rack.add(hat);
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .03, 10), new THREE.MeshLambertMaterial({ color: 0xffd23a }));
+  hatBrim.position.set(-.5, 1.3, 0); e.rack.add(hatBrim);
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(.55, .6, .08), new THREE.MeshLambertMaterial({ color: 0xff7a1a }));
+  vest.position.set(.45, .9, 0); e.rack.add(vest);
+  const bootL = new THREE.Mesh(new THREE.BoxGeometry(.16, .2, .26), new THREE.MeshLambertMaterial({ color: 0x3a2a1a }));
+  bootL.position.set(-.35, .35, 0); e.rack.add(bootL);
+  const bootR = bootL.clone(); bootR.position.x = -.1; e.rack.add(bootR);
+  e.rack.position.set(PPE_POS[0], 0, PPE_POS[1]); scene.add(e.rack);
+  e.rack.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  colliders.push({ x: PPE_POS[0], z: PPE_POS[1], hw: .8, hd: .35, rot: 0, minx: PPE_POS[0] - .8, maxx: PPE_POS[0] + .8, minz: PPE_POS[1] - .35, maxz: PPE_POS[1] + .35 });
+  /* P10.5:實體 PPE 架上有一塊細提示牌就夠,唔再疊巨大 floating sprite */
+  e.label = makeSpriteLabel("🦺 領PPE(E)", "#8fd0ff", 1.1); e.label.position.set(0, 2.15, 0); e.rack.add(e.label);
   e.checkEnter = () => {
     if (!player.ppe) {
       player.x = GATE[0] + Math.cos(GATE_OUT) * 5; player.z = GATE[1] + Math.sin(GATE_OUT) * 5;

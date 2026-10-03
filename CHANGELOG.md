@@ -40,3 +40,11 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - P9.4 冷快取 17.65→9.29MB(sky 1K + asphalt 512)
 - 驗收用字全面證據式;boot watchdog 實測有效
 - 證據: qa-evidence/p9-hardening/REPORT.md
+
+## 2026-10-03 — P10 Visual Cohesion(香港地盤入口 vertical slice)
+- 水馬/三棍閘/PPE架/貨櫃重造(零裸placeholder);gatehouse結構柱+簷邊
+- 近景4棟樓façade attachment(窗框內凹/AC/水管/地下舖/簷篷/天台欄)
+- 實體告示牌×4(鋼支架+厚度);斑馬線厚度/接縫線/車閘口帶泥(邏輯位置)
+- UI de-clutter:halo細化減透明、label 32m淡出42m隱藏、PPE sprite縮細
+- Guardrail:水馬clone→InstancedMesh修復(33.2→16.8ms);final median +0.6% vs基線
+- 證據: qa-evidence/p10-cohesion/(before/after 5鏡頭+UI minimal)
