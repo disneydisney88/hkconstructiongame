@@ -2750,6 +2750,115 @@ function buildBoundaryDebug() {
 buildBoundaryDebug();
 addEventListener("keydown", e => { if (e.code === "KeyB") { boundaryDebugOn = !boundaryDebugOn; buildBoundaryDebug(); } });
 
+/* ========== P3:閘口示範街景(只影響閘前 ~55m + 閘內第一段,遠景保留 InstancedMesh) ========== */
+function buildDemoStreet() {
+  const ped = MAIN_OPENINGS.list.find(o => o.type === "pedestrian"), veh = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const { ax, az, ux, uz, edgeLen } = MAIN_OPENINGS;
+  let nx = MAIN_SITE.c[0] - (ax + ux * edgeLen / 2), nz = MAIN_SITE.c[1] - (az + uz * edgeLen / 2); // 邊中點→質心 = 內側法線
+  const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl;
+  const rp = nearestRoadPt(ped.x, ped.z);
+  const gap = rp ? Math.max(1.2, Math.hypot(ped.x - rp[0], ped.z - rp[1]) - rp[2] / 2 - .2) : 3.2; // 圍板→路邊距離
+  const tA = Math.max(2, ped.t0 - 26), tB = Math.min(edgeLen - 2, veh.t1 + 14);
+  const P = t => [ax + ux * t, az + uz * t];
+  const len = tB - tA, mid = (tA + tB) / 2, [mx, mz] = P(mid);
+  const rotY = -Math.atan2(uz, ux);
+  /* 行人路 + 引路磚 + kerb */
+  const swW = Math.min(4, gap + .8);
+  const sw = new THREE.Mesh(new THREE.PlaneGeometry(len, swW), new THREE.MeshStandardMaterial({ color: 0xa8a49c, roughness: .92 }));
+  sw.rotation.x = -Math.PI / 2; sw.rotation.z = rotY + Math.PI / 2;
+  sw.position.set(mx - nx * (swW / 2 - .1), .15, mz - nz * (swW / 2 - .1)); sw.receiveShadow = true; scene.add(sw);
+  const tactile = new THREE.Mesh(new THREE.PlaneGeometry(len, .45), new THREE.MeshStandardMaterial({ color: 0xd8b52a, roughness: .8 }));
+  tactile.rotation.x = -Math.PI / 2; tactile.rotation.z = rotY + Math.PI / 2;
+  tactile.position.set(mx - nx * (swW - .28), .155, mz - nz * (swW - .28)); scene.add(tactile);
+  const kerb = new THREE.Mesh(new THREE.BoxGeometry(len, .17, .32), new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: .85 }));
+  kerb.rotation.y = rotY + Math.PI / 2;
+  kerb.position.set(mx - nx * (swW + .06), .085, mz - nz * (swW + .06)); kerb.receiveShadow = true; scene.add(kerb);
+  /* 路面修補 + 沙井蓋 + 去水格 */
+  const patch = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.4), new THREE.MeshStandardMaterial({ color: 0x2c2a30, roughness: .95 }));
+  patch.rotation.x = -Math.PI / 2; patch.rotation.z = rotY + Math.PI / 2 + .12;
+  patch.position.set(P(mid + 6)[0] - nx * (gap + 1.6), .095, P(mid + 6)[1] - nz * (gap + 1.6)); scene.add(patch);
+  const mhMat = new THREE.MeshStandardMaterial({ color: 0x2f2d33, roughness: .9, metalness: .3 });
+  for (const dt of [-16, -2, 12]) {
+    const [qx, qz] = P(mid + dt);
+    const mh = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .03, 16), mhMat);
+    mh.position.set(qx - nx * (gap + 1.5), .1, qz - nz * (gap + 1.5)); scene.add(mh);
+  }
+  for (const dt of [-22, -8, 6, 20]) {
+    const [qx, qz] = P(mid + dt);
+    const gr = new THREE.Mesh(new THREE.BoxGeometry(.9, .05, .5), mhMat);
+    gr.rotation.y = rotY + Math.PI / 2; gr.position.set(qx - nx * (swW + .2), .12, qz - nz * (swW + .2)); scene.add(gr);
+  }
+  /* 班馬線(連接行人路↔行人閘) */
+  {
+    const gx0 = ped.x - nx * (gap + 1.2), gz0 = ped.z - nz * (gap + 1.2);
+    const stripeG = new THREE.PlaneGeometry(3.2, .55), stripeM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: .7 });
+    const nSt = 7;
+    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.x = -Math.PI / 2; s.rotation.z = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .105, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
+  }
+  /* 閘內:卸貨區+車道分隔(黃黑 hazard 邊+地面標線) */
+  {
+    const hz = canvasTex(256, 64, g => { g.fillStyle = "#c8a018"; g.fillRect(0, 0, 256, 64); g.fillStyle = "#1c1c1c"; for (let i = -64; i < 256; i += 48) { g.beginPath(); g.moveTo(i, 64); g.lineTo(i + 24, 64); g.lineTo(i + 24 + 32, 0); g.lineTo(i + 32, 0); g.closePath(); g.fill(); } });
+    const vl = veh.t1 - veh.t0 + 10;
+    const lane = new THREE.Mesh(new THREE.PlaneGeometry(vl, 9), new THREE.MeshStandardMaterial({ color: 0x585551, roughness: .95 }));
+    lane.rotation.x = -Math.PI / 2; lane.rotation.z = rotY + Math.PI / 2;
+    lane.position.set(veh.x + nx * 4.5, .135, veh.z + nz * 4.5); lane.receiveShadow = true; scene.add(lane);
+    for (const s of [-1, 1]) {
+      const hzm = new THREE.Mesh(new THREE.PlaneGeometry(vl, .5), new THREE.MeshBasicMaterial({ map: hz }));
+      hzm.rotation.x = -Math.PI / 2; hzm.rotation.z = rotY + Math.PI / 2;
+      hzm.position.set(veh.x + nx * (4.5 + s * 4.4), .14, veh.z + nz * (4.5 + s * 4.4)); scene.add(hzm);
+    }
+    const unTex = canvasTex(256, 96, g => { g.fillStyle = "#c8a018"; g.fillRect(0, 0, 256, 96); g.fillStyle = "#1c1c1c"; g.font = "900 40px 'Microsoft JhengHei',sans-serif"; g.textAlign = "center"; g.fillText("卸貨區", 128, 62); });
+    const un = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), new THREE.MeshBasicMaterial({ map: unTex }));
+    un.rotation.x = -Math.PI / 2; un.rotation.z = rotY + Math.PI / 2;
+    un.position.set(veh.x + nx * 4.5, .145, veh.z + nz * 4.5); scene.add(un);
+  }
+  /* 近景立面樓 x3(閘前街對面;窗內凹+地下舖+簷篷+AC+招牌+天台) */
+  const winIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 1.3, .18), new THREE.MeshStandardMaterial({ color: 0x2a3440, roughness: .15, metalness: .5 }), 160);
+  const frameIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.7, 1.5, .14), new THREE.MeshStandardMaterial({ color: 0xcac4b4, roughness: .7 }), 160);
+  const acIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.8, .55, .5), new THREE.MeshStandardMaterial({ color: 0xd8d8d2, roughness: .8 }), 24);
+  let wi = 0, ai = 0;
+  const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(1, 1, 1), P4 = new THREE.Vector3();
+  const names = ["金豐茶餐廳", "大安五金", "宏輝建材"];
+  const cols = [0xb8ab94, 0xa89a86, 0xb0a494];
+  [tA + 6, tA + 19, tB - 8].forEach((ft, bi) => {
+    const [fx0, fz0] = P(ft);
+    const floors = 6 + (bi % 3), h = floors * 3.1;
+    const bx = fx0 - nx * (swW + 2.8), bz = fz0 - nz * (swW + 2.8);
+    const ry = rotY + Math.PI / 2;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(11, h, 9), new THREE.MeshStandardMaterial({ color: cols[bi], roughness: .9 }));
+    body.rotation.y = ry;
+    body.position.set(bx, h / 2, bz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
+    for (let f = 1; f <= floors; f++) for (let k = 0; k < 4; k++) {
+      if (wi >= 160) break;
+      const off = (k - 1.5) * 2.6;
+      const wx = bx - uz * off + nx * 4.62, wz = bz + ux * off + nz * 4.62;
+      Q4.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry); P4.set(wx, f * 3.1 - .3, wz); M4.compose(P4, Q4, S4); frameIM.setMatrixAt(wi, M4);
+      P4.set(wx + nx * .1, f * 3.1 - .3, wz + nz * .1); M4.compose(P4, Q4, S4); winIM.setMatrixAt(wi, M4); wi++;
+      if (f % 2 === 0 && k % 2 === 0 && ai < 24) { P4.set(wx - uz * 1.1 + nx * 4.85, f * 3.1 - .5, wz + ux * 1.1 + nz * 4.85); M4.compose(P4, Q4, S4); acIM.setMatrixAt(ai, M4); ai++; }
+    }
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(8.6, 2.7, .2), new THREE.MeshStandardMaterial({ color: 0x35404a, roughness: .2, metalness: .5 }));
+    shop.rotation.y = ry; shop.position.set(bx + nx * 4.6, 1.5, bz + nz * 4.6); scene.add(shop);
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(9.2, .18, 1.6), new THREE.MeshStandardMaterial({ color: 0x8a2f2a, roughness: .8 }));
+    canopy.rotation.y = ry; canopy.position.set(bx + nx * 5.2, 3.0, bz + nz * 5.2); canopy.castShadow = true; scene.add(canopy);
+    const sTex = canvasTex(512, 128, g => { g.fillStyle = ["#8a2430", "#1a4a7a", "#2a6a3a"][bi]; g.fillRect(0, 0, 512, 128); g.strokeStyle = "#e8c020"; g.lineWidth = 6; g.strokeRect(6, 6, 500, 116); g.fillStyle = "#ffe9a0"; g.font = "900 62px 'Microsoft JhengHei',sans-serif"; g.textAlign = "center"; g.fillText(names[bi], 256, 84); });
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.7), new THREE.MeshBasicMaterial({ map: sTex, side: THREE.DoubleSide }));
+    sign.rotation.y = ry; sign.position.set(bx + nx * 5.35, 3.9, bz + nz * 5.35); scene.add(sign);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.6, 12), new THREE.MeshStandardMaterial({ color: 0x4a5a6a, roughness: .7 }));
+    tank.position.set(bx - ux * 2.4, h + .8, bz - uz * 2.4); tank.castShadow = true; scene.add(tank);
+    const stair = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.2), new THREE.MeshStandardMaterial({ color: cols[bi], roughness: .9 }));
+    stair.rotation.y = ry; stair.position.set(bx + ux * 2.6, h + 1.1, bz + uz * 2.6); scene.add(stair);
+    for (let f = 1; f <= floors; f += 2) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(11.05, .22, 9.05), new THREE.MeshStandardMaterial({ color: 0x9a8f7c, roughness: .85 }));
+      band.rotation.y = ry; band.position.set(bx, f * 3.1 + 1.25, bz); scene.add(band);
+    }
+    const svc = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, .15), new THREE.MeshStandardMaterial({ color: 0x5a5248, roughness: .8 }));
+    svc.rotation.y = ry; svc.position.set(bx - uz * 4.2 + nx * 4.62, 1.05, bz + ux * 4.2 + nz * 4.62); scene.add(svc);
+  });
+  winIM.count = wi; frameIM.count = wi; acIM.count = ai;
+  scene.add(winIM, frameIM, acIM);
+}
+buildDemoStreet();
+
 function siteGuard() {
   buildGatehouse();
   const st = accessState();
