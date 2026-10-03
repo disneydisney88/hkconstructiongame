@@ -1165,27 +1165,97 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
 }
 
 /* 斗車(可駕駛) + NPC泥頭車 */
+/* P2:程序化高細節泥頭車(6輪3軸,介面不變:g/wheels/beacon/x/z/heading/v)
+   材質分層:車漆(Standard 低rough)/黑膠/金屬/玻璃;footprint 同舊版一致(長~5.4m 闊2.3m)唔影響碰撞/任務 */
 function makeTruck(x, z, rotY, color) {
   const g = new THREE.Group();
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), new THREE.MeshLambertMaterial({ color }));
-  cab.position.set(1.55, 1.45, 0); cab.castShadow = true; g.add(cab);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(.3, .8, 1.7), new THREE.MeshLambertMaterial({ color: 0x9ac8e8 }));
-  glass.position.set(2.5, 1.7, 0); g.add(glass);
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.3, 2.1), new THREE.MeshLambertMaterial({ color: 0x5c5c66 }));
-  bed.position.set(-1.2, 1.2, 0); bed.castShadow = true; g.add(bed);
-  const stripeMat = new THREE.MeshLambertMaterial({ color: 0xffd23a });
-  for (const side of [-1, 1]) {
-    const st = new THREE.Mesh(new THREE.BoxGeometry(3.4, .18, .04), stripeMat);
-    st.position.set(-1.2, 1.7, side * 1.06); g.add(st);
+  const M = {
+    paint: new THREE.MeshStandardMaterial({ color, roughness: .38, metalness: .15 }),
+    paintDark: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.55), roughness: .5, metalness: .2 }),
+    rubber: new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: .95, metalness: 0 }),
+    metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: .35, metalness: .85 }),
+    darkMetal: new THREE.MeshStandardMaterial({ color: 0x3a3d44, roughness: .55, metalness: .7 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x9ac8e8, roughness: .12, metalness: .4, transparent: true, opacity: .72 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: .2, metalness: .95 }),
+    bed: new THREE.MeshStandardMaterial({ color: 0x4a4d55, roughness: .7, metalness: .35 }),
+    bedIn: new THREE.MeshStandardMaterial({ color: 0x2e3036, roughness: .9, metalness: .1 }),
+    stripe: new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: .5 }),
+    lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .7, roughness: .3 }),
+    red: new THREE.MeshStandardMaterial({ color: 0x992222, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
+  };
+  const B = (w, h, d, mat, px, py, pz, cast = true) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
+  };
+  /* --- 底盤 --- */
+  for (const s of [-1, 1]) B(5.0, .2, .12, M.darkMetal, -.2, .82, s * .45);
+  for (let i = 0; i < 5; i++) B(.14, .16, 1.0, M.darkMetal, 2.2 - i * 1.15, .82, 0);
+  /* 油缸+電池箱+排氣管 */
+  const tank = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, 1.15, 14), M.metal);
+  tank.rotation.x = Math.PI / 2; tank.position.set(1.0, .62, -.82); tank.castShadow = true; g.add(tank);
+  B(.9, .5, .42, M.darkMetal, 1.0, .6, .82);
+  const exh = new THREE.Mesh(new THREE.CylinderGeometry(.055, .055, 1.7, 8), M.chrome);
+  exh.position.set(.95, 1.85, -1.05); exh.castShadow = true; g.add(exh);
+  const exhTip = new THREE.Mesh(new THREE.CylinderGeometry(.075, .055, .16, 8), M.chrome);
+  exhTip.position.set(.95, 2.75, -1.05); g.add(exhTip);
+  /* --- 駕駛室 --- */
+  B(1.5, 1.3, 2.2, M.paint, 1.7, 1.62, 0);            // 主體
+  B(1.42, .5, 2.24, M.paintDark, 1.7, .88, 0);        // 裙腳
+  const ws = B(.08, .85, 1.9, M.glass, 2.46, 1.98, 0); ws.rotation.z = -.16; // 擋風玻璃(斜)
+  for (const s of [-1, 1]) {
+    B(.85, .55, .05, M.glass, 1.8, 1.98, s * 1.12, false);   // 側窗
+    B(.9, .1, .08, M.paintDark, 1.8, 2.28, s * 1.14);        // 窗框頂
   }
+  B(.1, .62, 1.6, M.darkMetal, 2.5, 1.28, 0);          // 水箱罩
+  for (let i = 0; i < 3; i++) B(.04, .09, 1.5, M.chrome, 2.57, 1.08 + i * .2, 0, false); // 格柵橫條
+  B(.32, .38, 2.3, M.darkMetal, 2.6, .45, 0);          // 前防撞槓
+  for (const s of [-1, 1]) {
+    B(.06, .2, .4, M.lamp, 2.62, .62, s * .8);         // 頭燈
+    const arm = B(.5, .05, .05, M.darkMetal, 2.32, 2.15, s * 1.2);
+    B(.34, .24, .04, M.chrome, 2.45, 2.05, s * 1.34, false); // 倒後鏡
+  }
+  B(1.5, .1, 2.2, M.paintDark, 1.7, 2.3, 0);           // 遮陽簷
+  /* --- 泥斗(開口 U 形,內外壁) --- */
+  B(3.3, .14, 2.2, M.bedIn, -1.05, .96, 0);            // 斗底(內面深色)
+  for (const s of [-1, 1]) {
+    B(3.3, .9, .1, M.bed, -1.05, 1.45, s * 1.05);      // 外側壁
+    B(3.26, .84, .04, M.bedIn, -1.05, 1.44, s * .985, false); // 內壁襯
+    B(3.3, .12, .14, M.stripe, -1.05, 1.94, s * 1.05); // 頂部黃欄
+    for (let i = 0; i < 5; i++) B(.1, .8, .05, M.paintDark, -2.5 + i * .72, 1.45, s * 1.12); // 外加勁肋
+  }
+  B(.12, 1.0, 2.2, M.bed, .58, 1.42, 0);               // 前擋板
+  B(.12, .88, 2.1, M.bedIn, -.52, 1.42, 0, false);     // 前內襯
+  const gate = B(.1, .85, 2.1, M.bed, -2.88, 1.44, 0); // 尾門
+  B(.1, .12, 2.15, M.stripe, -2.9, 1.9, 0);            // 尾門黃欄
+  /* --- 車輪(24邊:胎+鈴+轂,繞輪軸 z 滾動) --- */
   const wheels = [];
-  const wg = new THREE.CylinderGeometry(.55, .55, .4, 10); wg.rotateX(Math.PI / 2);
-  const wm = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-  [[1.55, 1], [1.55, -1], [-.4, 1], [-.4, -1], [-1.6, 1], [-1.6, -1]].forEach(([wx, side]) => {
-    const w = new THREE.Mesh(wg, wm); w.position.set(wx, .55, side * 1.05); g.add(w); wheels.push(w);
-  });
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
-  beacon.position.set(1.55, 2.32, 0); g.add(beacon);
+  const mkWheel = (wx, side) => {
+    const w = new THREE.Group();
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .42, 24), M.rubber);
+    tyre.rotation.x = Math.PI / 2; tyre.castShadow = true; w.add(tyre);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(.31, .31, .43, 16), M.metal);
+    rim.rotation.x = Math.PI / 2; w.add(rim);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.1, .1, .45, 10), M.chrome);
+    hub.rotation.x = Math.PI / 2; w.add(hub);
+    for (let i = 0; i < 5; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.02, .5, .08), M.metal); b.rotation.z = i * Math.PI / 2.5; b.position.x = side * .215; w.add(b); } // 輪輻
+    w.position.set(wx, .55, side * 1.02); g.add(w); wheels.push(w);
+  };
+  [[1.7, 1], [1.7, -1], [-.45, 1], [-.45, -1], [-1.65, 1], [-1.65, -1]].forEach(([wx, s]) => mkWheel(wx, s));
+  /* --- 沙板/擋泥板 --- */
+  const fender = (fx, len) => { for (const s of [-1, 1]) {
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.74, .74, len, 12, 1, false, 0, Math.PI), M.darkMetal);
+    f.rotation.x = Math.PI / 2; f.rotation.y = Math.PI; f.position.set(fx, .78, s * 1.02); f.castShadow = true; g.add(f);
+  } };
+  fender(1.7, .6); fender(-1.05, 2.5);
+  /* --- 車尾 --- */
+  for (const s of [-1, 1]) {
+    B(.08, .22, .3, M.red, -2.93, 1.0, s * .85);       // 尾燈
+    B(.5, .55, .04, M.rubber, -3.0, .35, s * .98, false); // 擋泥膠簾
+  }
+  /* --- 警示燈(介面保留) --- */
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
+  beacon.position.set(1.7, 2.42, 0); g.add(beacon);
+  B(.3, .1, .3, M.stripe, 1.7, 2.32, 0);               // 燈座
   g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g);
   return { g, wheels, beacon, x, z, heading: rotY, v: 0 };
 }
@@ -1981,7 +2051,7 @@ function truckDrive(dt) {
     if (nearOff) { t._dustT = performance.now(); violate(1, "未有妥善控制塵埃", 150, "空氣污染管制 $20,000"); }
   }
   t.g.position.set(t.x, 0, t.z); t.g.rotation.y = t.heading;
-  t.wheels.forEach(w => w.rotation.x -= t.v * dt * 1.8);
+  t.wheels.forEach(w => w.rotation.z -= t.v * dt * 1.8);
   t.beacon.material.color.setHex(Math.floor(performance.now() / 300) % 2 ? 0xffaa20 : 0x552200);
   engineSpeed(t.v);
   if (thr < 0 && t.v < -.5 && Math.floor(performance.now() / 1100) !== t._beepT) { t._beepT = Math.floor(performance.now() / 1100); sRev(); }
@@ -2211,7 +2281,7 @@ function updateHazards(dt) {
       if (t.timer <= 0) { t.mode = "drive"; t.wp = 0; t.v = 0; }
     }
     t.g.position.set(t.x, 0, t.z); t.g.rotation.y = t.heading;
-    t.wheels.forEach(w => w.rotation.x -= t.v * dt * 1.8);
+    t.wheels.forEach(w => w.rotation.z -= t.v * dt * 1.8);
     if (d2(t.x, t.z, player.x, player.z) < 3 && player.invuln <= 0) {
       damage(45, "俾泥頭車撞到!(-45) 佢倒緊車,聽到「比比」聲要讓開!");
       player.x += rand(-4, 4); player.z += rand(-4, 4);
