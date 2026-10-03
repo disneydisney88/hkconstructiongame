@@ -111,6 +111,31 @@ const GATE_DIR_IN = Math.atan2(MAIN_SITE.c[1] - GATE[1], MAIN_SITE.c[0] - GATE[0
 const OFFICE = [GATE[0] + Math.cos(GATE_DIR_IN) * 10, GATE[1] + Math.sin(GATE_DIR_IN) * 10];
 const HOSPITAL = (() => { const h = POIS.find(p => p[2].includes("專科門診")) || POIS.find(p => p[2].includes("醫院")); return h ? [h[0], h[1]] : [-1409, 662]; })();
 
+/* ---------- 共用周界 opening data(P1):圍板/碰撞/門禁單一來源 ----------
+   法例參考:Cap.59I《建築地盤(安全)規例》圍封及閘門高度≥2m;人車分隔。
+   每個 opening: { edge, tCentre, t0, t1, width, type:'pedestrian'|'vehicle', x, z, dir(沿邊單位向量), edgeLen }
+   t* 為沿 edge 參數(米)。視覺圍板、collide()、車閘 barrier 全部只讀呢份數據。 */
+function computeOpenings(zone, gate) {
+  const edge = gate[2];
+  const [ax, az] = zone.pts[edge], [bx, bz] = zone.pts[(edge + 1) % zone.pts.length];
+  const L = Math.hypot(bx - ax, bz - az);
+  const ux = (bx - ax) / L, uz = (bz - az) / L;
+  const tG = clamp((gate[0] - ax) * ux + (gate[1] - az) * uz, 4, L - 4);
+  const mk = (type, width, t) => {
+    t = clamp(t, width / 2 + .5, L - width / 2 - .5);
+    return { edge, type, width, tCentre: t, t0: t - width / 2, t1: t + width / 2, x: ax + ux * t, z: az + uz * t, ux, uz, edgeLen: L, ax, az };
+  };
+  const ped = mk("pedestrian", 6, tG);
+  let vt = tG + 16;                      // 車閘放行人閘側邊,唔經三棍閘
+  if (vt + 4 > L) vt = tG - 16;          // 唔夠位就放另一邊
+  if (vt < 4 || vt > L - 4 || Math.abs(vt - tG) < 12) vt = clamp(tG + 12, 4.5, L - 4.5); // 短邊後備
+  const veh = mk("vehicle", 9, vt);
+  return { list: [ped, veh], edgeLen: L, ax, az, ux, uz, edge };
+}
+const MAIN_OPENINGS = computeOpenings(MAIN_SITE, GATE);
+const SITE2_OPENINGS = (() => { const g2 = findGate(SITE2); const o = computeOpenings(SITE2, g2); return { ...o, list: o.list.filter(op => op.type === "pedestrian") }; })(); // SITE2 暫只有行人閘
+function vehicleGateOpen() { const v = MAIN_OPENINGS.list.find(o => o.type === "vehicle"); return !!(v && playerTruck && d2(playerTruck.x, playerTruck.z, v.x, v.z) < 12); } // 12m 內升起車閘(d2 回傳米)
+
 /* ---------- three.js 基礎 ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas: $("c"), antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -737,18 +762,24 @@ const waterBBoxes = WATERS.filter(w => w.length >= 3).map(w => {
   return { pts: w, minx, maxx, minz, maxz };
 });
 
-/* 圍板 */
-function buildHoarding(zone, gateInfo) {
+/* 圍板(P1 重做):沿整個 perimeter 連續生成,每條 edge 精確鋪滿(角落收口),
+   只喺 openings 實際闊度內留口;數據同 collide()/門禁共用。 */
+function buildHoarding(zone, openings) {
   const pts = zone.pts;
   const geo = new THREE.BoxGeometry(2.45, 2.3, .12);
   const mat = new THREE.MeshLambertMaterial({ color: 0x2a7a4a });
   const panels = [];
-  const gateEdge = gateInfo[2];
+  const PW = 2.45;
   for (let i = 0; i < pts.length; i++) {
-    if (i === gateEdge) continue;
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
     const L = Math.hypot(bx - ax, bz - az);
-    for (let t = 0; t < L; t += 2.5) {
+    if (L < .1) continue;
+    const n = Math.max(1, Math.round(L / PW));
+    const spacing = L / n; // 精確鋪滿成條邊,角落冇罅
+    const ops = openings.list.filter(o => o.edge === i);
+    for (let j = 0; j < n; j++) {
+      const t = (j + .5) * spacing;
+      if (ops.some(o => t + PW / 2 > o.t0 && t - PW / 2 < o.t1)) continue; // 只跳開口範圍內嘅板
       const k = t / L;
       panels.push([lerp(ax, bx, k), lerp(az, bz, k), Math.atan2(bz - az, bx - ax)]);
     }
@@ -762,8 +793,8 @@ function buildHoarding(zone, gateInfo) {
   im.castShadow = true; im.receiveShadow = true; scene.add(im);
   return { panels };
 }
-buildHoarding(MAIN_SITE, GATE);
-buildHoarding(SITE2, findGate(SITE2));
+buildHoarding(MAIN_SITE, MAIN_OPENINGS);
+buildHoarding(SITE2, SITE2_OPENINGS);
 
 /* 水馬(可以撞跌) */
 const barrier = { mesh: null, state: [], anim: [] };
@@ -1085,13 +1116,14 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
 {
   const slogans = [["安全第一 · 零意外", "#c02525"], ["戴好安全帽 · 扣好帽帶", "#1a5ac0"], ["小心吊運 · 唔好行天秤下面", "#c07800"], ["香港建築", "#1a7a3a"]];
   let bi = 0;
-  const addBanners = (zone, gateEdge) => {
+  const addBanners = (zone, openings) => {
     const pts = zone.pts;
     for (let i = 0; i < pts.length; i++) {
-      if (i === gateEdge) continue;
       const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
       const L = Math.hypot(bx - ax, bz - az);
+      const ops = openings.list.filter(o => o.edge === i);
       for (let t = 8; t < L - 4; t += 17) {
+        if (ops.some(o => Math.abs(t - o.tCentre) < o.width / 2 + 6)) continue; // 唔好橫跨開口
         const k = t / L;
         const bt = makeBannerTex(slogans[bi % slogans.length][0], slogans[bi % slogans.length][1]);
         bi++;
@@ -1102,7 +1134,7 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
       }
     }
   };
-  addBanners(MAIN_SITE, GATE[2]);
+  addBanners(MAIN_SITE, MAIN_OPENINGS);
 }
 /* 閘口橫額 */
 {
@@ -1737,15 +1769,34 @@ function collide(px, pz, r) {
       x = c.x + lx * cos + lz * sin; z = c.z - lx * sin + lz * cos;
     }
   }
-  // 圍板:主地盤邊界(大門除外)
-  for (const zonePts of [MAIN_SITE.pts]) {
-    for (let i = 0; i < zonePts.length; i++) {
-      if (i === GATE[2]) continue;
-      const [ax, az] = zonePts[i], [bx, bz] = zonePts[(i + 1) % zonePts.length];
-      const dd = distToSeg(x, z, ax, az, bx, bz);
+  // 圍板(P1):主地盤邊界 — 每條 edge 只喺 opening 闊度內留口,同視覺圍板共用數據。
+  // 行人閘:開口(siteGuard 全周界守衛負責未 admitted 擋人)。
+  // 車閘:行人/其他物體視為實體;泥頭車 12m 內 barrier 升起先可以過。
+  const vehGate = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const vehSolid = vehGate && !vehicleGateOpen();
+  for (let i = 0; i < MAIN_SITE.pts.length; i++) {
+    const [ax, az] = MAIN_SITE.pts[i], [bx, bz] = MAIN_SITE.pts[(i + 1) % MAIN_SITE.pts.length];
+    const L = Math.hypot(bx - ax, bz - az);
+    // 沿 edge 切出實體 subsegments(0..t0, t1..L...)
+    const cuts = [];
+    for (const o of MAIN_OPENINGS.list) {
+      if (o.edge !== i) continue;
+      if (o.type === "vehicle" && vehSolid) continue; // 車閘閂住:成段照撞
+      cuts.push([Math.max(0, o.t0), Math.min(L, o.t1)]);
+    }
+    cuts.sort((a, b) => a[0] - b[0]);
+    const segs = [];
+    let cur = 0;
+    for (const [s0, s1] of cuts) { if (s0 > cur) segs.push([cur, s0]); cur = Math.max(cur, s1); }
+    if (cur < L) segs.push([cur, L]);
+    for (const [s0, s1] of segs) {
+      if (s1 - s0 < .05) continue;
+      const sx = lerp(ax, bx, s0 / L), sz = lerp(az, bz, s0 / L), ex = lerp(ax, bx, s1 / L), ez = lerp(az, bz, s1 / L);
+      const dd = distToSeg(x, z, sx, sz, ex, ez);
       if (dd < r + .35 && dd > 1e-6) {
-        const t = ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / Math.max((bx - ax) ** 2 + (bz - az) ** 2, 1e-9);
-        const gx = lerp(ax, bx, clamp(t, 0, 1)), gz = lerp(az, bz, clamp(t, 0, 1));
+        const sl2 = (ex - sx) ** 2 + (ez - sz) ** 2;
+        const t = ((x - sx) * (ex - sx) + (z - sz) * (ez - sz)) / Math.max(sl2, 1e-9);
+        const gx = lerp(sx, ex, clamp(t, 0, 1)), gz = lerp(sz, ez, clamp(t, 0, 1));
         const dl = Math.hypot(x - gx, z - gz) || 1;
         x = gx + (x - gx) / dl * (r + .36); z = gz + (z - gz) / dl * (r + .36);
       }
@@ -2540,6 +2591,95 @@ function buildGatehouse() {
   colliders.push({ x: GATE[0] - pxv * 2.6, z: GATE[1] - pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
   colliders.push({ x: GATE[0] + pxv * 2.6, z: GATE[1] + pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
 }
+/* ========== P1:車輛閘門(visual barrier)+行人通道+周界 debug overlay ========== */
+const VEH_GATE = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+const vehGate3 = { group: null, arm: null, open: false, amt: 0 };
+{
+  const g = VEH_GATE;
+  if (g) {
+    const grp = new THREE.Group();
+    const postM = new THREE.MeshLambertMaterial({ color: 0x9aa0a8 });
+    const stripeM = new THREE.MeshLambertMaterial({ color: 0xd03030 });
+    const whiteM = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 });
+    for (const s of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.4, 1.5, .4), postM);
+      post.position.set(s * g.width / 2, .75, 0); post.castShadow = true; grp.add(post);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .18, .3), new THREE.MeshLambertMaterial({ color: g.type === "vehicle" ? 0xff3030 : 0x30ff60 }));
+      lamp.position.set(s * g.width / 2, 1.62, 0); grp.add(lamp);
+    }
+    // 紅白格 barrier arm:局部 +x 沿閘口闊度,分 4 節紅白相間
+    const arm = new THREE.Group();
+    const segW = g.width / 6;
+    for (let i = 0; i < 6; i++) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(segW, .22, .14), i % 2 ? whiteM : stripeM);
+      seg.position.set(segW * (i + .5), 0, 0); seg.castShadow = true; arm.add(seg);
+    }
+    arm.position.set(-g.width / 2, 1.15, 0);
+    grp.add(arm);
+    const sign = canvasTex(384, 128, gg => { gg.fillStyle = "#1c3a6a"; gg.fillRect(0, 0, 384, 128); gg.fillStyle = "#ffe08a"; gg.font = "900 54px 'Microsoft JhengHei',sans-serif"; gg.textAlign = "center"; gg.fillText("車輛通道 · 慢駛", 192, 82); });
+    const sp = new THREE.Mesh(new THREE.PlaneGeometry(g.width * .8, 1), new THREE.MeshBasicMaterial({ map: sign, side: THREE.DoubleSide }));
+    sp.position.set(0, 2.6, 0); grp.add(sp);
+    grp.position.set(g.x, 0, g.z);
+    grp.rotation.y = -Math.atan2(g.uz, g.ux);
+    scene.add(grp);
+    vehGate3.group = grp; vehGate3.arm = arm;
+  }
+}
+function updateVehicleGate(dt) {
+  if (!vehGate3.arm) return;
+  const want = vehicleGateOpen();
+  if (want !== vehGate3.open) {
+    vehGate3.open = want;
+    if (AU.ctx && !AU.muted) beep(want ? 880 : 520, .18, "sine", .18);
+  }
+  vehGate3.amt = lerp(vehGate3.amt, want ? 1 : 0, 1 - Math.pow(.005, dt));
+  vehGate3.arm.rotation.z = vehGate3.amt * 1.15; // 升起
+}
+/* 行人通道(入閘後黃綠色帶+箭嘴,連接三棍閘→施工區) */
+{
+  const gd = GATE_DIR_IN;
+  const tex = canvasTex(128, 512, g => {
+    g.fillStyle = "#c8e090"; g.fillRect(0, 0, 128, 512);
+    g.fillStyle = "#3a6a1a"; for (let y = 40; y < 512; y += 128) { g.beginPath(); g.moveTo(64, y); g.lineTo(24, y + 46); g.lineTo(52, y + 46); g.lineTo(52, y + 84); g.lineTo(76, y + 84); g.lineTo(76, y + 46); g.lineTo(104, y + 46); g.closePath(); g.fill(); }
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 24), new THREE.MeshLambertMaterial({ map: tex }));
+  m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2 - gd;
+  m.position.set(GATE[0] + Math.cos(gd) * 13, .06, GATE[1] + Math.sin(gd) * 13);
+  m.receiveShadow = true; scene.add(m);
+}
+/* 周界 debug overlay(?boundary=1 或撳 B):cyan=collision 實體段,yellow=開口 */
+let boundaryDebug = null, boundaryDebugOn = !!new URLSearchParams(location.search).get("boundary");
+function buildBoundaryDebug() {
+  if (boundaryDebug) { scene.remove(boundaryDebug); boundaryDebug.geometry.dispose(); boundaryDebug = null; }
+  if (!boundaryDebugOn) return;
+  const solid = [], open = [];
+  const vehSolid = !vehicleGateOpen();
+  for (let i = 0; i < MAIN_SITE.pts.length; i++) {
+    const [ax, az] = MAIN_SITE.pts[i], [bx, bz] = MAIN_SITE.pts[(i + 1) % MAIN_SITE.pts.length];
+    const L = Math.hypot(bx - ax, bz - az);
+    const cuts = [];
+    for (const o of MAIN_OPENINGS.list) {
+      if (o.edge !== i) continue;
+      if (o.type === "vehicle" && vehSolid) continue;
+      cuts.push([Math.max(0, o.t0), Math.min(L, o.t1)]);
+    }
+    cuts.sort((a, b) => a[0] - b[0]);
+    let cur = 0;
+    const segs = [];
+    for (const [s0, s1] of cuts) { if (s0 > cur) segs.push([cur, s0]); cur = Math.max(cur, s1); }
+    if (cur < L) segs.push([cur, L]);
+    const P = (arr, s0, s1) => arr.push(lerp(ax, bx, s0 / L), .35, lerp(az, bz, s0 / L), lerp(ax, bx, s1 / L), .35, lerp(az, bz, s1 / L));
+    for (const [s0, s1] of segs) P(solid, s0, s1);
+    for (const [s0, s1] of cuts) P(open, s0, s1);
+  }
+  const grp = new THREE.Group();
+  const mk = (arr, color) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3)); grp.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }))); };
+  mk(solid, 0x22ffee); mk(open, 0xffee22);
+  boundaryDebug = grp; scene.add(grp);
+}
+buildBoundaryDebug();
+addEventListener("keydown", e => { if (e.code === "KeyB") { boundaryDebugOn = !boundaryDebugOn; buildBoundaryDebug(); } });
+
 function siteGuard() {
   buildGatehouse();
   const st = accessState();
@@ -2761,6 +2901,7 @@ function tick(dt, now) {
   updatePeds(dt);
   updateHazards(dt);
   updateBarriers(dt);
+  updateVehicleGate(dt);
   // 任務
   const m = missions[M.idx];
   if (m && m.tick) m.tick();
@@ -2816,7 +2957,7 @@ requestAnimationFrame(loop);
 /* 開場鏡頭:喺玩家背後5米,唔好攝入閘機房 */
 camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
-window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started });
+window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck });
 window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 
