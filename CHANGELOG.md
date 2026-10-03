@@ -48,3 +48,10 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - UI de-clutter:halo細化減透明、label 32m淡出42m隱藏、PPE sprite縮細
 - Guardrail:水馬clone→InstancedMesh修復(33.2→16.8ms);final median +0.6% vs基線
 - 證據: qa-evidence/p10-cohesion/(before/after 5鏡頭+UI minimal)
+
+## 2026-10-03 — P10.1 Visual acceptance correction
+- Hero façade:玻璃3材質variation/sill窗台/slab edge/plinth;排水渠帶+公用事業蓋
+- Truck silhouette:cab兩段+A柱/大斜擋風/門縫門柄/胎厚.55+胎紋/輪拱加大/斗壁加厚肋凸出/頂marker燈
+- 貨櫃門絞+角鑄件;載入系統hardening(fetch→parse/static import/parse timeout+降級/paint race)
+- 性能:median 16.7(平基線),draw calls 1063→450,tri −12%
+- 證據: qa-evidence/p10-1-correction/(before C1-5/after D1-7含灰模+UI minimal)
