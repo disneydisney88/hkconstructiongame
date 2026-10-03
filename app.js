@@ -9,6 +9,7 @@ import { createInductionRoom } from "./induction-room.js";
 import { createWorker } from "./worker-rig.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 
 /* 錯誤收集(測試用) */
 window.__errs = [];
@@ -167,6 +168,20 @@ sun.shadow.mapSize.set(2048, 2048);
 sun.shadow.camera.left = -70; sun.shadow.camera.right = 70; sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 600; sun.shadow.bias = -.0008;
 scene.add(sun); scene.add(sun.target);
+/* P5:HDRI 環境光(Poly Haven kloppenheim_02 2K,CC0)— PMREM 做 IBL;
+   hemi 降做補底,sun 保留主光+陰影。HDR 載入失敗唔阻街(keep hemi)。 */
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  new RGBELoader().load("assets/textures/sky_2k.hdr", hdr => {
+    try {
+      const env = pmrem.fromEquirectangular(hdr).texture;
+      scene.environment = env;
+      scene.environmentIntensity = .55;
+      hemi.intensity = .45; sun.intensity = 2.6;
+      hdr.dispose(); pmrem.dispose();
+    } catch (e) { window.__errs.push("HDRI: " + e); }
+  }, undefined, () => { /* 網絡/檔案失敗:維持原有 hemi+sun */ });
+}
 
 /* ---------- 貼圖工廠 ---------- */
 function canvasTex(w, h, draw) {
