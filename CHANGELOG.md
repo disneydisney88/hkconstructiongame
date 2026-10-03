@@ -26,3 +26,10 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - P5 HDRI/PMREM 環境光(4182077)
 - P6 手推車 GLB→程序化(−410k tri)、泥頭車 LOD、shadow 優化(1a42557)
 - 驗收:qa-evidence/p7-acceptance/REPORT.md(全部實測證據)
+
+## 2026-10-03 — P8 polish(回應 GPT 意見)
+- 修正 PBR 貼圖色彩空間(只有 Color 用 sRGB)
+- 圍板立柱+壓頂+基座;三棍閘機身碰撞體(3條通道)
+- 動態 shadow LOD(角色/街車>70m閉投影):median FPS 30→59.5
+- vestTex cache:GPU textures 198→157;街車輪16邊;泥頭車泥漬+車漆微差
+- 證據: qa-evidence/p8-polish/REPORT.md

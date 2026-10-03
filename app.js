@@ -200,8 +200,11 @@ const netTex = canvasTex(128, 128, (g) => { // 地盤綠網
   for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16, 128); g.stroke(); g.beginPath(); g.moveTo(0, i * 16); g.lineTo(128, i * 16); g.stroke(); }
 });
 netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+const _vestTexCache = new Map(); // P8e:同規格反光衣貼圖共用一份 GPU 資源
 function vestTex(back, base = "#ff7a1a", label = "香港建築") { // 反光衣:前/背(銀反光帶+灰邊+拉鏈+布紋)
-  return canvasTex(256, 256, (g) => {
+  const key = (back ? 1 : 0) + "|" + base + "|" + label;
+  if (_vestTexCache.has(key)) return _vestTexCache.get(key);
+  const t = canvasTex(256, 256, (g) => {
     g.fillStyle = base; g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * .05})`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); } // 布料噪點
     g.fillStyle = "#7e8894"; g.fillRect(0, 0, 256, 24); g.fillRect(0, 234, 256, 22); // 膊頭/底灰邊
@@ -216,6 +219,8 @@ function vestTex(back, base = "#ff7a1a", label = "香港建築") { // 反光衣:
       g.font = "700 12px sans-serif"; g.fillText("SITE SAFETY", 62, 205);
     }
   });
+  _vestTexCache.set(key, t);
+  return t;
 }
 function textPill(text, fg = "#fff", bg = "rgba(12,12,20,.72)", border = "rgba(255,255,255,.25)", font = 700) {
   const c = document.createElement("canvas"); const g = c.getContext("2d");
@@ -390,7 +395,7 @@ function makeCar(kind) {
   const tl = new THREE.Mesh(new THREE.BoxGeometry(.06, .12, .3), new THREE.MeshBasicMaterial({ color: 0xff3030 }));
   tl.position.set(-frontX, isBus ? 1.1 : .85, .55); g.add(tl);
   const tl2 = tl.clone(); tl2.position.z = -.55; g.add(tl2);
-  const wg = new THREE.CylinderGeometry(isBus ? .42 : .32, isBus ? .42 : .32, .26, 8); wg.rotateX(Math.PI / 2);
+  const wg = new THREE.CylinderGeometry(isBus ? .42 : .32, isBus ? .42 : .32, .26, 16); /* P8f:8→16邊 */; wg.rotateX(Math.PI / 2);
   const wm = new THREE.MeshLambertMaterial({ color: 0x14161a });
   const wheels = [];
   const rows = isBus ? [3.6, -1.2, -3.4] : [.9, -.9];
@@ -785,6 +790,8 @@ function buildHoarding(zone, openings) {
   const mat = new THREE.MeshLambertMaterial({ color: 0x2a7a4a });
   const panels = [];
   const PW = 2.45;
+  // P8b:立柱喺每塊板介面(角落/尾板收口)+壓頂+基座,同板共用 opening 數據
+  const posts = [];
   for (let i = 0; i < pts.length; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
     const L = Math.hypot(bx - ax, bz - az);
@@ -798,14 +805,40 @@ function buildHoarding(zone, openings) {
       const k = t / L;
       panels.push([lerp(ax, bx, k), lerp(az, bz, k), Math.atan2(bz - az, bx - ax)]);
     }
+    // 柱:每塊板邊界一枝(開口邊界由兩端第一塊板夾住)
+    for (let j = 0; j <= n; j++) {
+      const t = j * spacing;
+      if (ops.some(o => t + .4 > o.t0 && t - .4 < o.t1)) continue;
+      const k = t / L;
+      posts.push([lerp(ax, bx, k), lerp(az, bz, k), Math.atan2(bz - az, bx - ax)]);
+    }
   }
-  const im = new THREE.InstancedMesh(geo, mat, panels.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+  const im = new THREE.InstancedMesh(geo, mat, panels.length);
   panels.forEach((p, i) => {
     Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
     P.set(p[0], 1.15, p[1]); M.compose(P, Q, S); im.setMatrixAt(i, M);
   });
   im.castShadow = true; im.receiveShadow = true; scene.add(im);
+  // P8b:立柱(深色金屬)+壓頂(同板數)+基座
+  const postIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.16, 2.55, .16), new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: .5, metalness: .6 }), posts.length);
+  posts.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 1.28, p[1]); M.compose(P, Q, S); postIM.setMatrixAt(i, M);
+  });
+  postIM.castShadow = true; scene.add(postIM);
+  const capIM = new THREE.InstancedMesh(new THREE.BoxGeometry(2.45, .1, .2), new THREE.MeshLambertMaterial({ color: 0x1e5a3a }), panels.length);
+  panels.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 2.36, p[1]); M.compose(P, Q, S); capIM.setMatrixAt(i, M);
+  });
+  scene.add(capIM);
+  const baseIM = new THREE.InstancedMesh(new THREE.BoxGeometry(2.45, .22, .18), new THREE.MeshLambertMaterial({ color: 0x4a4640 }), panels.length);
+  panels.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], .11, p[1]); M.compose(P, Q, S); baseIM.setMatrixAt(i, M);
+  });
+  scene.add(baseIM);
   return { panels };
 }
 buildHoarding(MAIN_SITE, MAIN_OPENINGS);
@@ -1202,7 +1235,7 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
 function makeTruck(x, z, rotY, color) {
   const g = new THREE.Group();
   const M = {
-    paint: new THREE.MeshStandardMaterial({ color, roughness: .38, metalness: .15 }),
+    paint: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(rand(.86, 1)), roughness: .38, metalness: .15 }), /* P8f:每架車漆有微量差 */
     paintDark: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.55), roughness: .5, metalness: .2 }),
     rubber: new THREE.MeshStandardMaterial({ color: 0x15161a, roughness: .95, metalness: 0 }),
     metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: .35, metalness: .85 }),
@@ -1259,6 +1292,11 @@ function makeTruck(x, z, rotY, color) {
   B(.12, .88, 2.1, M.bedIn, -.52, 1.42, 0, false);     // 前內襯
   const gate = B(.1, .85, 2.1, M.bed, -2.88, 1.44, 0); // 尾門
   B(.1, .12, 2.15, M.stripe, -2.9, 1.9, 0);            // 尾門黃欄
+  /* P8f:泥污 — 斗底外側/沙板/尾門下部嘅泥漬條 */
+  const mudM = new THREE.MeshStandardMaterial({ color: 0x4a3d2e, roughness: .98 });
+  for (const s of [-1, 1]) B(3.1, .3, .06, mudM, -1.05, .68, s * 1.11, false); 
+  B(.06, .3, 2.05, mudM, -2.94, .68, 0, false);
+  for (const s of [-1, 1]) B(1.6, .12, .04, mudM, -.45 + (s > 0 ? .8 : 0), 1.02, s * 1.13, false);
   /* --- 車輪(24邊:胎+鈴+轂,繞輪軸 z 滾動) --- */
   const wheels = [];
   const mkWheel = (wx, side) => {
@@ -2706,6 +2744,11 @@ function buildGatehouse() {
   scene.add(house);
   colliders.push({ x: GATE[0] - pxv * 2.6, z: GATE[1] - pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
   colliders.push({ x: GATE[0] + pxv * 2.6, z: GATE[1] + pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
+  // P8c:三棍閘機身碰撞體(3條通道,行人要經通道行,唔可以穿機)
+  for (let i = -1; i <= 1; i++) {
+    const cx = GATE[0] + pxv * i * 1.75, cz = GATE[1] + pzv * i * 1.75;
+    colliders.push({ x: cx, z: cz, hw: .32, hd: .32, rot: 0, minx: cx - .5, maxx: cx + .5, minz: cz - .5, maxz: cz + .5 });
+  }
 }
 /* ========== P1:車輛閘門(visual barrier)+行人通道+周界 debug overlay ========== */
 const VEH_GATE = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
@@ -2750,6 +2793,24 @@ function updateVehicleGate(dt) {
   }
   vehGate3.amt = lerp(vehGate3.amt, want ? 1 : 0, 1 - Math.pow(.005, dt));
   vehGate3.arm.rotation.z = vehGate3.amt * 1.15; // 升起
+}
+/* P8d:動態 shadow LOD — 角色/街車距玩家 >70m 閉投影(shadow pass 係主要成本) */
+let _shadowLODT = 0;
+function updateShadowLOD(now) {
+  if (now - _shadowLODT < 500) return; _shadowLODT = now;
+  const px = player.x, pz = player.z;
+  const groups = [];
+  for (const w of workers) groups.push(w.h.g);
+  for (const o of officers) groups.push(o.h.g);
+  for (const p of peds) groups.push(p.h.g);
+  for (const c of traffic) groups.push(c.g);
+  for (const g of groups) {
+    if (!g) continue;
+    const far = d2(g.position.x, g.position.z, px, pz) > 70;
+    if (g.userData._shOn === !far) continue;
+    g.userData._shOn = !far;
+    g.traverse(o => { if (o.isMesh) o.castShadow = !far; });
+  }
 }
 /* 行人通道(入閘後黃綠色帶+箭嘴,連接三棍閘→施工區) */
 {
@@ -2812,10 +2873,9 @@ function buildDemoStreet() {
   const swW = Math.min(4, gap + .8);
   const TL = new THREE.TextureLoader();
   const pbr = (base, w, h, tile) => {
-    const mk = (suf) => { const t = TL.load("assets/textures/" + base + "_" + suf + ".jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / tile, h / tile); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t; };
-    const m = { map: mk("Color"), roughnessMap: mk("Roughness"), normalMap: mk("NormalGL") };
-    m.map.colorSpace = THREE.SRGBColorSpace;
-    return m;
+    // P8a:只有 Color 用 sRGB;Normal/Roughness 係線性資料圖,唔可以錯當 sRGB
+    const mk = (suf, srgb) => { const t = TL.load("assets/textures/" + base + "_" + suf + ".jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / tile, h / tile); t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+    return { map: mk("Color", true), roughnessMap: mk("Roughness", false), normalMap: mk("NormalGL", false) };
   };
   const sw = new THREE.Mesh(new THREE.PlaneGeometry(len, swW), new THREE.MeshStandardMaterial({ ...pbr("Concrete034_1K-JPG", len, swW, 4), roughness: 1 }));
   sw.rotation.x = -Math.PI / 2; sw.rotation.z = rotY + Math.PI / 2;
@@ -3189,6 +3249,7 @@ window.__game.tick = tick;
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min((now - last) / 1000, .05); last = now;
+  updateShadowLOD(now);
   tick(dt, now);
 }
 requestAnimationFrame(loop);
