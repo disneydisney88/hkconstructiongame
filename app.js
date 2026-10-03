@@ -2762,11 +2762,25 @@ function buildDemoStreet() {
   const P = t => [ax + ux * t, az + uz * t];
   const len = tB - tA, mid = (tA + tB) / 2, [mx, mz] = P(mid);
   const rotY = -Math.atan2(uz, ux);
-  /* 行人路 + 引路磚 + kerb */
+  /* 行人路 + 引路磚 + kerb — P4:CC0 concrete PBR,米制 scale(1 tile = 4m) */
   const swW = Math.min(4, gap + .8);
-  const sw = new THREE.Mesh(new THREE.PlaneGeometry(len, swW), new THREE.MeshStandardMaterial({ color: 0xa8a49c, roughness: .92 }));
+  const TL = new THREE.TextureLoader();
+  const pbr = (base, w, h, tile) => {
+    const mk = (suf) => { const t = TL.load("assets/textures/" + base + "_" + suf + ".jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / tile, h / tile); t.anisotropy = 4; t.colorSpace = THREE.SRGBColorSpace; return t; };
+    const m = { map: mk("Color"), roughnessMap: mk("Roughness"), normalMap: mk("NormalGL") };
+    m.map.colorSpace = THREE.SRGBColorSpace;
+    return m;
+  };
+  const sw = new THREE.Mesh(new THREE.PlaneGeometry(len, swW), new THREE.MeshStandardMaterial({ ...pbr("Concrete034_1K-JPG", len, swW, 4), roughness: 1 }));
   sw.rotation.x = -Math.PI / 2; sw.rotation.z = rotY + Math.PI / 2;
   sw.position.set(mx - nx * (swW / 2 - .1), .15, mz - nz * (swW / 2 - .1)); sw.receiveShadow = true; scene.add(sw);
+  /* P4:demo 路面 asphalt 覆蓋層(有 UV,米制 scale 1 tile = 5m) */
+  {
+    const rd = rp ? Math.hypot(ped.x - rp[0], ped.z - rp[1]) : 5, roadW = rp ? rp[2] : 10;
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(len + 24, roadW - .4), new THREE.MeshStandardMaterial({ ...pbr("Asphalt007_1K-JPG", len + 24, roadW - .4, 5), roughness: 1 }));
+    road.rotation.x = -Math.PI / 2; road.rotation.z = rotY + Math.PI / 2;
+    road.position.set(mx - nx * rd, .096, mz - nz * rd); road.receiveShadow = true; road.material.polygonOffset = true; road.material.polygonOffsetFactor = -1; road.material.polygonOffsetUnits = -1; scene.add(road);
+  }
   const tactile = new THREE.Mesh(new THREE.PlaneGeometry(len, .45), new THREE.MeshStandardMaterial({ color: 0xd8b52a, roughness: .8 }));
   tactile.rotation.x = -Math.PI / 2; tactile.rotation.z = rotY + Math.PI / 2;
   tactile.position.set(mx - nx * (swW - .28), .155, mz - nz * (swW - .28)); scene.add(tactile);
@@ -2776,12 +2790,12 @@ function buildDemoStreet() {
   /* 路面修補 + 沙井蓋 + 去水格 */
   const patch = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.4), new THREE.MeshStandardMaterial({ color: 0x2c2a30, roughness: .95 }));
   patch.rotation.x = -Math.PI / 2; patch.rotation.z = rotY + Math.PI / 2 + .12;
-  patch.position.set(P(mid + 6)[0] - nx * (gap + 1.6), .095, P(mid + 6)[1] - nz * (gap + 1.6)); scene.add(patch);
+  patch.position.set(P(mid + 6)[0] - nx * (gap + 1.6), .102, P(mid + 6)[1] - nz * (gap + 1.6)); scene.add(patch);
   const mhMat = new THREE.MeshStandardMaterial({ color: 0x2f2d33, roughness: .9, metalness: .3 });
   for (const dt of [-16, -2, 12]) {
     const [qx, qz] = P(mid + dt);
     const mh = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .03, 16), mhMat);
-    mh.position.set(qx - nx * (gap + 1.5), .1, qz - nz * (gap + 1.5)); scene.add(mh);
+    mh.position.set(qx - nx * (gap + 1.5), .103, qz - nz * (gap + 1.5)); scene.add(mh);
   }
   for (const dt of [-22, -8, 6, 20]) {
     const [qx, qz] = P(mid + dt);
@@ -2793,7 +2807,7 @@ function buildDemoStreet() {
     const gx0 = ped.x - nx * (gap + 1.2), gz0 = ped.z - nz * (gap + 1.2);
     const stripeG = new THREE.PlaneGeometry(3.2, .55), stripeM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: .7 });
     const nSt = 7;
-    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.x = -Math.PI / 2; s.rotation.z = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .105, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
+    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.x = -Math.PI / 2; s.rotation.z = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .108, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
   }
   /* 閘內:卸貨區+車道分隔(黃黑 hazard 邊+地面標線) */
   {
