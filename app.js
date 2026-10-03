@@ -135,7 +135,7 @@ function computeOpenings(zone, gate) {
 }
 const MAIN_OPENINGS = computeOpenings(MAIN_SITE, GATE);
 const SITE2_OPENINGS = (() => { const g2 = findGate(SITE2); const o = computeOpenings(SITE2, g2); return { ...o, list: o.list.filter(op => op.type === "pedestrian") }; })(); // SITE2 暫只有行人閘
-function vehicleGateOpen() { const v = MAIN_OPENINGS.list.find(o => o.type === "vehicle"); return !!(v && playerTruck && d2(playerTruck.x, playerTruck.z, v.x, v.z) < 12); } // 12m 內升起車閘(d2 回傳米)
+function vehicleGateOpen() { const v = MAIN_OPENINGS.list.find(o => o.type === "vehicle"); if (!v) return false; return !!((playerTruck && d2(playerTruck.x, playerTruck.z, v.x, v.z) < 12) || (typeof npcTruck !== "undefined" && npcTruck && d2(npcTruck.x, npcTruck.z, v.x, v.z) < 12)); } // P9.2:玩家車或NPC車12m內升起(d2 回傳米)
 
 /* ---------- three.js 基礎 ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas: $("c"), antialias: true });
@@ -172,7 +172,7 @@ scene.add(sun); scene.add(sun.target);
    hemi 降做補底,sun 保留主光+陰影。HDR 載入失敗唔阻街(keep hemi)。 */
 {
   const pmrem = new THREE.PMREMGenerator(renderer);
-  new RGBELoader().load("assets/textures/sky_2k.hdr", hdr => {
+  new RGBELoader().load("assets/textures/sky_1k.hdr", hdr => {
     try {
       const env = pmrem.fromEquirectangular(hdr).texture;
       scene.environment = env;
@@ -1347,16 +1347,21 @@ const playerTruck = makeTruck(OFFICE[0] + Math.cos(GATE_DIR_IN) * 16, OFFICE[1] 
 /* NPC 泥頭車:繞圈 + 倒車入地盤 */
 const npcTruck = makeTruck(0, 0, 0, 0x8a3a3a);
 npcTruck.route = (() => {
-  const pts = [];
-  const base = nearestRoadPt(GATE[0], GATE[1]);
-  if (!base) return [[0, 0]];
-  // 沿主路搵一條循環線
-  const cand = roadPts.filter(p => d2(p[0], p[1], base[0], base[1]) < 320);
-  for (let i = 0; i < 7 && cand.length; i++) {
-    const p = cand.splice(randi(0, cand.length - 1), 1)[0]; pts.push([p[0], p[1]]);
-  }
-  pts.push([GATE[0] - Math.cos(GATE_DIR_IN) * 14, GATE[1] - Math.sin(GATE_DIR_IN) * 14]);
-  return pts;
+  /* P9.2:固定入場-卸貨-出場循環,必經 vehicle opening,唔經行人閘/圍板。
+     路線尾喺閘外街尾 → 觸發 reverse hazard → 由 wp 0 重新起步。 */
+  const veh = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  if (!veh) return [[0, 0]];
+  let nx = MAIN_SITE.c[0] - veh.x, nz = MAIN_SITE.c[1] - veh.z;
+  const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl; // 車閘向內
+  const out = (d) => [veh.x - nx * d, veh.z - nz * d], inw = (d) => [veh.x + nx * d, veh.z + nz * d];
+  // P9.2:純穿梭軸(閘中心進出直線),避開安全訓練室貨櫃(-811,947)等閘前物件
+  return [
+    out(30), out(9),                 // 0-1 埋閘(觸發 barrier 升)
+    inw(6), inw(16), inw(24),        // 2-4 入場沿車道到卸貨區
+    inw(8), out(2),                  // 5-6 掉頭出閘
+    out(14), out(30),                // 7-8 出閘離開(barrier 落)
+    out(42)                          // 9 再前行(之後 reverse hazard 喺空曠街上)
+  ];
 })();
 npcTruck.wp = 0; npcTruck.mode = "drive"; npcTruck.timer = 0;
 hazards.push({ type: "npcTruck" });
@@ -2237,9 +2242,14 @@ function busted() {
 
 /* ---------- 工友 ---------- */
 function updateWorkers(dt) {
+  const frame = (window.__animF = (window.__animF || 0) + 1); // P9.3:round-robin 動畫分批
   for (const w of workers) {
     if (w.injured) continue;
-    if (w.stationary) { w.h.animate(dt,0); continue; }
+    const far = d2(w.x, w.z, player.x, player.z) > 60;
+    if (w._rr0 === undefined) w._rr0 = randi(0, 2);
+    const anim = !far || ((frame + w._rr0) % 3 === 0); // 遠角每3幀輪到一次,dt×3補償
+    const adt = far ? dt * 3 : dt;
+    if (w.stationary) { if (anim) w.h.animate(adt, 0); continue; }
     if (d2(w.x, w.z, player.x, player.z) > 130) { w.h.g.visible = false; continue; }
     w.h.g.visible = true;
     w.t -= dt;
@@ -2255,9 +2265,9 @@ function updateWorkers(dt) {
         w.heading = angLerp(w.heading, a, 1 - Math.pow(.001, dt));
         let nx = w.x + Math.cos(w.heading) * 1.1 * dt, nz = w.z + Math.sin(w.heading) * 1.1 * dt;
         [nx, nz] = collide(nx, nz, .4); w.x = nx; w.z = nz;
-        w.h.animate(dt, 1.1);
+        if (anim) w.h.animate(adt, 1.1);
       }
-    } else w.h.animate(dt, 0);
+    } else if (anim) w.h.animate(adt, 0);
     w.h.g.position.set(w.x, 0, w.z);
     w.h.g.rotation.y = -w.heading + Math.PI / 2;
   }
@@ -2663,7 +2673,7 @@ function renderScene() {
   camera.updateMatrixWorld();
   const pos = new THREE.Vector3();
   const factor = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(innerHeight, 1);
-  for (const label of worldLabels) {
+  if (!(window.__iso && window.__iso.labels)) for (const label of worldLabels) { // P9.3 隔離開關
     label.getWorldPosition(pos);
     const distance = camera.position.distanceTo(pos);
     const aspect = label.userData.labelAspect;
@@ -2883,7 +2893,7 @@ function buildDemoStreet() {
   /* P4:demo 路面 asphalt 覆蓋層(有 UV,米制 scale 1 tile = 5m) */
   {
     const rd = rp ? Math.hypot(ped.x - rp[0], ped.z - rp[1]) : 5, roadW = rp ? rp[2] : 10;
-    const road = new THREE.Mesh(new THREE.PlaneGeometry(len + 24, roadW - .4), new THREE.MeshStandardMaterial({ ...pbr("Asphalt007_1K-JPG", len + 24, roadW - .4, 5), roughness: 1 }));
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(len + 24, roadW - .4), new THREE.MeshStandardMaterial({ ...pbr("Asphalt007_512-JPG", len + 24, roadW - .4, 5), roughness: 1 }));
     road.rotation.x = -Math.PI / 2; road.rotation.z = rotY + Math.PI / 2;
     road.position.set(mx - nx * rd, .096, mz - nz * rd); road.receiveShadow = true; road.material.polygonOffset = true; road.material.polygonOffsetFactor = -1; road.material.polygonOffsetUnits = -1; scene.add(road);
   }
@@ -3195,10 +3205,8 @@ function tick(dt, now) {
   if (dlgActive) { player.freeze = Math.max(player.freeze, .05); dlgTick(dt); }
   playerMove(dt);
   truckDrive(dt);
-  updateOfficers(dt);
-  updateWorkers(dt);
-  updateTraffic(dt);
-  updatePeds(dt);
+  if (!window.__iso) { updateOfficers(dt); updateWorkers(dt); updateTraffic(dt); updatePeds(dt); }
+  else { if (!window.__iso.npc) { updateOfficers(dt); updateWorkers(dt); } if (!window.__iso.traffic) { updateTraffic(dt); updatePeds(dt); } }
   updateHazards(dt);
   updateBarriers(dt);
   updateVehicleGate(dt);
@@ -3231,7 +3239,7 @@ function tick(dt, now) {
   boss.g.rotation.y = Math.atan2(player.z - boss.g.position.z, player.x - boss.g.position.x) - Math.PI / 2 + Math.PI;
   boss.animate(dt, 0);
   updateHUD(dt);
-  drawMinimap();
+  if (!(window.__iso && window.__iso.mini)) drawMinimap(); // P9.3 profiling 隔離開關
   /* 安全獎:連續3分鐘零警告 */
   if (player.registered && player.ppe && player.warnings === 0 && player.stars === 0) {
     player.streakT = (player.streakT || 0) + dt;
@@ -3258,7 +3266,7 @@ requestAnimationFrame(loop);
 /* 開場鏡頭:喺玩家背後5米,唔好攝入閘機房 */
 camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
-window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck });
+window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders });
 window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 

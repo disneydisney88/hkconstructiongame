@@ -10,3 +10,6 @@
 - CC0 允許商業使用及再分發,毋須署名;來源記錄屬最佳實踐
 - 只取 Color/Roughness/NormalGL 三張,其餘(displacement/blend/…)已刪
 | sky_2k.hdr | Poly Haven (polyhaven.org) — kloppenheim_02 2K | **CC0 1.0 Universal** | HDRI 環境光 (PMREM IBL) |
+
+| Asphalt007_512-JPG_* | ambientCG Asphalt007 由 1K 以 PIL LANCZOS 縮至 512(本機加工) | CC0 1.0(衍生自 CC0 原件) | demo 路面(減傳輸量) |
+| sky_1k.hdr | Poly Haven kloppenheim_02 1K | CC0 1.0 | HDRI 環境光(取代 2K,慳 ~5MB) |

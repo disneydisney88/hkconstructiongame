@@ -33,3 +33,10 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - 動態 shadow LOD(角色/街車>70m閉投影):median FPS 30→59.5
 - vestTex cache:GPU textures 198→157;街車輪16邊;泥頭車泥漬+車漆微差
 - 證據: qa-evidence/p8-polish/REPORT.md
+
+## 2026-10-03 — P9 Hardening(RC 收斂)
+- P9.2 NPC 泥頭車真正經 vehicle gate 穿梭(實時6入7出+模擬5入5出,零穿板/零行人閘)
+- P9.3 profiling 確認 spike 源於角色每幀全骨骼動畫 → >60m 角色round-robin每3幀動畫,median 33.3→16.7ms
+- P9.4 冷快取 17.65→9.29MB(sky 1K + asphalt 512)
+- 驗收用字全面證據式;boot watchdog 實測有效
+- 證據: qa-evidence/p9-hardening/REPORT.md
