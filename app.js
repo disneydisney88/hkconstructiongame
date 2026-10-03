@@ -164,8 +164,8 @@ addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; cam
 const hemi = new THREE.HemisphereLight(0xcfe2ff, 0x8f8878, 1.05); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2dd, 2.3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -70; sun.shadow.camera.right = 70; sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
+sun.shadow.mapSize.set(1024, 1024); /* P6:2048→1024,140m 範圍 ~7cm/texel */;
+sun.shadow.camera.left = -45; sun.shadow.camera.right = 45; sun.shadow.camera.top = 45; sun.shadow.camera.bottom = -45; /* P6: 收窄shadow範圍 */;
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 600; sun.shadow.bias = -.0008;
 scene.add(sun); scene.add(sun.target);
 /* P5:HDRI 環境光(Poly Haven kloppenheim_02 2K,CC0)— PMREM 做 IBL;
@@ -1122,9 +1122,26 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
       g => placeGLBProp(g, OFFICE[0] + Math.cos(GATE_DIR_IN + 2.1) * 8, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.1) * 8, rand(0, 6), 2.6, { name: "kenney-container-b", color: 0x2a6a5a, rough: .75, metal: .25 }));
     propLoader.load("assets/kenney-industrial/Models/GLB format/shipping-container-c.glb",
       g => placeGLBProp(g, yardX + 4, yardZ - 4, .5, 2.6, { name: "kenney-container-c", color: 0x8a4a3a, rough: .75, metal: .25 }));
-    /* AI生成手推車(Hunyuan3D-2,白模上色) */
-    propLoader.load("models/ai-wheelbarrow.glb",
-      g => placeGLBProp(g, yardX + 1.5, yardZ + .5, 1.15, .55, { name: "ai-wheelbarrow", color: 0xb84a18, rough: .55, metal: .35 }));
+    /* P6:程序化手推車取代 ai-wheelbarrow.glb(舊 GLB 410,176 tri = 全場25%,白模上色晒料)
+       — 車斗+車輪+腳架+把手,~230 tri,連碰撞體 */
+    {
+      const wb = new THREE.Group();
+      const trayM = new THREE.MeshStandardMaterial({ color: 0xb84a18, roughness: .55, metalness: .35 });
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(1.05, .08, .62), trayM); tray.position.set(0, .48, 0); tray.castShadow = true; wb.add(tray);
+      for (const s of [-1, 1]) {
+        const side = new THREE.Mesh(new THREE.BoxGeometry(1.05, .3, .05), trayM); side.position.set(0, .62, s * .3); side.castShadow = true; wb.add(side);
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(.06, .42, .06), new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: .7, metalness: .4 })); leg.position.set(-.42, .26, s * .22); wb.add(leg);
+      }
+      const front = new THREE.Mesh(new THREE.BoxGeometry(.05, .3, .62), trayM); front.position.set(.5, .62, 0); wb.add(front);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .09, 14), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .95 }));
+      wheel.rotation.x = Math.PI / 2; wheel.position.set(.48, .2, 0); wheel.castShadow = true; wb.add(wheel);
+      const handleM = new THREE.MeshStandardMaterial({ color: 0x6a6a70, roughness: .5, metalness: .6 });
+      for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, .8, 8), handleM); h.rotation.z = Math.PI / 2 - .35; h.position.set(-.62, .62, s * .26); wb.add(h); }
+      wb.position.set(yardX + 1.5, 0, yardZ + .5); wb.rotation.y = 1.15;
+      scene.add(wb);
+      colliders.push({ x: yardX + 1.5, z: yardZ + .5, hw: .55, hd: .4, rot: 0, minx: yardX + .95, maxx: yardX + 2.05, minz: yardZ + .1, maxz: yardZ + .9 });
+      window.__propsLoaded.push("proc-wheelbarrow");
+    }
   }
 }
 /* 圍板安全橫額 */
@@ -1198,7 +1215,7 @@ function makeTruck(x, z, rotY, color) {
     lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .7, roughness: .3 }),
     red: new THREE.MeshStandardMaterial({ color: 0x992222, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
   };
-  const B = (w, h, d, mat, px, py, pz, cast = true) => {
+  const B = (w, h, d, mat, px, py, pz, cast = false) => { // P6:細件預設唔投影,大件明確開
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
   };
@@ -1214,7 +1231,7 @@ function makeTruck(x, z, rotY, color) {
   const exhTip = new THREE.Mesh(new THREE.CylinderGeometry(.075, .055, .16, 8), M.chrome);
   exhTip.position.set(.95, 2.75, -1.05); g.add(exhTip);
   /* --- 駕駛室 --- */
-  B(1.5, 1.3, 2.2, M.paint, 1.7, 1.62, 0);            // 主體
+  B(1.5, 1.3, 2.2, M.paint, 1.7, 1.62, 0, true);            // 主體
   B(1.42, .5, 2.24, M.paintDark, 1.7, .88, 0);        // 裙腳
   const ws = B(.08, .85, 1.9, M.glass, 2.46, 1.98, 0); ws.rotation.z = -.16; // 擋風玻璃(斜)
   for (const s of [-1, 1]) {
@@ -1233,7 +1250,7 @@ function makeTruck(x, z, rotY, color) {
   /* --- 泥斗(開口 U 形,內外壁) --- */
   B(3.3, .14, 2.2, M.bedIn, -1.05, .96, 0);            // 斗底(內面深色)
   for (const s of [-1, 1]) {
-    B(3.3, .9, .1, M.bed, -1.05, 1.45, s * 1.05);      // 外側壁
+    B(3.3, .9, .1, M.bed, -1.05, 1.45, s * 1.05, true);      // 外側壁
     B(3.26, .84, .04, M.bedIn, -1.05, 1.44, s * .985, false); // 內壁襯
     B(3.3, .12, .14, M.stripe, -1.05, 1.94, s * 1.05); // 頂部黃欄
     for (let i = 0; i < 5; i++) B(.1, .8, .05, M.paintDark, -2.5 + i * .72, 1.45, s * 1.12); // 外加勁肋
@@ -1271,8 +1288,22 @@ function makeTruck(x, z, rotY, color) {
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
   beacon.position.set(1.7, 2.42, 0); g.add(beacon);
   B(.3, .1, .3, M.stripe, 1.7, 2.32, 0);               // 燈座
-  g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g);
-  return { g, wheels, beacon, x, z, heading: rotY, v: 0 };
+  /* P6:LOD — LOD0 高細節(0m) / LOD1 積木版(70m) / LOD2 剪影(170m) */
+  const lod = new THREE.LOD();
+  lod.addLevel(g, 0);
+  const g1 = new THREE.Group();
+  const lam = new THREE.MeshLambertMaterial({ color });
+  const cab1 = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), lam); cab1.position.set(1.7, 1.45, 0); g1.add(cab1);
+  const bed1 = new THREE.Mesh(new THREE.BoxGeometry(3.3, 1, 2.1), new THREE.MeshLambertMaterial({ color: 0x5c5c66 })); bed1.position.set(-1.05, 1.3, 0); g1.add(bed1);
+  const wg1 = new THREE.CylinderGeometry(.55, .55, .4, 10); wg1.rotateX(Math.PI / 2);
+  const wm1 = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+  [[1.7, 1], [1.7, -1], [-.45, 1], [-.45, -1], [-1.65, 1], [-1.65, -1]].forEach(([wx, s]) => { const w = new THREE.Mesh(wg1, wm1); w.position.set(wx, .55, s * 1.02); g1.add(w); });
+  lod.addLevel(g1, 70);
+  const g2 = new THREE.Group();
+  const s2 = new THREE.Mesh(new THREE.BoxGeometry(5.4, 1.8, 2.2), new THREE.MeshLambertMaterial({ color })); s2.position.set(-.2, 1.1, 0); g2.add(s2);
+  lod.addLevel(g2, 170);
+  lod.position.set(x, 0, z); lod.rotation.y = rotY; scene.add(lod);
+  return { g: lod, wheels, beacon, x, z, heading: rotY, v: 0 };
 }
 const playerTruck = makeTruck(OFFICE[0] + Math.cos(GATE_DIR_IN) * 16, OFFICE[1] + Math.sin(GATE_DIR_IN) * 16, GATE_DIR_IN + Math.PI / 2, 0x3a8a4a);
 /* NPC 泥頭車:繞圈 + 倒車入地盤 */
@@ -2884,6 +2915,7 @@ function buildDemoStreet() {
     svc.rotation.y = ry; svc.position.set(bx - uz * 4.2 + nx * 4.62, 1.05, bz + ux * 4.2 + nz * 4.62); scene.add(svc);
   });
   winIM.count = wi; frameIM.count = wi; acIM.count = ai;
+  /* P6:窗/框/AC 唔 cast shadow(立面主體已經投影,慳 shadow pass) */
   scene.add(winIM, frameIM, acIM);
 }
 buildDemoStreet();
