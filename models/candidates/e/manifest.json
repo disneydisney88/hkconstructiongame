@@ -1,0 +1,374 @@
+[
+ {
+  "tri": 99303,
+  "materials": 12,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 358,
+  "cls": "truck",
+  "slug": "Ural55571_DumpTruck",
+  "uid": "1e989a8ce0d54975a14bef386b29a1a7",
+  "license": "CC-BY-4.0",
+  "author": "Hsu.Pei.Ge",
+  "origName": "Ural 55571 Dump truck",
+  "origUrl": "https://sketchfab.com/3d-models/1e989a8ce0d54975a14bef386b29a1a7",
+  "bytes": 6060628,
+  "file": "models/candidates/e\\Ural55571_DumpTruck.glb"
+ },
+ {
+  "tri": 45605,
+  "materials": 16,
+  "images": 16,
+  "imgTypes": [
+   "image/png",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 18,
+  "cls": "truck",
+  "slug": "DumpTruck_neilken",
+  "uid": "952764eb657a474197942412d910808b",
+  "license": "CC-BY-4.0",
+  "author": "neilken",
+  "origName": "Dump Truck",
+  "origUrl": "https://sketchfab.com/3d-models/952764eb657a474197942412d910808b",
+  "bytes": 5879120,
+  "file": "models/candidates/e\\DumpTruck_neilken.glb"
+ },
+ {
+  "tri": 36780,
+  "materials": 1,
+  "images": 3,
+  "imgTypes": [
+   "image/png",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 4,
+  "cls": "truck",
+  "slug": "SmallDumpTruck_scan",
+  "uid": "ac775d1288e84833b3d1ed9fced5b228",
+  "license": "CC-BY-4.0",
+  "author": "leoskateman",
+  "origName": "Small Dump Truck (free scan)",
+  "origUrl": "https://sketchfab.com/3d-models/ac775d1288e84833b3d1ed9fced5b228",
+  "bytes": 7954404,
+  "file": "models/candidates/e\\SmallDumpTruck_scan.glb"
+ },
+ {
+  "tri": 34307,
+  "materials": 6,
+  "images": 6,
+  "imgTypes": [
+   "image/png",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 10,
+  "cls": "truck",
+  "slug": "DumpTruck_ElectroNick",
+  "uid": "781c616da8f44982a59cb3fc3fa67f98",
+  "license": "CC-BY-4.0",
+  "author": "ElectroNick",
+  "origName": "Dump Truck",
+  "origUrl": "https://sketchfab.com/3d-models/781c616da8f44982a59cb3fc3fa67f98",
+  "bytes": 3928144,
+  "file": "models/candidates/e\\DumpTruck_ElectroNick.glb"
+ },
+ {
+  "tri": 26840,
+  "materials": 30,
+  "images": 0,
+  "imgTypes": [],
+  "nodes": 60,
+  "cls": "truck",
+  "slug": "Kamaz_DumpTruck_LP",
+  "uid": "a7793241073a48e08e92280f445a6a67",
+  "license": "CC-BY-4.0",
+  "author": "kuwalol93",
+  "origName": "Kamaz dump truck (Low Poly)",
+  "origUrl": "https://sketchfab.com/3d-models/a7793241073a48e08e92280f445a6a67",
+  "bytes": 1892032,
+  "file": "models/candidates/e\\Kamaz_DumpTruck_LP.glb"
+ },
+ {
+  "tri": 20149,
+  "materials": 10,
+  "images": 13,
+  "imgTypes": [
+   "image/png",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 31,
+  "cls": "truck",
+  "slug": "MiningDumpTruck",
+  "uid": "b7c6756a7d8f4e4189bb665a76d3d9e1",
+  "license": "CC-BY-4.0",
+  "author": "LouisLysanderO",
+  "origName": "Mining dump truck",
+  "origUrl": "https://sketchfab.com/3d-models/b7c6756a7d8f4e4189bb665a76d3d9e1",
+  "bytes": 3752268,
+  "file": "models/candidates/e\\MiningDumpTruck.glb"
+ },
+ {
+  "tri": 3722,
+  "materials": 4,
+  "images": 1,
+  "imgTypes": [
+   "image/png"
+  ],
+  "nodes": 149,
+  "cls": "truck",
+  "slug": "LowPolyTipper",
+  "uid": "a74f16c96b3a4a5ebb257a9a61f2a011",
+  "license": "CC-BY-4.0",
+  "author": "polyflask",
+  "origName": "Low-poly Tipper Truck",
+  "origUrl": "https://sketchfab.com/3d-models/a74f16c96b3a4a5ebb257a9a61f2a011",
+  "bytes": 323676,
+  "file": "models/candidates/e\\LowPolyTipper.glb"
+ },
+ {
+  "tri": 322540,
+  "materials": 1,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 6,
+  "cls": "equipment",
+  "slug": "CaterpillarExcavator",
+  "uid": "ae7cb57a6e504ed8935e6525c4678789",
+  "license": "CC-BY-4.0",
+  "author": "Ralf.Zetzsch",
+  "origName": "Caterpillar Excavator",
+  "origUrl": "https://sketchfab.com/3d-models/ae7cb57a6e504ed8935e6525c4678789",
+  "bytes": 11299444,
+  "file": "models/candidates/e\\CaterpillarExcavator.glb"
+ },
+ {
+  "tri": 282746,
+  "materials": 2,
+  "images": 3,
+  "imgTypes": [
+   "image/jpeg",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 6,
+  "cls": "equipment",
+  "slug": "HyundaiExcavator",
+  "uid": "a805e66f565a412682ac8ce45ab9ac3e",
+  "license": "CC-BY-4.0",
+  "author": "thesidekick",
+  "origName": "Hyundai Excavator",
+  "origUrl": "https://sketchfab.com/3d-models/a805e66f565a412682ac8ce45ab9ac3e",
+  "bytes": 14785076,
+  "file": "models/candidates/e\\HyundaiExcavator.glb"
+ },
+ {
+  "tri": 259826,
+  "materials": 1,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 6,
+  "cls": "equipment",
+  "slug": "YanmarSV100_Excavator",
+  "uid": "53ac2876a78b4a7bb56b5b7cad33c45b",
+  "license": "CC-BY-4.0",
+  "author": "alexdelker",
+  "origName": "Day 94: Yanmar SV100 Excavator",
+  "origUrl": "https://sketchfab.com/3d-models/53ac2876a78b4a7bb56b5b7cad33c45b",
+  "bytes": 9555200,
+  "file": "models/candidates/e\\YanmarSV100_Excavator.glb"
+ },
+ {
+  "tri": 302929,
+  "materials": 1,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 6,
+  "cls": "equipment",
+  "slug": "BackhoeLoader_416F2",
+  "uid": "013f3949421f439ab13686a673dc5cd6",
+  "license": "CC-BY-4.0",
+  "author": "alexdelker",
+  "origName": "Caterpillar 416F2 Backhoe Loader",
+  "origUrl": "https://sketchfab.com/3d-models/013f3949421f439ab13686a673dc5cd6",
+  "bytes": 10706552,
+  "file": "models/candidates/e\\BackhoeLoader_416F2.glb"
+ },
+ {
+  "tri": 256840,
+  "materials": 6,
+  "images": 2,
+  "imgTypes": [
+   "image/jpeg",
+   "image/png"
+  ],
+  "nodes": 26,
+  "cls": "equipment",
+  "slug": "Forklift",
+  "uid": "7f74cf149f434c378816bbc17084323e",
+  "license": "CC-BY-4.0",
+  "author": "chwashere123",
+  "origName": "Forklift",
+  "origUrl": "https://sketchfab.com/3d-models/7f74cf149f434c378816bbc17084323e",
+  "bytes": 7617112,
+  "file": "models/candidates/e\\Forklift.glb"
+ },
+ {
+  "tri": 170701,
+  "materials": 10,
+  "images": 0,
+  "imgTypes": [],
+  "nodes": 59,
+  "cls": "props",
+  "slug": "ScaffoldingStructures",
+  "uid": "bf87476bca544c348040f05d3eef7ee2",
+  "license": "CC-BY-4.0",
+  "author": "johnleeyoung",
+  "origName": "Rusty upturned wheelbarrow\u2192\u6539:Scaffolding Structures",
+  "origUrl": "https://sketchfab.com/3d-models/bf87476bca544c348040f05d3eef7ee2",
+  "bytes": 5924436,
+  "file": "models/candidates/e\\ScaffoldingStructures.glb"
+ },
+ {
+  "tri": 149999,
+  "materials": 1,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 6,
+  "cls": "props",
+  "slug": "TrafficBarrier",
+  "uid": "349c954a17654271a197f5640f38e8ec",
+  "license": "CC-BY-4.0",
+  "author": "marcocastigl",
+  "origName": "traffic barrier",
+  "origUrl": "https://sketchfab.com/3d-models/349c954a17654271a197f5640f38e8ec",
+  "bytes": 7332980,
+  "file": "models/candidates/e\\TrafficBarrier.glb"
+ },
+ {
+  "tri": 142080,
+  "materials": 1,
+  "images": 2,
+  "imgTypes": [
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 6,
+  "cls": "props",
+  "slug": "RebarConcrete",
+  "uid": "465ad1e439304aa0a16e6895f7e36a51",
+  "license": "CC-BY-4.0",
+  "author": "sinnervoncra",
+  "origName": "REBAR reinforced concrete",
+  "origUrl": "https://sketchfab.com/3d-models/465ad1e439304aa0a16e6895f7e36a51",
+  "bytes": 8864320,
+  "file": "models/candidates/e\\RebarConcrete.glb"
+ },
+ {
+  "tri": 116960,
+  "materials": 1,
+  "images": 1,
+  "imgTypes": [
+   "image/jpeg"
+  ],
+  "nodes": 5,
+  "cls": "props",
+  "slug": "TrafficCone",
+  "uid": "c6e9f99781ac4037b66d30a1d959c859",
+  "license": "CC-BY-4.0",
+  "author": "EmilianoSVR",
+  "origName": "Traffic Cone",
+  "origUrl": "https://sketchfab.com/3d-models/c6e9f99781ac4037b66d30a1d959c859",
+  "bytes": 3471888,
+  "file": "models/candidates/e\\TrafficCone.glb"
+ },
+ {
+  "tri": 346568,
+  "materials": 1,
+  "images": 0,
+  "imgTypes": [],
+  "nodes": 8,
+  "cls": "building",
+  "slug": "IndustrialBuilding",
+  "uid": "6d5e8e3a8de742e58c09806719ddc0cf",
+  "license": "CC-BY-4.0",
+  "author": "danielklyuev",
+  "origName": "Industrial building",
+  "origUrl": "https://sketchfab.com/3d-models/6d5e8e3a8de742e58c09806719ddc0cf",
+  "bytes": 12160696,
+  "file": "models/candidates/e\\IndustrialBuilding.glb"
+ },
+ {
+  "tri": 337038,
+  "materials": 10,
+  "images": 9,
+  "imgTypes": [
+   "image/jpeg",
+   "image/png",
+   "image/jpeg"
+  ],
+  "nodes": 21,
+  "cls": "building",
+  "slug": "WarehouseBldgSite",
+  "uid": "87cf6d4875f7415f847eab4b9c1dfbf2",
+  "license": "CC-BY-4.0",
+  "author": "jimbogies",
+  "origName": "Warehouse Building Construction Site",
+  "origUrl": "https://sketchfab.com/3d-models/87cf6d4875f7415f847eab4b9c1dfbf2",
+  "bytes": 22384024,
+  "file": "models/candidates/e\\WarehouseBldgSite.glb"
+ },
+ {
+  "tri": 55026,
+  "materials": 2,
+  "images": 6,
+  "imgTypes": [
+   "image/png",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 37,
+  "cls": "building",
+  "slug": "ModularIndustrialBldg",
+  "uid": "4bb58f7548c7464ebdf41a51958f712a",
+  "license": "CC-BY-4.0",
+  "author": "adiko1889",
+  "origName": "Modular industrial building",
+  "origUrl": "https://sketchfab.com/3d-models/4bb58f7548c7464ebdf41a51958f712a",
+  "bytes": 13068876,
+  "file": "models/candidates/e\\ModularIndustrialBldg.glb"
+ },
+ {
+  "tri": 67127,
+  "materials": 3,
+  "images": 5,
+  "imgTypes": [
+   "image/jpeg",
+   "image/png",
+   "image/png"
+  ],
+  "nodes": 12,
+  "cls": "building",
+  "slug": "OldIndustrialBldg",
+  "uid": "0dafa7aaadfd4666bb4a32776c84b14e",
+  "license": "CC-BY-4.0",
+  "author": "gazdahrco",
+  "origName": "Old Industrial Building",
+  "origUrl": "https://sketchfab.com/3d-models/0dafa7aaadfd4666bb4a32776c84b14e",
+  "bytes": 10556204,
+  "file": "models/candidates/e\\OldIndustrialBldg.glb"
+ }
+]

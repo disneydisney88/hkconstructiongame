@@ -78,3 +78,11 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - Mission5 done 改為必須完整卸料(舊"揸入即done"移除);任務開始重新載貨
 - hero truck 30k-120k 合法實檔:唔需login源全數不足(≤3k tri)→ BLOCKED_FOR_ASSET;程序化車只作 TEMPORARY FALLBACK(截圖已水印)
 - 證據: qa-evidence/p10-2/taskD/(U1-U6+三視角)
+
+## 2026-10-04 — TASK E 合法 asset mining(零gameplay改動)
+- Objaverse: 串流掃160塊metadata(79.9萬件)→ 關鍵詞+licence(CC0/CC-BY)過濾 → 2247 hits
+- hero truck: Ural 55571 Dump Truck 99,303 tri(CC-BY)等7部;設備5/樓4/道具4 = 20候選GLB全部HF直落
+- contact sheets×4(truck三視角+1.78m工人柱);ranking A/B/C/BLOCKED
+- GitHub審計: shorepine/kenney=CC0✓;fps-buildings-env-kit=無LICENSE→NEEDS VERIFICATION;jam-ready-assets=23pack RUN限授權
+- PolyHaven: 無重型機械(196相關全細道具)
+- 證據: qa-evidence/asset-mining/(ASSET-CANDIDATES.md + 4 sheets + raw 34張)
