@@ -1491,15 +1491,15 @@ function makeTruck(x, z, rotY, color) {
     lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .75, roughness: .3 }),
     red: new THREE.MeshStandardMaterial({ color: 0x9c1f1f, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
   };
-  const B = (w, h, d, mat, px, py, pz, cast = false) => {
+  const B = (w, h, d, mat, px, py, pz, cast = false, parent = g) => { // TASK D: parent 參數(斗/尾閘 pivot 掛件)
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
+    m.position.set(px, py, pz); m.castShadow = cast; parent.add(m); return m;
   };
-  const CYL = (r, len, mat, px, py, pz, axis, cast = false, seg = 14) => {
+  const CYL = (r, len, mat, px, py, pz, axis, cast = false, seg = 14, parent = g) => {
     const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
     if (axis === 'z') m.rotation.x = Math.PI / 2;
     else if (axis === 'x') m.rotation.z = Math.PI / 2;
-    m.position.set(px, py, pz); m.castShadow = cast; g.add(m); return m;
+    m.position.set(px, py, pz); m.castShadow = cast; parent.add(m); return m;
   };
   /* --- 底盤:琵琶架+橫樑+軸殼+傳動軸+葉片彈簧hint --- */
   for (const s of [-1, 1]) B(5.7, .24, .1, M.darkMetal, -.15, .8, s * .44, true);
@@ -1546,22 +1546,50 @@ function makeTruck(x, z, rotY, color) {
     B(.07, .22, .44, M.lamp, 2.84, .78, s * .95);
     B(.06, .09, .14, M.lamp, 2.88, .38, s * 1.0, false);
   }
-  /* --- 泥斗:底板厚+外肋+頂欄+尾閘+前擋+液壓頂罐 --- */
-  B(3.5, .16, 2.14, M.bedIn, -1.45, 1.05, 0, true);
+  /* --- TASK D:泥斗重構為可動機構 — dumpBedPivot(尾絞)+ tailgatePivot(頂絞)+ 液壓頂 --- */
+  const bedPivot = new THREE.Group();          // 鉸位:斗底後緣 (-2.9, 1.02, 0)
+  bedPivot.position.set(-2.9, 1.02, 0); g.add(bedPivot);
+  const tailgatePivot = new THREE.Group();     // 頂絞:斗後上緣(g-local -3.2, 2.08)
+  tailgatePivot.position.set(-.3, 1.06, 0); bedPivot.add(tailgatePivot);
+  /* 斗件(pivot 局部座標 = 舊座標 + (2.9, -1.02)) */
+  B(3.5, .16, 2.14, M.bedIn, 1.45, .03, 0, true, bedPivot);              // 斗底
   for (const s of [-1, 1]) {
-    B(3.5, .92, .15, M.bed, -1.45, 1.58, s * 1.09, true);
-    B(3.4, .8, .05, M.bedIn, -1.45, 1.55, s * 1.0, false);
-    B(3.58, .1, .22, M.stripe, -1.45, 2.08, s * 1.09, true);
-    for (let i = 0; i < 6; i++) B(.1, .78, .09, M.paintDark, -2.95 + i * .66, 1.58, s * 1.2);
+    B(3.5, .92, .15, M.bed, 1.45, .56, s * 1.09, true, bedPivot);        // 外側壁
+    B(3.4, .8, .05, M.bedIn, 1.45, .53, s * 1.0, false, bedPivot);       // 內襯
+    B(3.58, .1, .22, M.stripe, 1.45, 1.06, s * 1.09, true, bedPivot);    // 頂欄外翻
+    for (let i = 0; i < 6; i++) B(.1, .78, .09, M.paintDark, -.05 + i * .66, .56, s * 1.2, false, bedPivot); // 外肋
   }
-  B(.16, 1.42, 2.24, M.bed, .3, 1.72, 0, true);
-  B(.14, .34, 2.2, M.stripe, .3, 2.5, 0, true);
-  B(.1, .88, 2.08, M.bed, -3.14, 1.6, 0, true);
-  B(.1, .1, 2.12, M.stripe, -3.16, 2.08, 0);
-  for (const s of [-1, 1]) CYL(.04, .16, M.chrome, -3.2, 2.12, s * .7, 'y');
-  CYL(.09, .85, M.darkMetal, -.1, .92, 0, 'x', true);
-  const rod = CYL(.05, .75, M.chrome, .32, 1.06, 0, 'x');
-  rod.rotation.z = -.35;
+  B(.16, 1.42, 2.24, M.bed, 3.2, .70, 0, true, bedPivot);                // 前擋板(高過側壁)
+  B(.14, .34, 2.2, M.stripe, 3.2, 1.48, 0, true, bedPivot);              // 前擋黃欄
+  B(.1, .88, 2.08, M.bed, .06, -.48, 0, true, tailgatePivot);            // 尾閘(掛頂絞)
+  B(.1, .1, 2.12, M.stripe, .04, 0, 0, false, tailgatePivot);            // 尾閘黃欄
+  for (const s of [-1, 1]) CYL(.04, .16, M.chrome, 0, .04, s * .7, 'y', false, 14, tailgatePivot); // 鉸銷
+  /* 液壓頂:底座(車架)+ 伸縮桿(瞄向斗底前部安裝點) */
+  const hoistPivot = new THREE.Group();
+  hoistPivot.position.set(1.2, .95, 0); g.add(hoistPivot);
+  CYL(.09, .72, M.darkMetal, .36, 0, 0, 'x', true, 14, hoistPivot);      // 底缸
+  const hoistRod = CYL(.05, .8, M.chrome, .8, 0, 0, 'x', false, 12, hoistPivot); // 活塞桿(scale.y 伸縮)
+  hoistRod.geometry.translate(.4, 0, 0);                                   // 原點移到桿尾
+  const updateHoist = (bedAngle) => { // bedAngle(rad): 0=平
+    const mx = -2.9 + 2.6 * Math.cos(bedAngle), my = 1.02 + 2.6 * Math.sin(bedAngle); // 斗底安裝點
+    const dx = mx - 1.2, dy = my - .95;
+    const L = Math.hypot(dx, dy);
+    hoistPivot.rotation.z = Math.atan2(dy, dx);
+    hoistRod.scale.y = Math.max(.25, L - .62);
+  };
+  updateHoist(0);
+  /* 貨物(低模泥土三件,卸料時縮細;入斗局部座標) */
+  const cargo = new THREE.Group();
+  const soilM = new THREE.MeshStandardMaterial({ color: 0x6b4f2e, roughness: 1 });
+  [[.9, .62, .3, .95], [1.9, .58, -.2, 1.05], [2.7, .56, .25, .8]].forEach(([cx, cy, cz, r], i) => {
+    const ch = new THREE.Mesh(new THREE.IcosahedronGeometry(r * .62, 0), soilM);
+    ch.position.set(cx, cy + .1, cz); ch.scale.set(1.3, .55, 1.15); ch.rotation.y = i * 1.3;
+    ch.castShadow = false; cargo.add(ch);
+  });
+  B(3.2, .12, 1.9, soilM, 1.5, .16, 0, false, cargo); // 底層填平
+  bedPivot.add(cargo);
+  const tailLamps = [];
+  for (const s of [-1, 1]) tailLamps.push(B(.08, .24, .32, M.red, .02, -.52, s * .78, false, tailgatePivot)); // 車尾燈(隨尾閘)
   /* --- 車輪:前單胎+後雙胎 --- */
   const wheels = [];
   const mkWheel = (wx, wz, tw) => {
@@ -1622,7 +1650,9 @@ function makeTruck(x, z, rotY, color) {
   const s2 = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.5, 2.3), new THREE.MeshLambertMaterial({ color })); s2.position.set(-.1, 1.45, 0); g2.add(s2);
   lod.addLevel(g2, 170);
   lod.position.set(x, 0, z); lod.rotation.y = rotY; scene.add(lod);
-  return { g: lod, wheels, beacon, x, z, heading: rotY, v: 0 };
+  /* TASK D:可動機構 refs + 零件命名(hero GLB 到位後按同樣 pivots 接) */
+  g.userData.parts = lod.userData.parts = { CHASSIS: g, FRONT_WHEELS: [wheels[0], wheels[1]], REAR_WHEELS: wheels.slice(2), DUMP_BED: bedPivot, TAILGATE: tailgatePivot, HYDRAULIC_HOIST: hoistPivot };
+  return { g: lod, wheels, beacon, x, z, heading: rotY, v: 0, bedPivot, tailgatePivot, hoistPivot, hoistRod, updateHoist, cargo, tailLamps, unloading: false };
 }
 
 const playerTruck = makeTruck(OFFICE[0] + Math.cos(GATE_DIR_IN) * 16, OFFICE[1] + Math.sin(GATE_DIR_IN) * 16, GATE_DIR_IN + Math.PI / 2, 0x3a8a4a);
@@ -2109,6 +2139,7 @@ addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
   start() {
     const rp = roadPts.filter(p => d2(p[0], p[1], GATE[0], GATE[1]) > 260 && d2(p[0], p[1], GATE[0], GATE[1]) < 420);
     M.data.dump = rp.length ? rp[randi(0, rp.length - 1)] : [GATE[0] + 300, GATE[1]];
+    if (playerTruck.cargo) { playerTruck.cargo.visible = true; playerTruck.cargo.scale.setScalar(1); playerTruck.cargo.position.y = 0; } // TASK D:任務開始重新載貨
     M.data.tarp = false; M.data.washed = false; M.data.exited = false;
     /* 帆布 */
     if (!playerTruck.tarp) {
@@ -2151,7 +2182,8 @@ addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
     if (!player.inTruck && !M.data.tarp) setMarker(t.x, t.z);
     else if (!M.data.washed && player.inTruck) setMarker(M.data.washPos[0], M.data.washPos[1]);
     else setMarker(M.data.dump[0], M.data.dump[1]);
-    if (d2(t.x, t.z, M.data.dump[0], M.data.dump[1]) < 8 && player.inTruck && M.data.tarp && M.data.washed) this.done();
+    /* TASK D:任務完成必須經完整卸料流程(BED→TAILGATE→DUMP→LOWER→CLOSE→COMPLETE),揸入範圍唔算 */
+    if (UNLOAD.justCompleted) { UNLOAD.justCompleted = false; this.done(); }
   },
   done() {
     nextMission();
@@ -2359,7 +2391,11 @@ function nearestInteract() {
 }
 function doInteract() {
   if (dlgActive) { dlgNext(); return; }
-  if (player.inTruck) { toggleTruck(); return; }
+  if (player.inTruck) { // TASK D:卸料區內 E = 卸料;否則落車
+    const cu = canUnload();
+    if (cu.ok) { startUnload(cu.zone); return; }
+    toggleTruck(); return;
+  }
   const it = nearestInteract();
   if (it) { sClick(); it.action(); return; }
   if (_nearNpc) { // 同NPC傾偈(情緒+TTS)
@@ -2387,6 +2423,8 @@ function dropItem() {
   }
 }
 function toggleTruck() {
+  if (playerTruck.unloading) { toast("🚛 卸料中 — 完成後先可以落車"); return; } // TASK D
+
   if (!player.inTruck) {
     if (M.idx < 4) { violate(2, "偷開斗車!?未經授權操作機械", 100, "未經授權操作機械"); }
     player.inTruck = true; player.h.g.visible = false; engineStart(); toast("上咗斗車 (E 落車)");
@@ -2398,9 +2436,168 @@ function toggleTruck() {
     player.h.g.visible = true; toast("落咗車");
   }
 }
+/* ========== TASK D:卸料狀態機 DRIVING→ALIGNING→PARKED→HANDBRAKE_ON→BED_RAISING→TAILGATE_OPENING→MATERIAL_DUMPING→BED_LOWERING→TAILGATE_CLOSING→COMPLETE ========== */
+const UNLOAD = { state: "IDLE", t: 0, bedA: 0, zone: null, forMission: false, justCompleted: false, dumpPoint: null, pile: null, piles: [], debris: null, debrisData: null, hazard: false, _hydT: 0 };
+function unloadZones() {
+  const zs = [];
+  const uz = SITE_ZONES.find(z => /卸貨/.test(z.name));
+  if (uz) zs.push({ x: uz.x, z: uz.z, r: 11, free: true });
+  if (M.data && M.data.dump && M.idx === 4) zs.push({ x: M.data.dump[0], z: M.data.dump[1], r: 9, mission: true });
+  return zs;
+}
+function canUnload() {
+  const t = playerTruck;
+  if (UNLOAD.state !== "IDLE" || !player.inTruck) return { ok: false };
+  const spd = Math.abs(t.v);
+  for (const zn of unloadZones()) {
+    const d = d2(t.x, t.z, zn.x, zn.z);
+    if (d < zn.r) {
+      if (spd > .4) return { ok: false, inZone: true, msg: "請將泥頭車停泊於卸料區內(停定)" };
+      if (zn.mission && !(M.data.tarp && M.data.washed)) return { ok: false, inZone: true, msg: "未蓋帆布/未洗車 — 唔可以卸料" };
+      if (d > 5) {
+        const want = Math.atan2(zn.z - t.z, zn.x - t.x);
+        const dd = Math.abs(((want - t.heading) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+        if (dd > 1.0) return { ok: false, inZone: true, msg: "請將泥頭車停泊於卸料區內" };
+      }
+      if (!t.cargo || !t.cargo.visible) return { ok: false, inZone: true, msg: "車斗已空 — 冇料可卸" };
+      return { ok: true, zone: zn };
+    }
+  }
+  return { ok: false };
+}
+function sHyd(up) { try { if (AU.ctx && !AU.muted) beep(up ? 95 : 78, .4, "sawtooth", .12); } catch (e) {} }
+function sGravel() { try { if (AU.ctx && !AU.muted && Math.random() < .5) beep(42 + Math.random() * 20, .06, "square", .05); } catch (e) {} }
+function startUnload(zone) {
+  const t = playerTruck;
+  UNLOAD.state = "PARKED"; UNLOAD.t = 0; UNLOAD.bedA = 0; UNLOAD.zone = zone;
+  UNLOAD.forMission = !!zone.mission; UNLOAD.justCompleted = false; UNLOAD.hazard = false;
+  UNLOAD.dumpPoint = [t.x - Math.cos(t.heading) * 4.4, t.z - Math.sin(t.heading) * 4.4];
+  t.unloading = true; t.v = 0;
+  toast("🚛 停妥 · 準備卸料"); sClick();
+}
+function unloadDebrisInit() {
+  if (UNLOAD.debris) return;
+  const geo = new THREE.BoxGeometry(.14, .1, .12);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6b4f2e, roughness: 1 });
+  UNLOAD.debris = new THREE.InstancedMesh(geo, mat, 120);
+  UNLOAD.debris.frustumCulled = false; scene.add(UNLOAD.debris);
+  UNLOAD.debrisData = { pos: [], vel: [], live: [] };
+  const Mm = new THREE.Matrix4();
+  for (let i = 0; i < 120; i++) { Mm.makeScale(0, 0, 0); UNLOAD.debris.setMatrixAt(i, Mm); UNLOAD.debrisData.live.push(false); UNLOAD.debrisData.pos.push([0, 0, 0]); UNLOAD.debrisData.vel.push([0, 0, 0]); }
+}
+function unloadSpawnDebris(n) {
+  const t = playerTruck, dd = UNLOAD.debrisData;
+  t.bedPivot.updateMatrixWorld(true);
+  const w = t.bedPivot.localToWorld(new THREE.Vector3(-.05, .55, 0));
+  for (let k = 0; k < n; k++) {
+    const i = dd.live.findIndex(l => !l);
+    if (i < 0) return;
+    dd.live[i] = true;
+    dd.pos[i] = [w.x + rand(-.5, .5), w.y, w.z + rand(-.9, .9)];
+    const back = t.heading + Math.PI;
+    dd.vel[i] = [Math.cos(back) * rand(1.5, 3.5) + rand(-.6, .6), rand(.2, 1.4), Math.sin(back) * rand(1.5, 3.5) + rand(-.6, .6)];
+  }
+}
+function unloadPileEnsure() {
+  if (!UNLOAD.pile || UNLOAD.pile.g.position.x !== UNLOAD.dumpPoint[0]) {
+    const g2 = new THREE.Group();
+    const m1 = new THREE.MeshStandardMaterial({ color: 0x63482a, roughness: 1 });
+    const m2 = new THREE.MeshStandardMaterial({ color: 0x74573a, roughness: 1 });
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.05, 9), m1); c1.position.y = .5;
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.05, .7, 8), m2); c2.position.set(.25, 1.2, -.2); c2.rotation.y = .6;
+    g2.add(c1, c2);
+    g2.scale.setScalar(.12);
+    g2.position.set(UNLOAD.dumpPoint[0], 0, UNLOAD.dumpPoint[1]);
+    scene.add(g2);
+    const col = { x: UNLOAD.dumpPoint[0], z: UNLOAD.dumpPoint[1], hw: 2, hd: 2, rot: 0, minx: UNLOAD.dumpPoint[0] - 2, maxx: UNLOAD.dumpPoint[0] + 2, minz: UNLOAD.dumpPoint[1] - 2, maxz: UNLOAD.dumpPoint[1] + 2, _pile: true };
+    colliders.push(col);
+    UNLOAD.pile = { g: g2, col };
+    UNLOAD.piles.push(UNLOAD.pile);
+    while (UNLOAD.piles.length > 2) { // 防無限增長
+      const old = UNLOAD.piles.shift();
+      scene.remove(old.g);
+      const ix = colliders.indexOf(old.col); if (ix >= 0) colliders.splice(ix, 1);
+    }
+  }
+}
+function unloadTick(dt) {
+  const U = UNLOAD, t = playerTruck;
+  if (U.state === "IDLE") { /* 碎石都繼續積分到落地 */ }
+  else U.t += dt;
+  const ease = k => k * k * (3 - 2 * k);
+  if (U.state !== "IDLE") switch (U.state) {
+    case "PARKED": if (U.t >= .5) { U.state = "HANDBRAKE_ON"; U.t = 0; U.hazard = true; toast("🅿️ 手掣 + 指揮燈"); } break;
+    case "HANDBRAKE_ON": if (U.t >= .5) { U.state = "BED_RAISING"; U.t = 0; sHyd(true); } break;
+    case "BED_RAISING": {
+      const k = Math.min(1, U.t / 3.0);
+      U.bedA = ease(k) * (46 * Math.PI / 180);
+      t.bedPivot.rotation.z = U.bedA;
+      t.updateHoist(U.bedA);
+      if (U.t > .3 && Math.floor(U.t * 5) !== U._hydT) { U._hydT = Math.floor(U.t * 5); sHyd(true); }
+      if (k >= 1) { U.state = "TAILGATE_OPENING"; U.t = 0; }
+      break;
+    }
+    case "TAILGATE_OPENING": {
+      const k = Math.min(1, U.t / .45);
+      t.tailgatePivot.rotation.z = -1.25 * ease(k);
+      if (k >= 1) { U.state = "MATERIAL_DUMPING"; U.t = 0; unloadDebrisInit(); unloadPileEnsure(); }
+      break;
+    }
+    case "MATERIAL_DUMPING": {
+      unloadSpawnDebris(3); sGravel();
+      const k = Math.min(1, U.t / 3.2);
+      t.cargo.scale.setScalar(Math.max(.001, 1 - k));
+      t.cargo.position.y = -k * .5;
+      U.pile.g.scale.setScalar(.12 + ease(k) * .88);
+      if (k >= 1) { U.state = "BED_LOWERING"; U.t = 0; t.cargo.visible = false; sHyd(false); }
+      break;
+    }
+    case "BED_LOWERING": {
+      const k = Math.min(1, U.t / 2.4);
+      U.bedA = (1 - ease(k)) * (46 * Math.PI / 180);
+      t.bedPivot.rotation.z = U.bedA;
+      t.updateHoist(U.bedA);
+      if (k >= 1) { U.state = "TAILGATE_CLOSING"; U.t = 0; }
+      break;
+    }
+    case "TAILGATE_CLOSING": {
+      const k = Math.min(1, U.t / .5);
+      t.tailgatePivot.rotation.z = -1.25 * (1 - ease(k));
+      if (k >= 1) { U.state = "COMPLETE"; U.t = 0; }
+      break;
+    }
+    case "COMPLETE":
+      U.hazard = false; t.unloading = false;
+      toast("✅ 卸料完成");
+      if (U.forMission) U.justCompleted = true;
+      U.state = "IDLE";
+      break;
+  }
+  if (U.debris && U.debrisData.live.some(l => l)) {
+    const dd = U.debrisData, Mm = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+    let dirty = false;
+    for (let i = 0; i < 120; i++) {
+      if (!dd.live[i]) continue;
+      dd.vel[i][1] -= 9.8 * dt;
+      dd.pos[i][0] += dd.vel[i][0] * dt; dd.pos[i][1] += dd.vel[i][1] * dt; dd.pos[i][2] += dd.vel[i][2] * dt;
+      if (dd.pos[i][1] <= .05) { dd.live[i] = false; Mm.makeScale(0, 0, 0); U.debris.setMatrixAt(i, Mm); }
+      else { P.set(dd.pos[i][0], dd.pos[i][1], dd.pos[i][2]); Mm.compose(P, Q, S); U.debris.setMatrixAt(i, Mm); }
+      dirty = true;
+    }
+    if (dirty) U.debris.instanceMatrix.needsUpdate = true;
+  }
+  if (U.hazard) {
+    const on = Math.floor(performance.now() / 220) % 2 === 0;
+    t.tailLamps.forEach(l => l.material.emissiveIntensity = on ? 1.8 : .1);
+  } else if (t.tailLamps.length && t.tailLamps[0].material.emissiveIntensity !== .6) {
+    t.tailLamps.forEach(l => l.material.emissiveIntensity = .6);
+  }
+}
+
 function truckDrive(dt) {
   if (!player.inTruck) return;
   let thr = 0, steer = 0;
+  if (playerTruck.unloading) { thr = 0; steer = 0; playerTruck.v *= Math.pow(.001, dt); } // TASK D:卸料鎖車
   if (keys.KeyW || keys.ArrowUp) thr = 1;
   if (keys.KeyS || keys.ArrowDown) thr = -1;
   if (keys.KeyA || keys.ArrowLeft) steer = 1;
@@ -2929,7 +3126,14 @@ function updateHUD(dt) {
     const it = nearestInteract();
     if (it) { $("hint").style.display = "block"; $("hint").textContent = `[E] ${it.label}`; }
     else $("hint").style.display = "none";
-  } else if (player.inTruck) { $("hint").style.display = "block"; $("hint").textContent = "[E] 落車 · WASD揸車"; }
+  } else if (player.inTruck) {
+    $("hint").style.display = "block";
+    const cu = canUnload(); // TASK D
+    if (cu.ok) $("hint").textContent = "[E] 開始卸料";
+    else if (cu.inZone && cu.msg) $("hint").textContent = cu.msg;
+    else if (UNLOAD.state !== "IDLE") $("hint").textContent = "🚛 卸料中…";
+    else $("hint").textContent = "[E] 落車 · WASD揸車";
+  }
   else $("hint").style.display = "none";
   // 距離
   if (M.target) {
@@ -3699,6 +3903,7 @@ function tick(dt, now) {
   updateHazards(dt);
   updateBarriers(dt);
   updateVehicleGate(dt);
+  unloadTick(dt); // TASK D
   // 任務
   const m = missions[M.idx];
   if (m && m.tick) m.tick();
@@ -3784,7 +3989,7 @@ if (csdiBgOn) {
   } catch (e) { window.__csdiBg = { state: "init-fail:" + String(e).slice(0, 80) }; }
 }
 
-window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders });
+window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders, unload: UNLOAD, canUnload, startUnload });
 window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 

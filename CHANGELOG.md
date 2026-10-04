@@ -71,3 +71,10 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - audition.html/audition.js:同鏡頭比較場(程序化車+CSDI實景+候選slot+1.78m參考人)
 - 設備研究:Komatsu excavator(CC-BY 48.1k)/Kenney CC0 建議做道具來源
 - 證據: qa-evidence/p10-2/(A1/A2/C1/C2 + REPORT.md candidate table)
+
+## 2026-10-04 — TASK D 卸料玩法 + 車輛可動機構(hero asset BLOCKED)
+- makeTruck:bedPivot/tailgatePivot/hoistPivot + parts 命名 + 貨物 + 車尾指揮燈(介面向前相容)
+- 卸料狀態機十態(PARKED→…→COMPLETE,46°/≈10.6s):[E]開始卸料/條件門禁/鎖車禁落車/120粒碎石/土堆(上限2+collider)/合成音效
+- Mission5 done 改為必須完整卸料(舊"揸入即done"移除);任務開始重新載貨
+- hero truck 30k-120k 合法實檔:唔需login源全數不足(≤3k tri)→ BLOCKED_FOR_ASSET;程序化車只作 TEMPORARY FALLBACK(截圖已水印)
+- 證據: qa-evidence/p10-2/taskD/(U1-U6+三視角)

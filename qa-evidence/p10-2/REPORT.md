@@ -339,3 +339,52 @@ exit "$__zcode_status"
 - CSDI 樓夜間發光窗/霓虹未做;與遊戲 minimap 未聯動
 - heading 真北對比(KL 目視 A/B)
 - Skyline 東/西向(遠離海)環帶未覆蓋
+
+
+---
+
+# TASK D — HERO DUMP TRUCK + UNLOADING — 2026-10-04
+
+## A. Hero asset 搜尋結果(合法唔需 login 源)
+| 源 | 結果 |
+|---|---|
+| poly.pizza | 有 "Dump truck"(CC-BY 3.0)但 **≤2.9k tri 低模**,遠低於 30k–120k 目標,且非 cab-over 寫實 |
+| Quaternius | 車輛包無 dump truck |
+| Kenney(repo 內 CC0) | industrial 包無泥頭車 |
+| OpenGameArt | 無 cab-over dump truck |
+| Sketchfab(Isuzu Giga/ElectroNick/Hino) | **需帳戶登入下載 — BLOCKED**(維持 P10.2 狀態) |
+
+**判定:HERO TRUCK VISUAL = BLOCKED_FOR_ASSET**;依 §17 用現有程序化車做 TEMPORARY PROCEDURAL FALLBACK 實現完整卸料玩法。所有車截圖已蓋 FALLBACK 水印。未自製新程序化替代。
+
+## B. 可動機構介面(makeTruck 重構,介面向前相容)
+- pivots:`bedPivot`(斗尾絞 -2.9,1.02)/ `tailgatePivot`(頂絞,隨斗升降)/ `hoistPivot`+`hoistRod`(底缸+活塞桿,`updateHoist(bedA)` 瞄準伸縮)
+- `g.userData.parts = {CHASSIS, FRONT_WHEELS, REAR_WHEELS, DUMP_BED, TAILGATE, HYDRAULIC_HOIST}` — hero GLB 到位後按同樣 pivots 接,controller 唔使改
+- 保留:g/wheels/beacon/x/z/heading/v、碰撞半徑、上落車、NPC route(全部回歸 PASS)
+- 貨物:斗內 3 件低模泥土+底層填平(卸料時縮細+後滑);車尾燈隨尾閘(指揮燈快閃用)
+
+## C. 卸料狀態機(全部顯式狀態,無跳步)
+DRIVING→(入區+停定+朝向+有貨 →[E] 開始卸料)→ PARKED(0.5s)→ HANDBRAKE_ON(0.5s,指揮燈)→ BED_RAISING(3.0s 緩升,ease,目標 **46°**,液壓桿同步伸)→ TAILGATE_OPENING(0.45s,頂絞外擺 71°)→ MATERIAL_DUMPING(3.2s:貨物縮細後滑+120 粒 instanced 碎石+土堆長大)→ BED_LOWERING(2.4s)→ TAILGATE_CLOSING(0.5s)→ COMPLETE(✅ 卸料完成)
+- 總時長 ≈ 10.6s(目標 8–15s ✓)
+- 鎖車:卸料中油門歸零+v 阻尼;禁落車(toast 提示);完成解鎖
+- 入口條件:區內 + |v|≤0.4 + 玩家揸車 + 距區心>5m 時車頭朝區心(±57°)+ 有貨;唔啟 → 「請將泥頭車停泊於卸料區內」
+- 區:地盤卸貨區(free)+ Mission 5 dump 點(tarp+washed 前置)
+- 防穿:土堆加圓形 collider(NPC/玩家唔行過);堆上限 2(舊堆連 collider 移除,防無限增長)
+- 音效:液壓(saw 78–95Hz)/碎石 rumble(square 42–62Hz 碎拍)— 現有 AU 合成,無外部音檔
+
+## D. Mission 5 完成條件(§12)
+舊:揸入 dump 8m 即 done — **已移除**。新:必須 `UNLOAD.justCompleted`(完整流程 COMPLETE 且喺 mission 區卸)先 `done()`;任務開始時重新載貨。
+
+## E. 證據(`qa-evidence/p10-2/taskD/`,全部蓋 FALLBACK 水印)
+U1 停妥載貨 / U2 斗 20° / U3 斗 45° / U4 尾閘開+碎石落+堆成形 / U5 土堆 / U6 完成復位;T_front34 / T_side / T_rear34(1.78m 工人企車側)
+
+## F. 性能與統計(本機 IAB,玩家位於地盤)
+- truck triangles:**4,540**(LOD0 全車)/ bed+tailgate+hoist:484 / 31 mesh / 21 材質(共享)
+- 碎石:InstancedMesh **max 120 粒**,單 draw call
+- median 33.2ms / P95 33.4(同位置基線 33.3 — 無退化);calls 965 / tri 1.41M(視乎鏡頭)
+- 回歸:上車 ✓ 開 4.8m ✓ 落車 ✓ NPC 車閘 ✓ console error 0
+
+## UNRESOLVED
+- hero GLB 三候選仍 BLOCKED(等 KL 提供 Sketchfab 實檔或 token)
+- 尾閘開關視覺簡化(頂絞外擺,無鎖扣機構)
+- 卸料碎石純視覺(無物理堆積形狀;土堆預製 cone)
+- 音效為合成佔位(無正式音檔授權確認)
