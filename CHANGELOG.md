@@ -64,3 +64,10 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - 磚籠重造:卡板+168磚IM+角柱(啡色方盒消失)
 - 性能:median 16.7(iso)/33.2(NPC地板=基線行為);calls 1063→1384(來源已解釋);tri +4%
 - 證據: qa-evidence/p10-1R/(W1-W5/T1-T4/S1/B1)
+
+## 2026-10-04 — P10.2 External asset audition(研究+試載場)
+- 泥頭車候選研究:Isuzu Giga/ElectroNick/Hino FM340(CC-BY×3,需 Sketchfab auth 下載)
+- CSDI 3D Spatial Data 實測:九龍灣 b3dm 下載成功→轉 GLB(37k tri,KTX2 貼圖)
+- audition.html/audition.js:同鏡頭比較場(程序化車+CSDI實景+候選slot+1.78m參考人)
+- 設備研究:Komatsu excavator(CC-BY 48.1k)/Kenney CC0 建議做道具來源
+- 證據: qa-evidence/p10-2/(A1/A2/C1/C2 + REPORT.md candidate table)
