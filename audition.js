@@ -236,3 +236,112 @@ document.querySelectorAll('button').forEach(b => b.addEventListener('click', () 
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 window.__audition = { camera, renderer, scene, applyView };
 status('就緒 ✓');
+
+/* ===================== TASK 1 — CSDI VISUAL PROOF =====================
+   4 個鏡頭 + 畫面內 debug overlay(HTML 疊加,唔遮擋 3D)。
+   window.__task1 = { ready, bbox, anchor, shots(name→fn) } */
+window.__task1 = { ready: false };
+function task1Info() {
+  const g = window.__csdiGroup2;
+  if (!g) return null;
+  g.updateMatrixWorld(true);
+  let mn = [1e15, 1e15, 1e15], mx = [-1e15, -1e15, -1e15];
+  g.traverse(o => {
+    if (!o.isMesh || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position, m = o.matrixWorld.elements;
+    const step = Math.max(1, Math.floor(pos.count / 300));
+    for (let i = 0; i < pos.count; i += step) {
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      const w = [m[0]*x+m[4]*y+m[8]*z+m[12], m[1]*x+m[5]*y+m[9]*z+m[13], m[2]*x+m[6]*y+m[10]*z+m[14]];
+      for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], w[k]); mx[k] = Math.max(mx[k], w[k]); }
+    }
+  });
+  const ctr = [(mn[0]+mx[0])/2, (mn[1]+mx[1])/2, (mn[2]+mx[2])/2];
+  return {
+    bboxMin: mn.map(v => +v.toFixed(1)), bboxMax: mx.map(v => +v.toFixed(1)), center: ctr,
+    size: [mx[0]-mn[0], mx[1]-mn[1], mx[2]-mn[2]].map(v => +v.toFixed(1)),
+    horizDist: +Math.hypot(ctr[0], ctr[2]).toFixed(1)
+  };
+}
+/* overlay:左上 debug 資訊(HTML,蓋半透明底) */
+function task1Overlay(kind, info) {
+  let el = document.getElementById('task1info');
+  if (!el) { el = document.createElement('div'); el.id = 'task1info';
+    el.style.cssText = 'position:fixed;top:8px;right:8px;background:rgba(8,12,20,.88);color:#d8e6f0;font:11px/1.55 Consolas,monospace;padding:10px 12px;border:1px solid #3a5068;border-radius:6px;z-index:20;pointer-events:none;white-space:pre';
+    document.body.appendChild(el);
+  }
+  const L = [
+    'TASK1 · ' + kind,
+    'Anchor: MegaBox, Kowloon Bay',
+    'Latitude: 22.3245N  Longitude: 114.2172E',
+    'Building bbox (m):',
+    '  X: ' + info.bboxMin[0] + ' … ' + info.bboxMax[0],
+    '  Y(高): ' + info.bboxMin[1] + ' … ' + info.bboxMax[1],
+    '  Z: ' + info.bboxMin[2] + ' … ' + info.bboxMax[2],
+    'Height: ' + info.size[1] + 'm  Width: ' + info.size[0] + 'm  Depth: ' + info.size[2] + 'm',
+    'Horizontal dist from anchor: ' + info.horizDist + 'm',
+    'Chain: root.transform → ECEF → ENU → Three.js',
+    'Grid: 100m cells · 黃柱: 1.78m · 軸 X=East(紅) Z=South(藍)'
+  ].join('\n');
+  el.textContent = L;
+}
+/* 鏡頭们(數據驅動:以 bbox center 對焦) */
+window.__task1Shots = {
+  top(info) {
+    camera.position.set(info.center[0], info.size[1] + 380, info.center[2] + 1);
+    camera.lookAt(info.center[0], 0, info.center[2]);
+  },
+  street(info) {
+    // 1.7m 高,建築距離 ~70m,鏡頭對準建築中段令 MegaBox 佔畫面 ≥40%
+    const dx = info.size[0] / 2 + 60, dz = info.size[2] / 2 + 60;
+    camera.position.set(info.center[0] - dx, 1.7, info.center[2] - dz);
+    camera.lookAt(info.center[0], info.size[1] * .55, info.center[2]);
+  },
+  oblique(info) {
+    camera.position.set(info.center[0] + info.size[0] * .9 + 60, info.size[1] * 1.6 + 40, info.center[2] + info.size[2] * .9 + 60);
+    camera.lookAt(info.center[0], info.size[1] * .35, info.center[2]);
+  }
+};
+/* 預備 proof 輔助物:100m 格線/軸/錨點柱/bbox 線框(掛喺 scene,常駐) */
+function task1Decor(info) {
+  const grid = new THREE.GridHelper(800, 8, 0x2c4a66, 0x1d3348);
+  grid.position.set(info.center[0], 0.02, info.center[2]); scene.add(grid);
+  const axes = new THREE.AxesHelper(60); axes.position.set(info.center[0] - 300, 0.05, info.center[2] - 300); scene.add(axes);
+  const anchorMat = new THREE.MeshBasicMaterial({ color: 0xffd23a });
+  const anchor = new THREE.Mesh(new THREE.CylinderGeometry(.8, .8, 30, 8), anchorMat);
+  anchor.position.set(0, 15, 0); scene.add(anchor);
+  const bb = new THREE.Box3(new THREE.Vector3(...info.bboxMin), new THREE.Vector3(...info.bboxMax));
+  const helper = new THREE.Box3Helper(bb, 0x3ad0a0); scene.add(helper);
+  /* 100m scale bar:由 grid 邊起一條綠線 + 兩端球 */
+  const sb = new THREE.Group();
+  const mat = new THREE.LineBasicMaterial({ color: 0x7ef08a });
+  const g2 = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0.1, 0), new THREE.Vector3(100, 0.1, 0)]);
+  sb.add(new THREE.Line(g2, mat));
+  for (const ex of [0, 100]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x7ef08a })); s.position.set(ex, .1, 0); sb.add(s); }
+  sb.position.set(info.center[0] - 300, 0, info.center[2] - 340); scene.add(sb);
+}
+window.__task1Compare = function () {
+  /* A4:左右 split — 左程序化(16×26×12盒,貼埋同區) 右CSDI,同相機/格線 */
+  const info = task1Info();
+  if (!info) return 'CSDI 未載入';
+  if (!window.__task1.ready) { task1Decor(info); window.__task1.ready = true; }
+  // 程序化對照樓移近 CSDI 隔籬(左邊 90m),同地面
+  scene.children.forEach(ch => { if (ch.isMesh && Math.abs(ch.position.x - 46) < 1 && Math.abs(ch.position.z - 12) < 1) ch.position.set(info.center[0] - 90, ch.position.y, info.center[2]); });
+  scene.children.forEach(ch => { if (ch.isMesh && Math.abs(ch.position.z - 5.94) < 0.2 && ch.position.x >= 40) ch.position.x -= 136; }); // 窗陣
+  // 對比相機:兩者同框,斜 3/4 中距
+  const mid = info.center[0] - 45;
+  camera.position.set(mid + 40, 60, info.center[2] + 210);
+  camera.lookAt(mid, 8, info.center[2]);
+  task1Overlay('COMPARE', info);
+  renderer.render(scene, camera);
+  return 'ok';
+};
+window.__task1Go = function (kind) {
+  const info = task1Info();
+  if (!info) return 'CSDI 未載入';
+  if (!window.__task1.ready) { task1Decor(info); window.__task1.ready = true; }
+  window.__task1Shots[kind](info);
+  task1Overlay(kind, info);
+  renderer.render(scene, camera);
+  return JSON.stringify(info);
+};
