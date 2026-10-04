@@ -86,3 +86,9 @@ See REFERENCES.md and ASSET-CANDIDATES.md for recorded sources. Their existence 
 - GitHub審計: shorepine/kenney=CC0✓;fps-buildings-env-kit=無LICENSE→NEEDS VERIFICATION;jam-ready-assets=23pack RUN限授權
 - PolyHaven: 無重型機械(196相關全細道具)
 - 證據: qa-evidence/asset-mining/(ASSET-CANDIDATES.md + 4 sheets + raw 34張)
+
+## 2026-10-04 — 生成工具研究: TRELLIS.2 + SkinTokens/TokenRig
+- TRELLIS.2(MIT): 官方Space實測 image_to_3d@512 ✓ 31s;extract_glb BLOCKED(ZeroGPU quota 120s>157s剩)
+- SkinTokens(MIT): Space釘450s GPU duration>公開額度,三個輸入全BLOCKED;本地路徑需Linux+flash-attn(本機Win+5080 16GB唔行)
+- 社群 Image-to-Rigged Space: 鏡像PAUSED/依賴同樣額度問題 — 唔照搬
+- 報告: qa-evidence/asset-mining/TRELLIS2-SKINTOKENS-RESEARCH.md(含本遊戲用途+5步綁骨驗證計劃)
