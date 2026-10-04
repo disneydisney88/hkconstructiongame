@@ -110,7 +110,20 @@ function makeProceduralTruck(color) {
 const proc = makeProceduralTruck(0x3a8a4a);
 proc.g.position.set(0, 0, 0);
 scene.add(proc.g);
-status('程序化泥頭車 ✓ · 載入候選/CSDI…');
+/* P10.2-R:明確標示 — 綠車係 baseline,唔係新資產成果 */
+{
+  const cvs = document.createElement('canvas'); cvs.width = 512; cvs.height = 96;
+  const c2 = cvs.getContext('2d');
+  c2.fillStyle = 'rgba(20,24,32,.9)'; c2.fillRect(0, 0, 512, 96);
+  c2.strokeStyle = '#7ea4c8'; c2.lineWidth = 4; c2.strokeRect(4, 4, 504, 88);
+  c2.fillStyle = '#cfe2ee'; c2.font = 'bold 40px Arial'; c2.textAlign = 'center';
+  c2.fillText('PROCEDURAL_BASELINE', 256, 62);
+  const t = new THREE.CanvasTexture(cvs);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
+  sp.scale.set(6, 1.125, 1); sp.position.set(0, 4.2, 0);
+  proc.g.add(sp);
+}
+status('PROCEDURAL_BASELINE ✓ · 候選:Candidates 1-3 BLOCKED(需 Sketchfab auth);CSDI 載入中…');
 
 /* --- 候選 slot:models/candidates/*.glb(有檔案就載,無就標示) --- */
 const ktx2 = new KTX2Loader().setTranscoderPath('https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/').detectSupport(renderer);
@@ -145,13 +158,53 @@ try {
   if (r.ok) {
     gltf.load('models/candidates/csdi_kowloonbay.glb', gl => {
       csdiGroup = gl.scene;
-      // CSDI glb 用 Y-up,單位米;放喺場地東面,貼地
-      const box = new THREE.Box3().setFromObject(csdiGroup);
-      const ctr = box.getCenter(new THREE.Vector3());
-      csdiGroup.position.set(46 - ctr.x, -ctr.y, -30 - ctr.z); // 旋轉局部框架:全軸減 center 貼地
       csdiGroup.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      /* P10.2-R:套用 3D Tiles spec chain — placeMatrix = ENU(MegaBox) × tileset root.transform × Rx90(Y-up→Z-up)
+         資料來源:models/candidates/csdi_placement.json(node transform 已查:無,RTC_CENTER:無) */
+      const raw = new URLSearchParams(location.search).has('rawcsdi');
+      if (!raw) {
+        fetch('models/candidates/csdi_placement.json').then(r => r.json()).then(pl => {
+          csdiGroup.matrixAutoUpdate = false;
+          csdiGroup.matrix.fromArray(pl.placementMatrixColumnMajor);
+          csdiGroup.matrixWorldNeedsUpdate = true;
+          // 地面 datum:量 world bbox,整組平移令 min.y=0(統一垂直基準位移,保留相對位置)
+          requestAnimationFrame(() => {
+            const box = new THREE.Box3().setFromObject(csdiGroup);
+            const parent = new THREE.Group();
+            parent.position.y = -box.min.y;
+            scene.remove(csdiGroup);
+            parent.add(csdiGroup);
+            scene.add(parent);
+            window.__csdiStatus.place = '✓ spec chain(ENU×root.transform×Rx90)+地面datum';
+            window.__csdiGroup2 = parent;
+            /* 二次精確落地:KTX2 非同步解碼後 bbox 會變 */
+            setTimeout(() => {
+              parent.updateMatrixWorld(true);
+              let mn = 1e15;
+              parent.traverse(o => { if (o.isMesh && o.geometry.attributes.position) {
+                const m = o.matrixWorld.elements;
+                const pos = o.geometry.attributes.position;
+                for (let i = 0; i < pos.count; i += 50) mn = Math.min(mn, m[1]*pos.getX(i) + m[5]*pos.getY(i) + m[9]*pos.getZ(i) + m[13]);
+              }});
+              parent.position.y -= mn;
+              parent.updateMatrixWorld(true);
+            }, 800);
+          });
+        });
+      } else {
+        window.__csdiStatus = { place: '✗ RAW(未套 transform)— 修前對照用' };
+      }
       scene.add(csdiGroup);
-      status('CSDI 實景 ✓(Lands Department 3D Spatial Data)');
+      let ktx = 0, mats = 0;
+      csdiGroup.traverse(o => {
+        if (o.isMesh) { mats++; const m = Array.isArray(o.material) ? o.material[0] : o.material; if (m.map && m.map.isCompressedTexture) ktx++; }
+      });
+      window.__csdiStatus = Object.assign(window.__csdiStatus || {}, {
+        parse: '✓ b3dm header 表長度計算→GLB(magic/version/len 驗證)',
+        textures: ktx > 0 ? `✓ KTX2 解碼 ${ktx}/${mats} 材質` : `✗ KTX2 未解碼`,
+        visual: '待 KL 目視確認'
+      });
+      status(`CSDI: ${window.__csdiStatus.parse} | ${window.__csdiStatus.textures} | 擺位:${window.__csdiStatus.place || '套用中'} | ${window.__csdiStatus.visual}`);
     }, undefined, e => status('CSDI 載入失敗:' + e));
   }
 } catch (e) { /* skip */ }

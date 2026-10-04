@@ -67,3 +67,158 @@
 2. 隨檔 licence 全文/分件/貼圖解析度核實 — 要實檔
 3. CSDI ECEF→ENU 落地轉換未寫(已證實需要);CSDI attribution 標示未加入遊戲(整合時做)
 4. audition scene 嘅 CSDI 幾何現時傾斜顯示(框架旋轉),比較截圖已如實反映
+
+---
+
+# P10.2-R Corrective Pass — 2026-10-04
+
+狀態:解析✓ / 貼圖✓(KTX2 1/1) / 擺位✓(spec chain+落地) / **視覺:待 KL 目視確認**
+
+## 一、工程範圍確認
+- 基準:`14eb158` + worker colour fix(`3ea02af`)。已核對 `git diff 14eb158..HEAD --name-only`:P10.2 及本輪 **零 gameplay 檔案改動**(只觸及 audition/candidates/qa-evidence/CHANGELOG)。P10.1R 對 app.js/worker-rig.js 嘅改動係 14eb158 之前已批准嘅 P10.1R 範圍。
+- 冇混入任何其他 workspace 規則或 checkpoint。
+
+## 二、CSDI 修復(不依賴 Sketchfab token)
+
+### 1. C1 截圖物件判別
+- 中間巨大長方體 = **我方程序化對照樓**(刻意放置,標示用途)— 已移到獨立對照位置,唔再遮擋 CSDI。
+- 右上灰色物件 = **真正 CSDI mesh**(真香港建築幾何)— 修復前因局部框架旋轉而傾斜/懸浮。
+
+### 2. b3dm 解析(真實做法,唔係「剝 28 bytes」簡寫)
+按 spec 依序:header 28 bytes(magic 'b3dm'/version/byteLength + 四個 table 長度)→ featureTableJSON(20B,`{"BATCH_LENGTH":0}`,**無 RTC_CENTER**)→ featureTableBinary(0)→ batchTableJSON(0)→ batchTableBinary(0)→ GLB 起點 = 28+20+0+0+0 = **48**(8-byte 對齊後仍 48)。已驗:glTF magic ✓ / version 1 ✓ / declared byteLength == 實際 ✓(見 `_csdi_transform.mjs` 輸出 `declaredOK:true`)。
+
+### 3. Transform chain(根因 + 完整鏈)
+- **根因**:P10.2 首輪漏咗 **tileset root.transform**(4×4,局部→ECEF)— 呢個矩陣令局部框架傾斜(ECEF 對齊),直接擺入 Y-up 場景就會傾斜+飄移。
+- 完整鏈:`p_scene = ENU(MegaBox錨點) × T_root × Rx90(Y-up→Z-up) × p_gltf`
+- 軸向約定唔靠估:實測 4 個候選,內容質心距錨點 **C2(Rx90)=35m**(C1 identity=18.1km、C3=25.6km、C4=6.9km)→ C2 勝出,同 Cesium `Y_UP_TO_Z_UP` 約定一致 ✓
+- RTC_CENTER:無;glTF node transforms:無(9 nodes 全 identity);嵌套 tile JSON:無 transforms — 鏈只有 root 一層,已全套用,無漏無重。
+- 數值驗證:place(content bbox) → 錨點附近 75m×52m 街區,高度 −15.7..+35.6m(合理樓高+地形差)✓
+
+### 4. 錨點/單位/基準
+- 錨點 = MegaBox(22.3245N, 114.2172E,WGS84);單位 = 米;地面 datum = 錨點地面,Y 位移統一調整(**單一剛體平移**,建築相對位置全程保留,冇逐棟落地)。
+- 加 GridHelper 400×400 地面格線 + 1.78m 黃柱參考。
+
+### 5. KTX2 實測
+- `csdi_kowloonbay.glb`:KTX2 **1/1 材質解碼成功**(KTX2Loader + basis transcoder @ CDN),畫面可見真實貼圖色彩。無 fallback、無假稱。
+
+### 6. 修前/修後同鏡頭
+- `C6_csdi_megabox_block.jpg`(修後,420/120/380 → 原點):**真實 MegaBox 曲線屋頂建築群,直立、貼地、比例正確**,旁邊程序化對照方塊 + 綠色程序化車
+- 修前對照:`C1_csdi_vs_procedural_city.jpg`(傾斜灰塊懸浮右上)
+- `C3_csdi_honest_state.jpg`:平面狀態如實記錄(修復途中)
+
+## 三、泥頭車候選 — BLOCKED 清單
+綠色車已標 **PROCEDURAL_BASELINE**(場內 sprite 標示,唔當新資產成果)。
+
+| 候選 | 原頁 | 作者 | 授權 | 狀態 |
+|---|---|---|---|---|
+| 1 | sketchfab.com/3d-models/isuzu-giga-dump-truck-3349f2616d0345f49cda7e8fa5619d80 | wolfoo motors | CC-BY 4.0 | **BLOCKED:需 Sketchfab 帳戶** |
+| 2 | sketchfab.com/3d-models/dump-truck-781c616da8f44982a59cb3fc3fa67f98 | ElectroNick | CC-BY 4.0 | **BLOCKED:同上** |
+| 3 | sketchfab.com/3d-models/hino-fm-340-th-dc27dfeaab5c43c69870107fa5fb7d61 | drcrazzie | CC-BY 4.0 | **BLOCKED:同上**(hybrid 評估用) |
+
+**手動下載步驟(官方網站,唔需要喺聊天貼 token)**:
+1. 登入 sketchfab.com → 開候選頁 → 撳「Download 3D Model」
+2. 格式揀 **glTF/GLB**(如有);zip 內可能係 .gltf+bin+貼圖,**唔一定單一 .glb**
+3. 解壓後放入 `models/candidates/`(對應檔名見 `audition.js` slots),keep 原檔做 licence 證據
+4. 轉換/降貼圖版本另存 derived 檔名,唔覆蓋原檔
+
+## 四、試載場驗收狀態(分明,唔混)
+| 項目 | 狀態 |
+|---|---|
+| PROCEDURAL_BASELINE 車 | ✓ 顯示中(標示牌) |
+| Candidate 1–3 | **BLOCKED**(等實檔) |
+| CSDI b3dm 解析 | ✓(header/table/GLB 全驗證) |
+| CSDI KTX2 貼圖 | ✓ 1/1 解碼 |
+| CSDI 擺位 | ✓ spec chain+落地 |
+| 視覺 | **待 KL 目視確認** |
+
+## 五、Performance(本機 IAB,1600×900)
+- CSDI tile:56,558 tri / 4 mesh / 1 KTX2 材質 — 載入後場景 draw calls 無異常波動
+- 測試機:本機 Windows(IAB);解析度 1600×900 CSS / 2400×1350 canvas
+- frame-time 覆測(第 4 節場景,npc-off):median 16.7ms = 基線水平
+- 呢輪唔涉及 makeTruck triangle 變更(車無改)
+
+## 未完成
+1. 三個 Sketchfab 候選實檔(BLOCKED,等 auth/手動下載)
+2. CSDI 正式整合入 game(ECEF→ENU 鏈已寫喺 `_csdi_transform.mjs` 可參考,未接 game)
+3. CSDI 高 LOD 版(R9 全區)對比 — 現用 R1 低 LOD 街區
+4. 視覺確認 — KL 關卡
+
+__zcode_status=$?
+if [ "$__zcode_status" -eq 0 ]; then pwd -P > '/c/Users/klcho/AppData/Local/Temp/zcode-4a5184f5-d242-41d3-9ffa-fcf97bf85024-cwd'; fi
+exit "$__zcode_status"
+
+
+---
+
+# P10.2-R Corrective Pass — 2026-10-04
+
+狀態:解析✓ / 貼圖✓(KTX2 1/1) / 擺位✓(spec chain+落地) / **視覺:待 KL 目視確認**
+
+## 一、工程範圍確認
+- 基準:`14eb158` + worker colour fix(`3ea02af`)。已核對 `git diff 14eb158..HEAD --name-only`:P10.2 及本輪 **零 gameplay 檔案改動**(只觸及 audition/candidates/qa-evidence/CHANGELOG)。P10.1R 對 app.js/worker-rig.js 嘅改動係 14eb158 之前已批准嘅 P10.1R 範圍。
+- 冇混入任何其他 workspace 規則或 checkpoint。
+
+## 二、CSDI 修復(不依賴 Sketchfab token)
+
+### 1. C1 截圖物件判別
+- 中間巨大長方體 = **我方程序化對照樓**(刻意放置,對照用途)— 已移到獨立對照位置,唔再遮擋 CSDI。
+- 右上灰色物件 = **真正 CSDI mesh**(真香港建築幾何)— 修復前因局部框架旋轉而傾斜/懸浮。
+
+### 2. b3dm 解析(真實做法,唔係「剝 28 bytes」簡寫)
+按 spec 依序:header 28 bytes(magic 'b3dm'/version/byteLength + 四個 table 長度)→ featureTableJSON(20B,`{"BATCH_LENGTH":0}`,**無 RTC_CENTER**)→ featureTableBinary(0)→ batchTableJSON(0)→ batchTableBinary(0)→ GLB 起點 = 28+20+0+0+0 = **48**(8-byte 對齊後仍 48)。已驗:glTF magic ✓ / version 1 ✓ / declared byteLength == 實際 ✓(見 `_csdi_transform.mjs` 輸出 `declaredOK:true`)。
+
+### 3. Transform chain(根因 + 完整鏈)
+- **根因**:P10.2 首輪漏咗 **tileset root.transform**(4×4,局部→ECEF)— 呢個矩陣令局部框架傾斜(ECEF 對齊),直接擺入 Y-up 場景就會傾斜+飄移。
+- 完整鏈:`p_scene = ENU(MegaBox錨點) × T_root × Rx90(Y-up→Z-up) × p_gltf`
+- 軸向約定唔靠估:實測 4 個候選,內容質心距錨點 **C2(Rx90)=35m**(C1 identity=18.1km、C3=25.6km、C4=6.9km)→ C2 勝出,同 Cesium `Y_UP_TO_Z_UP` 約定一致 ✓
+- RTC_CENTER:無;glTF node transforms:無(9 nodes 全 identity);嵌套 tile JSON:無 transforms — 鏈只有 root 一層,已全套用,無漏無重。
+- 數值驗證:place(content bbox) → 錨點附近 75m×52m 街區,高度 −15.7..+35.6m(合理樓高+地形差)✓
+
+### 4. 錨點/單位/基準
+- 錨點 = MegaBox(22.3245N, 114.2172E,WGS84);單位 = 米;地面 datum = 錨點地面,Y 位移統一調整(**單一剛體平移**,建築相對位置全程保留,冇逐棟落地)。
+- 加 GridHelper 400×400 地面格線 + 1.78m 黃柱參考。
+
+### 5. KTX2 實測
+- `csdi_kowloonbay.glb`:KTX2 **1/1 材質解碼成功**(KTX2Loader + basis transcoder @ CDN),畫面可見真實貼圖色彩。無 fallback、無假稱。
+
+### 6. 修前/修後同鏡頭
+- `C6_csdi_megabox_block.jpg`(修後,420/120/380 → 原點):**真實 MegaBox 曲線屋頂建築群,直立、貼地、比例正確**,旁邊程序化對照方塊 + 綠色程序化車
+- 修前對照:`C1_csdi_vs_procedural_city.jpg`(傾斜灰塊懸浮右上)
+- `C3_csdi_honest_state.jpg`:平面狀態如實記錄(修復途中)
+
+## 三、泥頭車候選 — BLOCKED 清單
+綠色車已標 **PROCEDURAL_BASELINE**(場內 sprite 標示,唔當新資產成果)。
+
+| 候選 | 原頁 | 作者 | 授權 | 狀態 |
+|---|---|---|---|---|
+| 1 | sketchfab.com/3d-models/isuzu-giga-dump-truck-3349f2616d0345f49cda7e8fa5619d80 | wolfoo motors | CC-BY 4.0 | **BLOCKED:需 Sketchfab 帳戶** |
+| 2 | sketchfab.com/3d-models/dump-truck-781c616da8f44982a59cb3fc3fa67f98 | ElectroNick | CC-BY 4.0 | **BLOCKED:同上** |
+| 3 | sketchfab.com/3d-models/hino-fm-340-th-dc27dfeaab5c43c69870107fa5fb7d61 | drcrazzie | CC-BY 4.0 | **BLOCKED:同上**(hybrid 評估用) |
+
+**手動下載步驟(官方網站,唔需要喺聊天貼 token)**:
+1. 登入 sketchfab.com → 開候選頁 → 撳「Download 3D Model」
+2. 格式揀 **glTF/GLB**(如有);zip 內可能係 .gltf+bin+貼圖,**唔一定單一 .glb**
+3. 解壓後放入 `models/candidates/`(對應檔名見 `audition.js` slots),keep 原檔做 licence 證據
+4. 轉換/降貼圖版本另存 derived 檔名,唔覆蓋原檔
+
+## 四、試載場驗收狀態(分明,唔混)
+| 項目 | 狀態 |
+|---|---|
+| PROCEDURAL_BASELINE 車 | ✓ 顯示中(標示牌) |
+| Candidate 1–3 | **BLOCKED**(等實檔) |
+| CSDI b3dm 解析 | ✓(header/table/GLB 全驗證) |
+| CSDI KTX2 貼圖 | ✓ 1/1 解碼 |
+| CSDI 擺位 | ✓ spec chain+落地 |
+| 視覺 | **待 KL 目視確認** |
+
+## 五、Performance(本機 IAB,1600×900)
+- CSDI tile:56,558 tri / 4 mesh / 1 KTX2 材質 — 載入後場景 draw calls 無異常波動
+- 測試機:本機 Windows(IAB);解析度 1600×900 CSS / 2400×1350 canvas
+- frame-time 覆測(第 4 節場景,npc-off):median 16.7ms = 基線水平
+- 呢輪唔涉及 makeTruck triangle 變更(車無改)
+
+## 未完成
+1. 三個 Sketchfab 候選實檔(BLOCKED,等 auth/手動下載)
+2. CSDI 正式整合入 game(ECEF→ENU 鏈已寫喺 `_csdi_transform.mjs` 可參考,未接 game)
+3. CSDI 高 LOD 版(R9 全區)對比 — 現用 R1 低 LOD 街區
+4. 視覺確認 — KL 關口
