@@ -236,6 +236,18 @@ document.querySelectorAll('button').forEach(b => b.addEventListener('click', () 
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 window.__audition = { camera, renderer, scene, applyView };
 status('就緒 ✓');
+/* TASK C:驗證烘焙 chunk(臨時測試入口 ?chunktest=1) */
+if (new URLSearchParams(location.search).has('chunktest')) {
+  const t0 = performance.now();
+  gltf.load('models/csdibg/chunk_nearN.glb', gl => {
+    const g = gl.scene;
+    scene.add(g);
+    let tri = 0, meshes = 0;
+    g.traverse(o => { if (o.isMesh) { meshes++; tri += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; if (o.material && o.material.map) o.material.map.colorSpace = THREE.SRGBColorSpace; } });
+    window.__chunkTest = { loadMs: Math.round(performance.now() - t0), meshes, tri: Math.round(tri), ktxOK: true };
+    status('CHUNK TEST: ' + JSON.stringify(window.__chunkTest));
+  }, undefined, e => { window.__chunkTest = { err: String(e).slice(0, 150) }; status('CHUNK TEST FAIL: ' + window.__chunkTest.err); });
+}
 
 /* ===================== TASK 1 — CSDI VISUAL PROOF =====================
    4 個鏡頭 + 畫面內 debug overlay(HTML 疊加,唔遮擋 3D)。

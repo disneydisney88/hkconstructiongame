@@ -10,6 +10,7 @@ import { createWorker } from "./worker-rig.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
 
 /* 錯誤收集(測試用) */
 window.__errs = [];
@@ -85,6 +86,13 @@ const BUILDINGS = MD.b, ROADS = MD.r, ZONES = MD.z, WATERS = MD.w, GREENS = MD.g
 function zoneArea(p) { let a = 0; for (let i = 0; i < p.length; i++) { const [x1, z1] = p[i], [x2, z2] = p[(i + 1) % p.length]; a += x1 * z2 - x2 * z1; } return Math.abs(a) / 2; }
 function centroid(p) { return [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length]; }
 const mega = POIS.find(p => p[2] === "MegaBox") || [-1188, 441];
+/* ===== TASK C: CSDI 真實香港建築背景(feature flag,可一刀反轉) =====
+   ?csdioff=1 或 CSDI_BACKGROUND_TEST=false → 完全還原原本遊戲。
+   覆蓋範圍:MegaBox 真實位置 100–520m 環帶(與 MAIN_SITE 閘口相距約 700m,不觸碰近景 hero)。
+   資料:地政總署 3D 空間數據(見 models/csdibg/ATTRIBUTION.md)。僅視覺,無碰撞。 */
+const CSDI_BACKGROUND_TEST = true;
+const csdiBgOn = CSDI_BACKGROUND_TEST && !new URLSearchParams(location.search).has("csdioff");
+const csdiBgRing = (x, z) => { const d = d2(x, z, mega[0], mega[1]); return d > 100 && d < 560; }; // true = 由 CSDI 取代(隱藏程序化樓)
 const zonesSorted = ZONES.map(z => ({ pts: z, area: zoneArea(z), c: centroid(z) })).sort((a, b) => b.area - a.area);
 const MAIN_SITE = zonesSorted.find(z => d2(z.c[0], z.c[1], mega[0], mega[1]) < 900) || zonesSorted[0];
 const SITE2 = zonesSorted.find(z => z !== MAIN_SITE && d2(z.c[0], z.c[1], MAIN_SITE.c[0], MAIN_SITE.c[1]) < 1100) || zonesSorted[1];
@@ -478,7 +486,7 @@ const colliders = []; // {x,z,hw,hd,rot,minx,maxx,minz,maxz}
   const geo = new THREE.BoxGeometry(1, 1, 1);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
   for (const bk of buckets) {
-    const list = BUILDINGS.filter(b => b[6] !== 1 && b[5] <= bk.maxH && b[5] > (bk === buckets[0] ? 0 : buckets[buckets.indexOf(bk) - 1].maxH));
+    const list = BUILDINGS.filter(b => b[6] !== 1 && b[5] <= bk.maxH && b[5] > (bk === buckets[0] ? 0 : buckets[buckets.indexOf(bk) - 1].maxH) && !(csdiBgOn && csdiBgRing(b[0], b[1])));
     if (!list.length) continue;
     const { map, ems } = buildingTexPair(bk.floors, bk.cols, bk.lit, walls[randi(0, walls.length - 1)]);
     const mat = new THREE.MeshLambertMaterial({ map, emissive: 0xffffff, emissiveMap: ems, emissiveIntensity: .45 });
@@ -495,6 +503,7 @@ const colliders = []; // {x,z,hw,hd,rot,minx,maxx,minz,maxz}
   }
   for (const b of BUILDINGS) {
     if (b[6] === 1) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: CSDI 背景帶內樓宇交畀 CSDI(視覺only,冇碰撞)
     const [x, z, hw, hd, rot] = b;
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
     const ew = hw * ca + hd * sa, ed = hw * sa + hd * ca;
@@ -611,6 +620,7 @@ const hWalls = [], hCaps = [], hPosts = []; /* P10.1R-E:demo zone 圍板 collide
   /* P10.1R-E:demo zone 圍板牆/頂/post 收納入全域 InstancedMesh(draw-call guardrail) */
   for (const b of BUILDINGS) {
     if (b[6] !== 1) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: 背景帶內施工樓都由 CSDI 取代
     const [x, z, hw, hd, rot, h0] = b;
     const h = Math.min(h0, 14);
     const g = new THREE.Group();
@@ -679,6 +689,7 @@ const hWalls = [], hCaps = [], hPosts = []; /* P10.1R-E:demo zone 圍板 collide
   const signs = [["茶餐廳", "#ff5f8a"], ["雲吞麵", "#ffd23a"], ["五金", "#5fd0ff"], ["建材", "#7ef08a"], ["涼茶", "#ff9d3c"], ["麻雀耍樂", "#c88aff"], ["找換", "#ffe28a"], ["跌打", "#7affd2"]];
   for (const b of BUILDINGS) {
     if (b[6] === 1 || b[5] < 12) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: 樓已隱藏,招牌唔可以浮空
     if (Math.random() > .05) continue;
     const s = signs[randi(0, signs.length - 1)];
     const t = neonTex(s[0], s[1]);
@@ -3744,6 +3755,35 @@ requestAnimationFrame(loop);
 /* 開場鏡頭:喺玩家背後5米,唔好攝入閘機房 */
 camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
+/* ===== TASK C:載入 CSDI 背景 chunks(非阻塞;csdioff 時完全唔載) ===== */
+if (csdiBgOn) {
+  try {
+    const ktx2 = new KTX2Loader().setTranscoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/").detectSupport(renderer);
+    const bgLoader = new GLTFLoader().setKTX2Loader(ktx2);
+    window.__csdiBg = { state: "loading", chunks: 0, tris: 0, t0: performance.now() };
+    fetch("models/csdibg/manifest.json").then(r => r.json()).then(mf => {
+      const names = Object.keys(mf.chunks);
+      let done = 0;
+      for (const nm of names) {
+        bgLoader.load("models/csdibg/" + mf.chunks[nm].file, gl => {
+          const g = gl.scene;
+          g.position.set(mega[0], 0, mega[1]); // ENU 頂點 + MegaBox 遊戲座標(convert.py x-east/z-south 同 ENU 一致,零旋轉)
+          g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+          g.matrixAutoUpdate = false; g.updateMatrix();
+          scene.add(g);
+          done++;
+          window.__csdiBg.chunks++;
+          window.__csdiBg.tris += mf.chunks[nm].triangles;
+          if (done === names.length) {
+            window.__csdiBg.state = "ready";
+            window.__csdiBg.loadMs = Math.round(performance.now() - window.__csdiBg.t0);
+          }
+        }, undefined, e => { window.__csdiBg.state = "chunk-fail:" + String(e).slice(0, 80); });
+      }
+    }).catch(e => { window.__csdiBg.state = "manifest-fail:" + String(e).slice(0, 80); });
+  } catch (e) { window.__csdiBg = { state: "init-fail:" + String(e).slice(0, 80) }; }
+}
+
 window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders });
 window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };

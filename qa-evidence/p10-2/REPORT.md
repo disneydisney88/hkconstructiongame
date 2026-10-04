@@ -283,3 +283,59 @@ exit "$__zcode_status"
 ## FOLLOW-UP FINDINGS(唔處理)
 - R0 全區有數百塊;正式整合要用 3D Tiles runtime 或預烤 batching
 - heading 真北對比 Google Maps 截圖未做(A2-6 有座標+軸,KL 可自行比對)
+
+
+---
+
+# TASK C — CSDI MID/FAR BACKGROUND PROTOTYPE — 2026-10-04
+
+狀態上限:**READY FOR KL REVIEW**
+
+## 選取統計(轉換前)
+- 掃描範圍:MegaBox 錨點(22.3245N, 114.2172E = 遊戲 -1187.9, 441.2)560m 內 leaves
+- R0 ≤520m:217 塊 → 觸發降級策略:R0 ≤320m(87 塊)+ R1 ring 320-545m(排除與 R0 bbox 相交後 8 塊)
+- **合計 95 tiles** / raw b3dm 862KB / 9,550 tri / 17 個唯一 KTX2 貼圖
+- 建築棟數:未由數據直接提供(b3dm BATCH_LENGTH=0);R0=單體建築 tile → ~87 棟近帶 + 8 塊 R1 粗表示遠帶
+
+## Pre-bake
+- 同一已驗證鏈(tileset.root.transform → ECEF → ENU);convert.py(x-east/z-south)與 ENU 完全一致 → 遊戲零旋轉
+- 全局地面 datum:-4.9m 單一剛體 Y 位移,相對位置保留
+- chunks:MegaBox 南面係海灣(無建築)→ 實際 2 chunks:**nearN 532KB(9 prims/9,100 tri)**、farN 41KB(8 prims/450 tri)
+- **87 塊 R0 → 9 個 draw calls**(17 個共用 KTX2 分組合併)
+- manifest:`models/csdibg/manifest.json`;烘焙腳本臨時性(_c_bake.mjs 已刪,可重寫)
+
+## Feature flag
+`CSDI_BACKGROUND_TEST = true`(app.js)+ URL `?csdioff=1` 一鍵反轉;OFF 時零載入零改動(實測 `__csdiBg` undefined ✓)
+- 環帶:MegaBox 100–560m;MAIN_SITE 閘口與 MegaBox 相距 ~700m → **近景 hero/地盤完全不受影響**(結構性保證)
+- 隱藏機制:環帶內程序化樓(主 instancing/colliders/施工樓/霓虹)全跳過;零 z-fighting
+- CSDI 背景:castShadow/receiveShadow false,無碰撞,非同步載入(不阻塞 start)
+
+## A/B 截圖(`qa-evidence/p10-2/taskC/`,同 camera/FOV/lighting/DPR)
+| View | OFF(C1) | ON(C2) |
+|---|---|---|
+| 1 閘口望外 | C1_1 | C2_1 |
+| 2 泥頭車區望 skyline | C1_2 | C2_2 |
+| 3 街景望 MegaBox(306m) | C1_3 | C2_3 |
+| 4 高空總覽 | C1_4 | C2_4 |
+
+## Performance(玩家出生點,3 跑取中位)
+| | OFF | ON | Δ |
+|---|---|---|---|
+| median | 33.3ms | 33.3ms | **0%** |
+| P95 | 33.5 | 33.5 | 0 |
+| draw calls | 1401 | 1426 | +25(+1.8%) |
+| triangles | 1.436M | 1.504M | +4.7% |
+| textures | 186 | 192 | +6 |
+| added cold bytes | — | manifest+2 GLB ≈ 574KB | — |
+| CSDI load(非阻塞) | — | 2.4s post-start | — |
+
+(33.3ms = 本位置已知 NPC 動畫地板,OFF/ON 同值;guardrail 通過)
+
+## Regression(ON 模式實測)
+上車 ✓ → 開 8.0m ✓ → 落車 ✓;NPC 車閘 barrier ✓;CSDI bg ready;console error 0
+
+## 未完成 / FOLLOW-UP
+- 遠帶(320-520m)僅 8 塊 R1(粗幾何):遠帶 R0 全量策略待 KL 決定(現策略因 R0≤520 達 217 塊而降級)
+- CSDI 樓夜間發光窗/霓虹未做;與遊戲 minimap 未聯動
+- heading 真北對比(KL 目視 A/B)
+- Skyline 東/西向(遠離海)環帶未覆蓋

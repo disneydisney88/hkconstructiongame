@@ -59,3 +59,8 @@
 - 應用：`app.js` 閘屋朝向／核對畫面、`induction-room.js` 原創程序化室內場景。
 - 使用範圍：只參考空間配置；無將原照片或照片人物用作遊戲貼圖、無將原照片加入發佈包。
 - 遊戲帽色遵循本專案要求：工人黃色，安全管理白色，唔照搬相片其他帽色。
+
+## TASK C — CSDI 背景數據(2026-10-04)
+- 香港特區政府地政總署《3D 空間數據》building tileset,經 CSDI 3D Spatial Data API 取得(詳 `models/csdibg/ATTRIBUTION.md`)。
+- 精選 MegaBox 500m 環帶 95 個 tiles(R0×87+R1×8),預烤成 2 個 GLB chunks(`models/csdibg/`)。
+- 依 CSDI 條款標明來源;資料「現況」提供,無準確性保證;政府可隨時終止服務。
