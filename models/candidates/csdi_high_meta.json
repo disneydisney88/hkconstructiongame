@@ -1,0 +1,107 @@
+{
+ "files": [
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8129.glb",
+   "tri": 236,
+   "bytes": 17512,
+   "glbBytes": 16864
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8130.glb",
+   "tri": 92,
+   "bytes": 10788,
+   "glbBytes": 10140
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8131.glb",
+   "tri": 179,
+   "bytes": 15912,
+   "glbBytes": 15264
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8132.glb",
+   "tri": 28,
+   "bytes": 4360,
+   "glbBytes": 3916
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8133.glb",
+   "tri": 82,
+   "bytes": 8160,
+   "glbBytes": 7716
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8134.glb",
+   "tri": 82,
+   "bytes": 8160,
+   "glbBytes": 7716
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8135.glb",
+   "tri": 113,
+   "bytes": 11628,
+   "glbBytes": 10980
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8136.glb",
+   "tri": 164,
+   "bytes": 15308,
+   "glbBytes": 14660
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8137.glb",
+   "tri": 520,
+   "bytes": 26056,
+   "glbBytes": 25612
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8138.glb",
+   "tri": 244,
+   "bytes": 18648,
+   "glbBytes": 18000
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8139.glb",
+   "tri": 571,
+   "bytes": 33400,
+   "glbBytes": 32752
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8142.glb",
+   "tri": 106,
+   "bytes": 9116,
+   "glbBytes": 8672
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8143.glb",
+   "tri": 95,
+   "bytes": 10912,
+   "glbBytes": 10264
+  },
+  {
+   "nm": "csdi_r0_F_Tile_+4_2_0+R0_8151.glb",
+   "tri": 82,
+   "bytes": 8160,
+   "glbBytes": 7716
+  }
+ ],
+ "totalTriangles": 2594,
+ "totalB3dmBytes": 198120,
+ "chainNote": "同一 F_Tile_+4_2_0 樹;每塊 tile-local 座標同鏈(root.transform→ECEF→ENU)",
+ "sourceLeaves": [
+  "F_Tile_+4_2_0+R0_8129.b3dm",
+  "F_Tile_+4_2_0+R0_8130.b3dm",
+  "F_Tile_+4_2_0+R0_8131.b3dm",
+  "F_Tile_+4_2_0+R0_8132.b3dm",
+  "F_Tile_+4_2_0+R0_8133.b3dm",
+  "F_Tile_+4_2_0+R0_8134.b3dm",
+  "F_Tile_+4_2_0+R0_8135.b3dm",
+  "F_Tile_+4_2_0+R0_8136.b3dm",
+  "F_Tile_+4_2_0+R0_8137.b3dm",
+  "F_Tile_+4_2_0+R0_8138.b3dm",
+  "F_Tile_+4_2_0+R0_8139.b3dm",
+  "F_Tile_+4_2_0+R0_8142.b3dm",
+  "F_Tile_+4_2_0+R0_8143.b3dm",
+  "F_Tile_+4_2_0+R0_8151.b3dm"
+ ]
+}

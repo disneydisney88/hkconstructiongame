@@ -320,6 +320,47 @@ function task1Decor(info) {
   for (const ex of [0, 100]) { const s = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6), new THREE.MeshBasicMaterial({ color: 0x7ef08a })); s.position.set(ex, .1, 0); sb.add(s); }
   sb.position.set(info.center[0] - 300, 0, info.center[2] - 340); scene.add(sb);
 }
+/* TASK A2:載入 R0 拼群(高 LOD),同一 placement matrix */
+window.__a2LoadHigh = async function () {
+  const meta = await (await fetch('models/candidates/csdi_high_meta.json')).json();
+  const pl = await (await fetch('models/candidates/csdi_placement.json')).json();
+  const M = pl.placementMatrixColumnMajor;
+  const grp = new THREE.Group();
+  grp.matrixAutoUpdate = false;
+  grp.matrix.fromArray(M);
+  let tri = 0;
+  for (const f of meta.files) {
+    const gl = await new Promise((res, rej) => gltf.load('models/candidates/' + f.nm, res, undefined, rej));
+    gl.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; tri += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; } });
+    grp.add(gl.scene);
+  }
+  scene.add(grp);
+  /* 落地同 R1 datum:用同一世界 bbox min.y 對齊 */
+  grp.updateMatrixWorld(true);
+  let mn = 1e15, box2 = null;
+  const probe = new THREE.Box3();
+  // world-space min.y
+  grp.traverse(o => {
+    if (!o.isMesh || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position, m = o.matrixWorld.elements;
+    for (let i = 0; i < pos.count; i += 40) mn = Math.min(mn, m[1]*pos.getX(i) + m[5]*pos.getY(i) + m[9]*pos.getZ(i) + m[13]);
+  });
+  grp.position.y -= mn; // Group position 疊加(matrix 已 frozen?Group 用 position 都得—matrixAutoUpdate=false 要手動)
+  grp.matrix.elements[13] -= mn;
+  grp.updateMatrixWorld(true);
+  // 量測 world bbox
+  let bmin = [1e15,1e15,1e15], bmax = [-1e15,-1e15,-1e15];
+  grp.traverse(o => {
+    if (!o.isMesh || !o.geometry.attributes.position) return;
+    const pos = o.geometry.attributes.position, m = o.matrixWorld.elements;
+    for (let i = 0; i < pos.count; i += Math.max(1, Math.floor(pos.count/200))) {
+      const w = [m[0]*pos.getX(i)+m[4]*pos.getY(i)+m[8]*pos.getZ(i)+m[12], m[1]*pos.getX(i)+m[5]*pos.getY(i)+m[9]*pos.getZ(i)+m[13], m[2]*pos.getX(i)+m[6]*pos.getY(i)+m[10]*pos.getZ(i)+m[14]];
+      for (let k = 0; k < 3; k++) { bmin[k] = Math.min(bmin[k], w[k]); bmax[k] = Math.max(bmax[k], w[k]); }
+    }
+  });
+  window.__a2High = { group: grp, tri: Math.round(tri), bboxMin: bmin.map(v=>+v.toFixed(1)), bboxMax: bmax.map(v=>+v.toFixed(1)) };
+  return window.__a2High;
+};
 window.__task1Compare = function () {
   /* A4:左右 split — 左程序化(16×26×12盒,貼埋同區) 右CSDI,同相機/格線 */
   const info = task1Info();

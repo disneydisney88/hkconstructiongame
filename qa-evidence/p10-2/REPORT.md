@@ -222,3 +222,64 @@ exit "$__zcode_status"
 2. CSDI 正式整合入 game(ECEF→ENU 鏈已寫喺 `_csdi_transform.mjs` 可參考,未接 game)
 3. CSDI 高 LOD 版(R9 全區)對比 — 現用 R1 低 LOD 街區
 4. 視覺確認 — KL 關口
+
+
+---
+
+# TASK A2 — CSDI HIGH-LOD VISUAL VALIDATION — 2026-10-04
+
+狀態上限:**READY FOR KL VISUAL REVIEW**
+
+## 1. Tile 記錄
+- **低 LOD(baseline)**:`F_Tile_+4_2_0+R1_8137.b3dm`(ge≈14)— 26KB / 520 tri / 1 KTX2
+- **高 LOD**:R0 單體建築拼群 ×14(ge=0)— 全部喺同一 `F_Tile_+4_2_0` R9 樹,同鏈(root.transform→ECEF→ENU)
+  - URI 樣式:`…/3dsd/WGS84/building/Data/F_Tile_+4_2_0/F_Tile_+4_2_0+R0_8129.b3dm` 至 `R0_8151`
+  - 合計:198KB b3dm / **2,594 tri** / 每塊 1–2 個 KTX2 材質
+  - 完整清單:`models/candidates/csdi_high_meta.json`
+- Parent/child chain:tileset root → `F_Tile_+4_2_0+R9_0.json`(refine REPLACE)→ R1/R0 leaves;R0=最細粒度單體建築
+- **點揀**:R1_8137 tile-local bbox 為準,掃全樹 leaf,覆蓋該範圍嘅 R0 全抓(14 塊 ≥3KB 有真內容)
+
+## 3. A/B 截圖(A2-1 至 A2-6 同目錄)
+| 圖 | 內容 |
+|---|---|
+| A2-1_lowLOD | R1 baseline(15.5m 扁平 footprint) |
+| A2-2_highLOD | R0 拼群(同區,113.6m 塔樓) |
+| A2-3_split | 左 R1 / 右 R0,同相機同光照同格線 |
+| A2-4_street | 1.7m 高、~110m 距離,R0 塔樓佔畫面 >60% |
+| A2-5_oblique | 3/4 鳥瞰:roof form + façade + 多棟 mass |
+| A2-6_top_heading | 俯視 footprint + 北箭頭 + 100m 格線 + 錨點 |
+
+## 5. 量測觀察(只報量到嘅)
+| | R1(low) | R0 拼群(high) |
+|---|---|---|
+| Height | 15.5m | **113.6m** |
+| Width (X) | 122.7m | 240.8m(14塊覆蓋範圍較廣) |
+| Depth (Z) | 136.9m | 245.9m |
+| Triangles | 520 | 2,594 |
+| Textures | 1×KTX2 | 14 塊×1–2 KTX2 |
+
+- 高 LOD 有:**多棟建築**(≥8 個獨立體量)、**立面貼圖**(KTX2 玻璃幕牆色)、roof form 可辨
+- **窗戶幾何:無**(貼圖隱含窗格,非實體幾何)— 觀察自 A2-4/A2-5
+- ground mesh:無(純建築體)
+- photogrammetry artifacts:未觀察到明顯 ones(A2 证据範圍內)
+- **R1 高度差解釋(有證據)**:R1 係同區嘅 coarse LOD 表示 — 佢 boundingVolume 高度細(其 box half-Y ≈14m),content 亦係壓扁簡化;唔係 R0 嘅 parent bbox(R0 leaf 各自獨立 box,半徑 8–27m)。兩者係 refine REPLACE 樹嘅唔同 level 表示同一批建築,R1 表示被大幅簡化。
+
+## 6. Game suitability(基於截圖)
+| 距離帶 | 判定 | 依据 |
+|---|---|---|
+| 0–100m | **MAYBE** | A2-4 街景比例/貼圖成立,但貼圖分辨率有限,近看窗格會糊;需 KL 判斷 |
+| 100–300m | **SUITABLE** | A2-5 鳥瞰:massing/屋頂/貼圖喺呢個距離讀得舒服 |
+| 300m+ | **SUITABLE** | 塔樓 silhouette 明確,遠景啱用 |
+
+## 7. Performance/size(audition 場,本機 IAB)
+| | R1 | R0×14 |
+|---|---|---|
+| Triangles | 520 | 2,594 |
+| Draw calls | 4 mesh | 14 GLB×(1–2 mesh)≈18 |
+| Textures | 1 | ~16 KTX2 |
+| Transferred | 26KB | 198KB |
+| Decode+first render | ~1s | ~2s(逐塊 load) |
+
+## FOLLOW-UP FINDINGS(唔處理)
+- R0 全區有數百塊;正式整合要用 3D Tiles runtime 或預烤 batching
+- heading 真北對比 Google Maps 截圖未做(A2-6 有座標+軸,KL 可自行比對)
