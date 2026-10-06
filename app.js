@@ -1,3 +1,4 @@
+import { createSpawnHeroSkin } from './spawn-hero-skin.js';
 /* =========================================================================
  * 香港地盤 GTA · 開工大吉
  * 真實地圖:九龍灣/啟德/觀塘 (OpenStreetMap)
@@ -5,12 +6,14 @@
  * 敵人:白帽安全主任 | 危險源:天秤吊運/泥頭車倒後/吊重/坑洞 (參考勞工處意外類型)
  * ========================================================================= */
 import * as THREE from "three";
+import { createWorldAssetProof } from "./world-asset-proof.js";
 import { createInductionRoom } from "./induction-room.js";
 import { createWorker } from "./worker-rig.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
 import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 /* 錯誤收集(測試用) */
 window.__errs = [];
@@ -91,7 +94,13 @@ const mega = POIS.find(p => p[2] === "MegaBox") || [-1188, 441];
    覆蓋範圍:MegaBox 真實位置 100–520m 環帶(與 MAIN_SITE 閘口相距約 700m,不觸碰近景 hero)。
    資料:地政總署 3D 空間數據(見 models/csdibg/ATTRIBUTION.md)。僅視覺,無碰撞。 */
 const CSDI_BACKGROUND_TEST = true;
-const csdiBgOn = CSDI_BACKGROUND_TEST && !new URLSearchParams(location.search).has("csdioff");
+const _qaParams = new URLSearchParams(location.search);
+/* QA runs stay deterministic and clean by default; explicitly opt in with csdi=1. */
+const csdiBgOn = CSDI_BACKGROUND_TEST && !_qaParams.has("csdioff") && (!_qaParams.has("qa") || _qaParams.get("csdi") === "1");
+const qaCloseAdapter = _qaParams.get("characterAdapterTest") === "1" && _qaParams.get("characterAdapterClose") === "1";
+const adapterNoAnim = _qaParams.get("characterAdapterNoAnim") === "1";
+const adapterNoPPE = _qaParams.get("characterAdapterNoPPE") === "1";
+const adapterHidden = _qaParams.get("characterAdapterHidden") === "1";
 const csdiBgRing = (x, z) => { const d = d2(x, z, mega[0], mega[1]); return d > 100 && d < 560; }; // true = 由 CSDI 取代(隱藏程序化樓)
 const zonesSorted = ZONES.map(z => ({ pts: z, area: zoneArea(z), c: centroid(z) })).sort((a, b) => b.area - a.area);
 const MAIN_SITE = zonesSorted.find(z => d2(z.c[0], z.c[1], mega[0], mega[1]) < 900) || zonesSorted[0];
@@ -630,6 +639,22 @@ const hWalls = [], hCaps = [], hPosts = []; /* P10.1R-E:demo zone 圍板 collide
     if (demo) {
       /* P10.1R-D/E:demo zone 施工中樓宇 — 竹棚(杆件+綠網層次)+基座圍街板帶,唔再係綠色 grid 盒 */
       bambooScaffoldFaces(x, z, hw * 2 + .9, hd * 2 + .9, h, 3.2, { offset: .55 });
+      // Hero near-field facade dressing: recessed window bays, AC units and a service entrance.
+      const facadeMat = new THREE.MeshLambertMaterial({ color: 0x66717a });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x9bb7c8, roughness: .22, metalness: .15 });
+      const acMat = new THREE.MeshLambertMaterial({ color: 0xd2d0c5 });
+      const doorMat = new THREE.MeshLambertMaterial({ color: 0x303840 });
+      const frontZ = z - hd - .08;
+      for (let floor = 0; floor < Math.min(4, Math.floor(h / 3.1)); floor++) {
+        for (let col = -1; col <= 1; col++) {
+          const wx = x + col * Math.min(2.2, hw * .65), wy = 1.55 + floor * 3.05;
+          const recess = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.25, .12), facadeMat); recess.position.set(wx, wy, frontZ); g.add(recess);
+          const glass = new THREE.Mesh(new THREE.BoxGeometry(.82, .88, .035), glassMat); glass.position.set(wx, wy + .02, frontZ - .08); g.add(glass);
+          const ac = new THREE.Mesh(new THREE.BoxGeometry(.42, .25, .24), acMat); ac.position.set(wx + .58, wy - .62, frontZ - .18); g.add(ac);
+        }
+      }
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.15, 2.25, .12), doorMat); door.position.set(x - hw * .55, 1.13, frontZ - .1); g.add(door);
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(2.2, .12, 1.05), new THREE.MeshLambertMaterial({ color: 0xb98b43 })); canopy.position.set(x - hw * .55, 2.35, frontZ - .55); g.add(canopy);
       const faces = [
         { x: x, z: z - hd - .42, ax: 0, len: hw * 2 + 1 },
         { x: x, z: z + hd + .42, ax: 0, len: hw * 2 + 1 },
@@ -821,6 +846,37 @@ function makeHumanProc(o) {
   }
 
   const r = { g, lLeg: L.lg, rLeg: R.lg, lArm: La.ag, rArm: Ra.ag, torso: chest, head, upper, phase: Math.random() * 6, walk: 0 };
+  // V3 visual-sprint profiles: reversible silhouette variation for QA/runtime audition.
+  if (o.profile) {
+    const p = o.profile;
+    g.scale.y = p.height || 1;
+    L.lg.scale.x = R.lg.scale.x = p.legWidth || 1;
+    L.lg.scale.z = R.lg.scale.z = p.legDepth || 1;
+    upper.scale.x = p.shoulder || 1; upper.scale.z = p.torsoDepth || 1;
+    pelvis.scale.x = p.hip || 1; pelvis.scale.z = p.hipDepth || 1;
+    head.scale.set(p.head || 1, p.head || 1, p.head || 1);
+    backHair.scale.y = p.hair || 1;
+    // Distinct V3 head/hair meshes: these are real geometry additions, not tint-only variation.
+    if (p.style === 'beard') {
+      const beard = new THREE.Mesh(new THREE.SphereGeometry(.055, 10, 8), hairMat);
+      beard.scale.set(1.25, .72, .65); beard.position.set(0, -.07, .075); head.add(beard);
+    } else if (p.style === 'bun') {
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(.065, 12, 10), hairMat);
+      bun.position.set(0, .035, -.095); head.add(bun);
+      const fringe = new THREE.Mesh(new THREE.BoxGeometry(.13, .022, .018), hairMat);
+      fringe.position.set(0, .052, .088); head.add(fringe);
+    } else if (p.style === 'elderM') {
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(.16, .018, .018), hairMat);
+      brow.position.set(0, .045, .088); head.add(brow);
+      const chin = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), skinMat);
+      chin.scale.set(1.15, .65, .8); chin.position.set(0, -.09, .055); head.add(chin);
+    } else if (p.style === 'elderF') {
+      const bunL = new THREE.Mesh(new THREE.SphereGeometry(.055, 10, 8), hairMat);
+      const bunR = bunL.clone(); bunL.position.set(-.075, .02, -.065); bunR.position.set(.075, .02, -.065); head.add(bunL, bunR);
+      const chin = new THREE.Mesh(new THREE.SphereGeometry(.04, 8, 6), skinMat);
+      chin.scale.set(1.1, .7, .8); chin.position.set(0, -.085, .05); head.add(chin);
+    }
+  }
   r.animate = (dt, speed, lean = 0) => {
     r.phase += dt * (2.2 + speed * 2.4);
     const amp = clamp(speed / 3.4, 0, 1) * .68 + (speed > .2 ? .1 : 0);
@@ -840,8 +896,8 @@ function makeHumanProc(o) {
 }
 
 /* ---------- 人物工廠(GLB真模型版 — 實測歸一化 + PPE骨骼挂接) ---------- */
-function makeHumanGLB(o) {
-  const tpl = WORKER_MODELS.male;
+function makeHumanGLB(o, tplOverride = null) {
+  const tpl = tplOverride || WORKER_MODELS.male;
   const model = skeletonClone(tpl.scene);
   /* P0根因修復:唔可以硬編高度 — 模型內部root節點自帶scale,
      必須用渲染實測(box量matrixWorld)歸一化,並用外層g隔離(動畫唔寫root scale,已驗證) */
@@ -868,8 +924,12 @@ function makeHumanGLB(o) {
     const back = new THREE.MeshStandardMaterial({ map: vestTex(true, vc, o.vestLabel), roughness: .8 });
     const side = new THREE.MeshStandardMaterial({ color: new THREE.Color(vc).getHex(), roughness: .8 });
     const vest = new THREE.Group();
-    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(.42, .56, .27), [side, side, side, side, front, back]);
+    const bodyM = new THREE.Mesh(new RoundedBoxGeometry(.38, .50, .24, 4, .05), side);
     bodyM.castShadow = true; vest.add(bodyM);
+    const vestFront = new THREE.Mesh(new THREE.PlaneGeometry(.34, .44), front);
+    vestFront.position.set(0, .01, .139); vestFront.castShadow = true; vest.add(vestFront);
+    const vestBack = new THREE.Mesh(new THREE.PlaneGeometry(.34, .44), back);
+    vestBack.position.set(0, .01, -.139); vestBack.rotation.y = Math.PI; vestBack.castShadow = true; vest.add(vestBack);
     const strapM = new THREE.MeshStandardMaterial({ color: new THREE.Color(vc).getHex(), roughness: .8 });
     for (const sx of [-.13, .13]) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(.07, .02, .24), strapM);
@@ -897,12 +957,13 @@ function makeHumanGLB(o) {
     if (!acts[n]) acts[n] = mixer.clipAction(clip);
   }
   const pick = (...names) => { for (const n of names) if (acts[n]) return acts[n]; return Object.values(acts)[0]; };
-  const aIdle = pick("Idle"), aWalk = pick("Walk"), aRun = pick("Run");
+  const aIdle = pick("Idle", "2H_Melee_Idle", "1H_Melee_Idle"), aWalk = pick("Walk", "2H_Melee_Walk", "1H_Melee_Walk"), aRun = pick("Run", "2H_Melee_Run", "1H_Melee_Run");
   let cur = null;
-  const setAnim = a => { if (a && a !== cur) { a.reset().fadeIn(.22).play(); if (cur) cur.fadeOut(.22); cur = a; } };
+  const setAnim = a => { if (a && a !== cur) { a.reset().fadeIn(.22).play(); if (cur) cur.fadeOut(.22); cur = a; window.__characterAdapterAnimationClip = a.getClip?.().name || "unknown"; } };
   setAnim(aIdle);
   const r = { g, mixer, phase: Math.random() * 6, walk: 0 };
   r.animate = (dt, speed, lean = 0) => {
+    if (adapterNoAnim && typeof CHARACTER_ADAPTER_TEST !== "undefined" && tplOverride === CHARACTER_ADAPTER_TEST) return;
     mixer.update(dt);
     if (speed > 4.2) { setAnim(aRun); if (cur) cur.timeScale = clamp(speed / 4.2, .75, 1.4); }
     else if (speed > .25) { setAnim(aWalk); if (cur) cur.timeScale = clamp(speed / 1.5, .6, 2); }
@@ -911,7 +972,20 @@ function makeHumanGLB(o) {
   return r;
 }
 function makeHuman(o) {
+  if (o.profile) return makeHumanProc(o);
   if (o.helmet === null) return makeHumanProc(o);
+  if (typeof CHARACTER_ADAPTER_TEST !== "undefined" && CHARACTER_ADAPTER_TEST && !window.__characterAdapterSpawned) {
+    window.__characterAdapterSpawned = true;
+    try {
+      const r = makeHumanGLB({ ...o, vest: !adapterNoPPE, vestColor: "#12b8d6", vestLabel: "ADAPTER", helmet: 0x35d0ff }, CHARACTER_ADAPTER_TEST);
+      if (adapterHidden) r.g.visible = false;
+      window.__characterAdapterStatus = "spawned";
+      return r;
+    } catch (e) {
+      window.__characterAdapterStatus = "fallback: " + (e.message || e);
+      console.warn("character adapter 失敗,退回原系統:", e);
+    }
+  }
   /* 全員worker-rig(用戶指示:其他人物都要改) — 失敗先退Soldier/程序化 */
   if (typeof MIXAMO_WORKER !== "undefined" && MIXAMO_WORKER) {
     try { const r = makeHumanMixamo(o); window.__rigLog = (window.__rigLog||[]).concat(['worker-rig']); return r; }
@@ -1700,12 +1774,165 @@ const player = {
 };
 player.h.g.position.set(player.x, 0, player.z); scene.add(player.h.g);
 
+// 008: one generated facade study; no production wall/collider replacement.
+if (_qaParams.get('worldAssetTest') === '1') {
+  window.__worldAssetProof = createWorldAssetProof(THREE, scene, BUILDINGS, SPAWN, (x,z)=>csdiBgRing(x,z), {zones:zonesSorted,openings:MAIN_OPENINGS,mainSite:MAIN_SITE});
+}
+
+// Isolated candidate audition. Original player/workers stay intact.
+let mpfbCharacterTestActor = null;
+let updateMpfbCandidate = () => {};
+if (_qaParams.get('mpfbCharacterTest') === '1' && globalThis.MPFB_CHARACTER_TEST) {
+  const g = skeletonClone(globalThis.MPFB_CHARACTER_TEST.scene);
+  g.name = 'MPFB_WORKER_MALE_V4_TEST';
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const bounds = new THREE.Box3().setFromObject(g);
+  g.position.set(player.x + 2.2, -bounds.min.y, player.z + 1.5);
+  g.rotation.y = Math.PI;
+  scene.add(g);
+  mpfbCharacterTestActor = g;
+  const mode = _qaParams.get('mpfbWorkingPose') === '1' ? 'work' : (_qaParams.get('mpfbAnimation') === 'walk' ? 'walk' : 'idle');
+  g.visible = _qaParams.get('mpfbCharacterHidden') !== '1';
+  Object.assign(globalThis.__mpfbCharacterQA, {visible: g.visible, status: mode === 'walk' ? 'IN_PLACE_WALK_TEST' : 'ANIMATED_PROCEDURAL_TEST', animation: mode, animationFrame: 0, fallback_active: false});
+  g.updateMatrixWorld(true);
+  const bones = {};
+  g.traverse(o => { if (o.isBone) bones[o.name] = {bone:o, rest:o.quaternion.clone(), parentWorld:o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()}; });
+  const delta = new THREE.Quaternion(), axis = new THREE.Vector3();
+  function rotate(name, worldAxis, angle) {
+    const b = bones[name]; if (!b) return;
+    axis.copy(worldAxis).applyQuaternion(b.parentWorld);
+    b.bone.quaternion.premultiply(delta.setFromAxisAngle(axis,angle));
+  }
+  const actorRotation = g.getWorldQuaternion(new THREE.Quaternion());
+  const X = new THREE.Vector3(1,0,0).applyQuaternion(actorRotation), Z = new THREE.Vector3(0,0,1).applyQuaternion(actorRotation);
+  const candidateBoots = [];
+  g.traverse(o => { if (o.isSkinnedMesh && /PPE.*work.*boot/i.test(o.name+" "+(o.parent?.name||""))) candidateBoots.push(o); });
+  const soleSamples = candidateBoots.map(boot => {
+    const joint = boot.geometry.attributes.skinIndex.getX(0);
+    const bone = boot.skeleton.bones[joint];
+    const corners = []; const v = new THREE.Vector3();
+    boot.skeleton.update(); const boneInverseWorld = bone.matrixWorld.clone().invert();
+    for (let i=0;i<boot.geometry.attributes.position.count;i++) {
+      boot.getVertexPosition(i,v); v.applyMatrix4(boot.matrixWorld).applyMatrix4(boneInverseWorld); corners.push(v.clone());
+    }
+
+    return {bone,corners};
+  });
+  const solePoint = new THREE.Vector3();
+  const candidateBaseY = g.position.y;
+  scene.updateMatrixWorld(true);
+  const supportRay = new THREE.Raycaster(new THREE.Vector3(g.position.x,.45,g.position.z),new THREE.Vector3(0,-1,0),0,1);
+  const supportSurfaces = [];
+  scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) supportSurfaces.push(o); });
+  const surface = supportRay.intersectObjects(supportSurfaces,false).find(hit => !hit.object.isSkinnedMesh && hit.face && hit.face.normal.y > .5 && hit.point.y < .4);
+  const candidateSurfaceY = surface ? surface.point.y : 0;
+  globalThis.__mpfbCharacterQA.supportSurfaceY = candidateSurfaceY;
+  const forward = new THREE.Vector3(0,0,1).applyQuaternion(actorRotation);
+  const legs = ['l','r'].map(side => {
+    const thigh=bones['thigh_'+side].bone, calf=bones['calf_'+side].bone, foot=bones['foot_'+side].bone;
+    const hip=thigh.getWorldPosition(new THREE.Vector3()), knee=calf.getWorldPosition(new THREE.Vector3()), ankle=foot.getWorldPosition(new THREE.Vector3());
+    return {side,thigh,calf,foot,ankle,rotation:foot.getWorldQuaternion(new THREE.Quaternion()),upper:hip.distanceTo(knee),lower:knee.distanceTo(ankle)};
+  });
+  const arms = ['l','r'].map(side => {
+    const thigh=bones['upperarm_'+side].bone,calf=bones['lowerarm_'+side].bone,foot=bones['hand_'+side].bone;
+    const shoulder=thigh.getWorldPosition(new THREE.Vector3()),elbow=calf.getWorldPosition(new THREE.Vector3()),wrist=foot.getWorldPosition(new THREE.Vector3());
+    return {side,thigh,calf,foot,pole:forward.clone().negate(),upper:shoulder.distanceTo(elbow),lower:elbow.distanceTo(wrist)};
+  });
+  function aimBone(bone, child, target) {
+    const origin=bone.getWorldPosition(new THREE.Vector3());
+    const current=child.getWorldPosition(new THREE.Vector3()).sub(origin).normalize();
+    const desired=target.clone().sub(origin).normalize();
+    const q=bone.getWorldQuaternion(new THREE.Quaternion());
+    q.premultiply(new THREE.Quaternion().setFromUnitVectors(current,desired));
+    bone.quaternion.copy(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+    bone.updateWorldMatrix(false,true);
+  }
+  function solveLeg(leg, target) {
+    const hip=leg.thigh.getWorldPosition(new THREE.Vector3());
+    const direction=target.clone().sub(hip); const d=Math.min(direction.length(),leg.upper+leg.lower-.0001); direction.normalize();
+    const along=(leg.upper*leg.upper-leg.lower*leg.lower+d*d)/(2*d);
+    const bend=Math.sqrt(Math.max(0,leg.upper*leg.upper-along*along));
+    const bendAxis=leg.pole||forward; const pole=bendAxis.clone().addScaledVector(direction,-bendAxis.dot(direction)).normalize();
+    const knee=hip.clone().addScaledVector(direction,along).addScaledVector(pole,bend);
+    aimBone(leg.thigh,leg.calf,knee); aimBone(leg.calf,leg.foot,target);
+    if (leg.rotation) leg.foot.quaternion.copy(leg.foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(leg.rotation));
+  }
+  let elapsed = 0;
+  updateMpfbCandidate = dt => {
+    const updateStart = performance.now();
+    elapsed += dt;
+    for (const b of Object.values(bones)) b.bone.quaternion.copy(b.rest);
+    const stride = mode === 'walk' ? Math.sin(elapsed*(2*Math.PI/1.25)) : 0;
+
+    rotate('spine_02',Z,.014+Math.sin(elapsed*1.7)*.008);
+    rotate('spine_03',X,(mode==='work'?.09:.012)+Math.sin(elapsed*2)*.008);
+    rotate('head',Z,-.065+Math.sin(elapsed*.8)*.012);
+    rotate('head',X,mode==='work'?.13:.02);
+    // Candidate-only support-foot correction: does not change world collision/grounding.
+    g.position.y = candidateBaseY - .018;
+    g.updateMatrixWorld(true);
+    for (const arm of arms) {
+      const target=arm.thigh.getWorldPosition(new THREE.Vector3());
+      target.y-=(arm.upper+arm.lower)*(mode==='work'?(arm.side==='r'?.65:.82):(arm.side==='l'?.89:.94));
+      target.addScaledVector(X,arm.side==='l'?.03:-.03).addScaledVector(forward,(mode==='work'?(arm.side==='r'?.24:.12):(arm.side==='l'?.11:.035))+(mode==='walk'?stride*(arm.side==='l'?-.085:.085):0));
+      solveLeg(arm,target);
+    }
+    for (const leg of legs) {
+      const phase=(elapsed/1.25+(leg.side==='l'?0:.5))%1;
+      let travel=leg.side==='l'?.028:-.02,lift=0;
+      if (mode==='walk') {
+        if (phase<.6) travel=.15-.30*phase/.6;
+        else { const t=(phase-.6)/.4;travel=-.15+.30*t*t*(3-2*t);lift=.065*Math.sin(Math.PI*t); }
+      }
+      const target=leg.ankle.clone().addScaledVector(forward,travel).addScaledVector(X,leg.side==='l'?-.045:.045);target.y+=lift;
+      solveLeg(leg,target);
+    }
+    g.updateMatrixWorld(true);
+    let lowest = Infinity;
+    for (const sample of soleSamples) for (const corner of sample.corners) {
+      lowest = Math.min(lowest,solePoint.copy(corner).applyMatrix4(sample.bone.matrixWorld).y);
+    }
+    if (Number.isFinite(lowest)) g.position.y += candidateSurfaceY - lowest;
+    globalThis.__mpfbCharacterQA.supportFootCorrection = Number.isFinite(lowest) ? candidateSurfaceY-lowest : null;
+    const updateMs = performance.now()-updateStart;
+    const qa = globalThis.__mpfbCharacterQA;
+    qa.updateMs = updateMs;
+    qa.updateTotalMs = (qa.updateTotalMs || 0) + updateMs;
+    qa.animationFrame++;
+  };
+  updateMpfbCandidate(0);
+  const badge = document.createElement('div');
+  badge.id = 'mpfbCandidateStatus';
+  badge.style.cssText = 'position:fixed;left:14px;bottom:14px;padding:7px 10px;background:#13202ddd;color:#fff;font:13px sans-serif;z-index:20;pointer-events:none';
+  badge.textContent = 'MPFB V4 level-2 candidate · procedural ' + mode + ' · CC0 core + project PPE';
+  document.body.appendChild(badge);
+}
+
 /* 判頭 + 白帽 + 工友 */
 const boss = makeHuman({ vest: true, helmet: 0xd03030, pants: 0x333, boots: 0x222, shirt: 0x8a5a2a });
 boss.g.position.set(GATE[0] + Math.cos(GATE_DIR_IN) * 4, 0, GATE[1] + Math.sin(GATE_DIR_IN) * 4);
 boss.g.rotation.y = GATE_DIR_IN + Math.PI;
 scene.add(boss.g);
 const bossLabel = makeSpriteLabel("老陳", "#ffd76e", 2.6); bossLabel.position.y = 2.25; boss.g.add(bossLabel);
+
+/* CC0 legal-candidate audition: one isolated test NPC only, never replaces workers. */
+let legalCharacterTestActor = null;
+if (typeof LEGAL_CHARACTER_TEST !== "undefined" && LEGAL_CHARACTER_TEST) {
+  try {
+    const h = makeHumanGLB({ vest: true, vestColor: "#2e9b68", vestLabel: "CC0 TEST", helmet: 0xffd23a, shirt: 0x4b5563, pants: 0x26364f, boots: 0x33261b }, LEGAL_CHARACTER_TEST);
+    const lx = GATE[0] + Math.cos(GATE_DIR_IN) * 7 + 3, lz = GATE[1] + Math.sin(GATE_DIR_IN) * 7 + 2;
+    h.g.position.set(lx, 0, lz);
+    const label = makeSpriteLabel("CC0 測試角色", "#8ef0a0", 1.9); label.position.y = 2.2; h.g.add(label);
+    scene.add(h.g);
+    legalCharacterTestActor = { h, x: lx, z: lz, heading: GATE_DIR_IN + Math.PI };
+    window.__legalCharacterStatus = "spawned";
+  } catch (e) {
+    window.__legalCharacterStatus = "fallback: " + (e.message || e);
+    console.warn("legal candidate 測試角色失敗:", e);
+  }
+} else if (typeof __legalCharacterRequested !== "undefined" && __legalCharacterRequested) {
+  window.__legalCharacterStatus = "fallback";
+}
 
 const officers = [];
 function spawnOfficer(nearX, nearZ) {
@@ -1746,6 +1973,18 @@ spawnWorker(PIT.x + 9, PIT.z + 6, { human: { vest: true, helmet: 0x2a5ad0, shirt
 spawnWorker(MAIN_SITE.c[0] - 6, MAIN_SITE.c[1] + 8, { human: { vest: true, vestColor: "#e6e9ee", vestLabel: "安全督導", helmet: 0x2a9a4a, pants: 0x38404e, clipboard: true, boots: 0x2a2a2a }, label: "安全督導員", labelColor: "#ffffff" });
 spawnWorker(MAIN_SITE.c[0] + 10, MAIN_SITE.c[1] + 2, { helmet: 0xffd23a, label: "雜工" });
 spawnWorker(MAIN_SITE.c[0] - 4, MAIN_SITE.c[1] + 14, { helmet: 0xffd23a, label: "雜工" });
+// V3 character audition in the real MAIN_SITE scene (feature flag only).
+if (new URLSearchParams(location.search).get('v3chars') === '1') {
+  const v3 = [
+    { label: 'V3 男工 A', profile: { style: 'beard', height: 1.02, shoulder: 1.08, torsoDepth: 1.04, hip: 1.02, hipDepth: 1.0, legWidth: 1.0, legDepth: 1.0, head: 1.0, hair: 1.0 }, sex: 'M', helmet: 0xffd23a, vestColor: '#ed6810' },
+    { label: 'V3 男工 B', profile: { style: 'plain', height: .98, shoulder: 1.28, torsoDepth: 1.16, hip: 1.18, hipDepth: 1.12, legWidth: 1.18, legDepth: 1.12, head: 1.08, hair: .8 }, sex: 'M', helmet: 0xffd23a, vestColor: '#f28b16' },
+    { label: 'V3 女工 A', profile: { style: 'bun', height: .92, shoulder: .86, torsoDepth: .92, hip: 1.18, hipDepth: 1.08, legWidth: .9, legDepth: .9, head: .98, hair: 1.35 }, sex: 'F', helmet: 0xffd23a, vestColor: '#e56c18' },
+    { label: 'V3 女工 B', profile: { style: 'plain', height: .88, shoulder: .76, torsoDepth: .86, hip: 1.28, hipDepth: 1.15, legWidth: .84, legDepth: .86, head: 1.06, hair: 1.55 }, sex: 'F', helmet: 0xffd23a, vestColor: '#e56c18' },
+    { label: 'V3 老工', profile: { style: 'elderM', height: .94, shoulder: .98, torsoDepth: 1.14, hip: 1.08, hipDepth: 1.12, legWidth: .92, legDepth: 1.08, head: 1.14, hair: .7 }, sex: 'M', helmet: 0xffd23a, vestColor: '#d86716' },
+    { label: 'V3 老女工', profile: { style: 'elderF', height: .87, shoulder: .82, torsoDepth: 1.08, hip: 1.16, hipDepth: 1.12, legWidth: .86, legDepth: 1.05, head: 1.12, hair: 1.2 }, sex: 'F', helmet: 0xffd23a, vestColor: '#d86716' }
+  ];
+  v3.forEach((d, i) => spawnWorker(MAIN_SITE.c[0] - 10 + (i % 3) * 3.2, MAIN_SITE.c[1] + 18 + Math.floor(i / 3) * 3, { human: { ...d, vest: true, pants: 0x243553, boots: 0x4a2e1a }, label: d.label, labelColor: '#fff' }));
+}
 
 /* 街景行人(路人,唔戴帽) */
 const peds = [];
@@ -2752,6 +2991,14 @@ function updateWorkers(dt) {
   }
 }
 
+function updateLegalCharacterTest(dt) {
+  if (!legalCharacterTestActor) return;
+  const a = legalCharacterTestActor;
+  a.h.animate(dt, 0);
+  a.h.g.position.set(a.x, 0, a.z);
+  a.h.g.rotation.y = -a.heading + Math.PI / 2;
+}
+
 /* ---------- 危險源 ---------- */
 function damage(n, msg) {
   if (player.invuln > 0) return;
@@ -3535,6 +3782,7 @@ function buildDemoStreet() {
   scene.add(winIM, frameIM, acIM);
 }
 buildDemoStreet();
+if(new URLSearchParams(location.search).get("spawnHeroTest")==="1") createSpawnHeroSkin(THREE,scene);
 
 /* ========== P10.3:左側近景 façade attachment(閘口視野內樓宇加深度,唔換 base box) ========== */
 {
@@ -3921,17 +4169,20 @@ function tick(dt, now) {
   // 攝影機
   if (manualCamT > 0) manualCamT -= dt;
   else if (player.speed > .5 && (player.inTruck || ((keys.KeyW || keys.ArrowUp) && !keys.KeyA && !keys.KeyD))) camYaw = angLerp(camYaw, player.heading + Math.PI, dt * 1.8);
-  const eyeDist = player.inTruck ? camDist + 4 : camDist;
-  const ex = player.x + Math.cos(camYaw) * eyeDist, ez = player.z + Math.sin(camYaw) * eyeDist;
-  const ey = (player.inTruck ? 4.5 : 3.2) + (camDist - 8.5) * .5;
+  const eyeDist = qaCloseAdapter ? 2.8 : (player.inTruck ? camDist + 4 : camDist);
+  const viewYaw = qaCloseAdapter ? player.heading : camYaw;
+  const ex = player.x + Math.cos(viewYaw) * eyeDist, ez = player.z + Math.sin(viewYaw) * eyeDist;
+  const ey = qaCloseAdapter ? 1.9 : ((player.inTruck ? 4.5 : 3.2) + (camDist - 8.5) * .5);
   camera.position.lerp(_v1.set(ex, Math.max(ey, 1.5), ez), 1 - Math.pow(.0015, dt));
-  camera.lookAt(player.x, 1.6 + (player.inTruck ? 1 : 0), player.z);
+  camera.lookAt(player.x, qaCloseAdapter ? 1.0 : 1.6 + (player.inTruck ? 1 : 0), player.z);
   // 光源跟玩家
   sun.position.set(player.x - 140, 300, player.z + 50);
   sun.target.position.set(player.x, 0, player.z);
   // 老陳望玩家
   boss.g.rotation.y = Math.atan2(player.z - boss.g.position.z, player.x - boss.g.position.x) - Math.PI / 2 + Math.PI;
   boss.animate(dt, 0);
+  updateLegalCharacterTest(dt);
+  updateMpfbCandidate(dt);
   updateHUD(dt);
   if (!(window.__iso && window.__iso.mini)) drawMinimap(); // P9.3 profiling 隔離開關
   /* 安全獎:連續3分鐘零警告 */
@@ -3989,8 +4240,40 @@ if (csdiBgOn) {
   } catch (e) { window.__csdiBg = { state: "init-fail:" + String(e).slice(0, 80) }; }
 }
 
-window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders, unload: UNLOAD, canUnload, startUnload });
-window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
+window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders, unload: UNLOAD, canUnload, startUnload, characterAdapterStatus: () => window.__characterAdapterStatus || null });
+window.__game.mpfbActor = mpfbCharacterTestActor;
+window.__game.audit = () => ({mpfbCharacter: {...globalThis.__mpfbCharacterQA, visible: !!mpfbCharacterTestActor?.visible}, build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, animationMixerCount: [player.h, ...workers.map(w => w.h), ...officers.map(o => o.h), ...peds.map(p => p.h), legalCharacterTestActor?.h].filter(h => !!h?.mixer).length, adapterCostFlags: {noAnim: adapterNoAnim, noPPE: adapterNoPPE, hidden: adapterHidden}, characterAdapter: {requested: !!window.__characterAdapterRequested, loaded: !!window.__characterAdapterLoaded, visible: !!window.__characterAdapterSpawned && !adapterHidden, status: window.__characterAdapterStatus || null}, legalCharacter: {requested: !!window.__legalCharacterRequested, loaded: !!window.__legalCharacterLoaded, visible: !!legalCharacterTestActor?.h?.g?.visible, status: window.__legalCharacterStatus || null}, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
+if (_qaParams.get("characterAdapterTest") === "1") {
+  const panel = document.createElement("div");
+  panel.id = "character-adapter-qa-panel";
+  panel.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:10001;background:rgba(8,15,22,.86);color:#d9f7ff;border:1px solid #4aa8bc;border-radius:6px;padding:7px 9px;font:11px/1.45 monospace;pointer-events:none;white-space:pre";
+  document.body.append(panel);
+  const refreshAdapterQa = () => { panel.textContent = [
+    "INTERNAL TECHNICAL ADAPTER TEST",
+    `adapter requested: ${!!window.__characterAdapterRequested}`,
+    `adapter loaded: ${!!window.__characterAdapterLoaded}`,
+    `adapter visible: ${!!window.__characterAdapterSpawned && !adapterHidden}`,
+    `animation clip: ${window.__characterAdapterAnimationClip || (adapterNoAnim ? "disabled" : "pending")}`,
+    `fallback active: ${!window.__characterAdapterLoaded}`,
+    "licence status: UNKNOWN"
+  ].join("\n"); };
+  refreshAdapterQa(); setInterval(refreshAdapterQa, 250);
+}
+if (_qaParams.get("legalCharacterTest") === "1") {
+  const panel = document.createElement("div");
+  panel.id = "legal-character-qa-panel";
+  panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:10001;background:rgba(8,15,22,.86);color:#d9f7ff;border:1px solid #55bb77;border-radius:6px;padding:7px 9px;font:11px/1.45 monospace;pointer-events:none;white-space:pre";
+  document.body.append(panel);
+  const refreshLegalQa = () => { panel.textContent = [
+    "CC0 LEGAL CHARACTER TEST",
+    `requested: ${!!window.__legalCharacterRequested}`,
+    `loaded: ${!!window.__legalCharacterLoaded}`,
+    `visible: ${!!legalCharacterTestActor?.h?.g?.visible}`,
+    `status: ${window.__legalCharacterStatus || "pending"}`,
+    `licence: CC0 (KayKit)`
+  ].join("\n"); };
+  refreshLegalQa(); setInterval(refreshLegalQa, 250);
+}
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 
 // Explicit local QA controls: exercise the same movement function at a fixed

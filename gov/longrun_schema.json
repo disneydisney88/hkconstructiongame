@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["run_id", "title", "created_at", "updated_at", "controller_pid", "lock_file", "items", "history"],
+  "properties": {"run_id":{"type":"string","minLength":1},"title":{"type":"string"},"created_at":{"type":"string"},"updated_at":{"type":"string"},"controller_pid":{"type":["integer","null"]},"lock_file":{"type":"string"},"history":{"type":"array"},"items":{"type":"array","items":{"type":"object","required":["id","title","priority","status","started_at","updated_at","last_success","evidence","blocker","error","next_action","depends_on","notes"],"properties":{"id":{"type":"string"},"title":{"type":"string"},"priority":{"type":"integer"},"status":{"enum":["NOT_STARTED","RUNNING","DONE","VERIFIED","BLOCKED","FAILED","SKIPPED"]},"core":{"type":"boolean"},"evidence":{"type":"array"},"depends_on":{"type":"array"},"notes":{"type":["string","object"]}}}}}
+}

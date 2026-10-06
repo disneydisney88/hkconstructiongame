@@ -1,0 +1,6 @@
+{
+  "scanned_text_objects": 65,
+  "findings": [],
+  "ahead_commits": 21,
+  "scope": "all textual blobs reachable from local HEAD not origin/main; credential values never logged"
+}
