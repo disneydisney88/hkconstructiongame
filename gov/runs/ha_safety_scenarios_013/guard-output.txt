@@ -1,0 +1,4 @@
+run_id: ha_safety_scenarios_013
+total items: 9
+counts: BLOCKED=0, DONE=0, FAILED=0, NOT_STARTED=0, RUNNING=0, SKIPPED=0, VERIFIED=9
+failing item IDs: none

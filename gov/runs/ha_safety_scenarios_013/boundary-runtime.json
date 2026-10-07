@@ -1,0 +1,52 @@
+{
+  "published_boot_used": true,
+  "started": true,
+  "originalColliderCount": 1214,
+  "newColliderCount": 1215,
+  "oldCollidersUnchanged": true,
+  "gateProbesUnchanged": true,
+  "centreBefore": [
+    -802.3,
+    931.2
+  ],
+  "centreAfter": [
+    -802.3,
+    932.82
+  ],
+  "missionUnchanged": true,
+  "wageUnchanged": true,
+  "outOfRangeRejected": true,
+  "renderDelta": {
+    "calls": 3,
+    "triangles": 146
+  },
+  "snapshot": {
+    "id": "S07",
+    "state": "HAZARD",
+    "warnings": 0,
+    "rejections": 1,
+    "success": 0,
+    "distance": 6.923149572268337,
+    "anchor": [
+      -802.3,
+      0,
+      931.2
+    ],
+    "looseVisible": true,
+    "tidyVisible": false,
+    "barrierVisible": false,
+    "events": [
+      {
+        "type": "OUT_OF_RANGE",
+        "state": "HAZARD",
+        "time": 18119.900000095367,
+        "player": [
+          -801,
+          938
+        ]
+      }
+    ]
+  },
+  "disposeRestoresColliders": true,
+  "page_errors": []
+}

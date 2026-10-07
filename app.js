@@ -1,3 +1,4 @@
+import { createHaSafetyScenario } from './ha-safety-scenario.js';
 import { createSpawnHeroSkin } from './spawn-hero-skin.js';
 /* =========================================================================
  * 香港地盤 GTA · 開工大吉
@@ -4334,3 +4335,6 @@ $("gateScan").onclick=()=>{
   player.admitted=true;setGateOpen(true);inductionMode=null;$("gatePanel").style.display="none";
   toast("嘟！入閘核對通過，請沿行人通道入場。");
 };
+
+// Opt-in independent handbook-inspired QA exercise.
+if(new URLSearchParams(location.search).get("haSafetyScenarioTest")==="1") createHaSafetyScenario(window.__game);

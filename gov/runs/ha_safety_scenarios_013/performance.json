@@ -1,0 +1,3681 @@
+[
+  {
+    "case": "A",
+    "time": "2026-10-07T00:05:17.174463+00:00",
+    "url": "http://127.0.0.1:50713/",
+    "errors": [
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/7fae2591-1a70-4124-9e30-afdadd4f7d27",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/8f1ad44e-b367-43d6-b2cc-fd4fc7ef365b",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/04f53258-fc38-499a-a78c-ad692b75abcf",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/fb93700a-f198-4843-a555-71fa92889da5",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/e088cd2c-b134-4aa9-8a06-0c45de27e246",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/6e771f65-97b2-48a2-acac-a2f9716a137d",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/d55aef7c-6cc0-4291-b43f-bf31ceac1354",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/17f22187-66d6-49ab-a61e-42d77ea9ed9b",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/0d03fa9b-db0f-42dc-910c-2931e610ee9b",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/fe6a5eb2-f2c8-4bc3-82d2-6d7f8bd23c16",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/fe64d5f7-f9cb-4031-aac9-f144ec163ad5",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/90c52d46-7f79-450c-9ac3-c6f0bf063309",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/7ad71414-60a0-4937-80a5-af81161a67a0",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/05b2a904-7689-45de-b57a-24ab9499fc88",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/910090d4-d58b-4049-adbb-c00e0e3af37f"
+    ],
+    "http": [],
+    "audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.6785322539038,
+          "z": 963.5879166519841
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -921.0340090221528,
+          "z": 417.8676145903446
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -752.5945479804031,
+          "z": 941.3623393852913
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.3474333207288,
+          "z": 964.3736891591232
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -918.2477925941527,
+          "z": 422.0813241025023
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -886.2824770862151,
+          "z": 419.39407490078366
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -920.1376789399031,
+          "z": 437.0295961988578
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -728.274389352324,
+          "z": 951.4557961618611
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.5146415904969,
+          "z": 956.2896432872122
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -886.1563428595723,
+          "z": 433.8483986042926
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -723.792055759046,
+          "z": 969.9436843427529
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.5106954436851,
+          "z": 959.897511018158
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.623868150767,
+          "z": 937.5988829897135
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -895.0887512458372,
+          "z": 429.6024670908634
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -926.3779036599603,
+          "z": 407.91181266654417
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.3584789766844,
+          "z": 441.06273996393617
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -757.1147087843689,
+          "z": 948.6282414421003
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -907.8994168531331,
+          "z": 432.611216160537
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -903.1118465079038,
+          "z": 429.06547651119905
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -735.2419054941591,
+          "z": 960.1754430507243
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -900.7275471650717,
+          "z": 432.93233493070636
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -718.2984983078417,
+          "z": 962.78379552299
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -774.3245881490394,
+          "z": 948.8302095390684
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -735.09495558415,
+          "z": 953.7247463920581
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -798.6127981167576,
+          "z": 940.6124351753544
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -710.6747845797792,
+          "z": 969.0924752968668
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -735.6150932006703,
+          "z": 955.8225366397601
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -727.4808369584449,
+          "z": 950.3717692622649
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -732.7923703254467,
+          "z": 961.5966170146418
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -752.8202250139661,
+          "z": 950.589022806306
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -731.7456200304331,
+          "z": 963.7199509500037
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -726.0810361347827,
+          "z": 946.9132139656786
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -720.2179838045813,
+          "z": 946.4274345703773
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -790.0159794136596,
+          "z": 952.9836300451684
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -791.5353677681463,
+          "z": 948.4577447918584
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    },
+    "collider_count": 1141,
+    "render": {
+      "frame": 204,
+      "calls": 1385,
+      "triangles": 1306387.6666666665,
+      "points": 0,
+      "lines": 2
+    },
+    "memory": {
+      "geometries": 1327,
+      "textures": 151
+    },
+    "median_ms": 16.700000000000728,
+    "p95_ms": 49.79999999999927,
+    "disabled": true,
+    "final_audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -732.8005721332165,
+          "z": 960.0221569284276
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -921.0340090221528,
+          "z": 417.8676145903446
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -753.8368496832127,
+          "z": 937.8366759901124
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -732.4520943789141,
+          "z": 960.8025073038513
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -918.2477925941527,
+          "z": 422.0813241025023
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -886.2824770862151,
+          "z": 419.39407490078366
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -920.1376789399031,
+          "z": 437.0295961988578
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -729.5433100789176,
+          "z": 947.9396255052645
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -737.2472976953879,
+          "z": 956.4918666724689
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -886.1563428595723,
+          "z": 433.8483986042926
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -724.2491277513943,
+          "z": 969.9107082694472
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -735.5775995826664,
+          "z": 956.3148679358623
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -723.0562635619596,
+          "z": 938.7150430950594
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -895.0887512458372,
+          "z": 429.6024670908634
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -926.3779036599603,
+          "z": 407.91181266654417
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.3584789766844,
+          "z": 441.06273996393617
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -758.2264137771039,
+          "z": 945.05924607841
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -907.8994168531331,
+          "z": 432.611216160537
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -903.1118465079038,
+          "z": 429.06547651119905
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.3607037757686,
+          "z": 963.2854843277865
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -900.7275471650717,
+          "z": 432.93233493070636
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -720.1805006986979,
+          "z": 959.5539839344113
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -770.6085964871043,
+          "z": 949.2364383727596
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -736.1671839729227,
+          "z": 957.3057996141157
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -794.8790392008952,
+          "z": 940.7931566603107
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -712.0515275580952,
+          "z": 965.6171055800812
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -734.0888355450476,
+          "z": 952.4101835710478
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -729.1161932836876,
+          "z": 947.5498918837312
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -732.0349224934367,
+          "z": 957.9360311764771
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -753.8441133547603,
+          "z": 946.993849853235
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -732.9744386578562,
+          "z": 960.18956560591
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -727.6706418070377,
+          "z": 943.6539994582436
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -719.5588984726321,
+          "z": 943.1543263241771
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -790.8349449891721,
+          "z": 952.9836300451684
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -791.5353677681463,
+          "z": 948.4582775889234
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    }
+  },
+  {
+    "case": "B",
+    "time": "2026-10-07T00:05:38.897585+00:00",
+    "url": "http://127.0.0.1:50713/?haSafetyScenarioTest=1",
+    "errors": [
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/522467ac-6ba3-4597-a76a-0f7e2ac9f50b",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/96972d67-0493-4f4e-bc58-b1052de370ca",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/977eda0d-27ca-41e1-9155-a812ca5e5376",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/13fef940-a2c0-4f29-9f14-905d92b395da",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/68d69db0-eee0-487a-acba-ce9d7ab36dba",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/ea13aac4-23df-4dfd-951a-2d49aa4f2433",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/acb39830-2663-4154-98ce-cb2ba1832078",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/39ed16cf-c530-417f-a02e-d84d96ea6cab",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/b1d8bbef-1a65-482b-83c1-0270af0b9057",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/ae9dfee7-02df-46fe-b82d-6575608cbc1c",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/fa1fe013-0281-47bb-b747-e6984344fdb5",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/d8436ff4-d648-42b5-975e-0c2b2c067f34",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/bb57981b-f2c8-4cdf-adc3-1c8de9504b4c",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/3f32fe25-d4fc-48eb-935f-d54a2eb9bee6",
+      "THREE.GLTFLoader: Couldn't load texture blob:http://127.0.0.1:50713/846baffb-64f8-4ab8-93f0-95b6d7719d66"
+    ],
+    "http": [],
+    "audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -722.1283827502073,
+          "z": 952.808437988819
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -738.823428538414,
+          "z": 935.6466017407939
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -906.2128619262411,
+          "z": 431.2993870317872
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.3802179167204,
+          "z": 958.1352144400528
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -725.4533752974819,
+          "z": 953.5695853862092
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -725.3596993732273,
+          "z": 953.5203516135686
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -716.924822598999,
+          "z": 951.7340834666121
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -744.4780793751223,
+          "z": 942.7515342838582
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -926.0536084782941,
+          "z": 430.7913325045877
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.0466821563655,
+          "z": 963.8046313116989
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -925.879582290091,
+          "z": 421.7440444091681
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -905.5894372273003,
+          "z": 439.0059928980485
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.7994035018396,
+          "z": 951.1392852314981
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -729.0552836430433,
+          "z": 949.1810216521163
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -745.1737497216532,
+          "z": 938.7481802671284
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -906.3067868034999,
+          "z": 437.4681110729473
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -918.0497438460638,
+          "z": 434.27527545288905
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -719.8829718084094,
+          "z": 950.4417560911495
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.8816237891989,
+          "z": 961.5033777700226
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -737.069183404577,
+          "z": 952.0665476699598
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.4623206728604,
+          "z": 440.3529137562806
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.6123675076406,
+          "z": 957.2530355662759
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -776.7635132467607,
+          "z": 948.3654471610006
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -733.8669544513401,
+          "z": 947.1048279465446
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -802.9232694849493,
+          "z": 938.1805830081857
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -711.429075229066,
+          "z": 969.303440699413
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -737.5040821424578,
+          "z": 956.435566203156
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -726.5797508454459,
+          "z": 951.3712589088739
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -735.0015169864566,
+          "z": 958.3275294691605
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -752.0926442424878,
+          "z": 953.0555086747764
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -738.6452021302163,
+          "z": 936.6375151064782
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -731.6710334867996,
+          "z": 966.0788819161188
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -731.2038612917795,
+          "z": 936.9998511577556
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -784.2208797506581,
+          "z": 953.3480831897889
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -793.9763078625842,
+          "z": 945.0614469859968
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    },
+    "collider_count": 1142,
+    "render": {
+      "frame": 214,
+      "calls": 1396,
+      "triangles": 1437785.6666666665,
+      "points": 0,
+      "lines": 2
+    },
+    "memory": {
+      "geometries": 1341,
+      "textures": 149
+    },
+    "median_ms": 33.20000000000073,
+    "p95_ms": 49.89999999999782,
+    "initial": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 0,
+      "rejections": 0,
+      "success": 0,
+      "distance": 6.923149572268337,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": []
+    },
+    "initial_mission": 0,
+    "route": {
+      "start": [
+        -801,
+        938
+      ],
+      "end": [
+        -800.5260822120035,
+        932.9785633834744
+      ],
+      "input": "A1.5sec"
+    },
+    "warning": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 0,
+      "success": 0,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        }
+      ]
+    },
+    "invalid_order": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 25033.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        }
+      ]
+    },
+    "secured": {
+      "id": "S07",
+      "state": "SECURED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 25033.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25337.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        }
+      ]
+    },
+    "cleared": {
+      "id": "S07",
+      "state": "CLEARED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 25033.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25337.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 26233.800000190735,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        }
+      ]
+    },
+    "success": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 1,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 25033.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25337.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 26233.800000190735,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 27198.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        }
+      ]
+    },
+    "repeated_verify": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 2,
+      "success": 1,
+      "distance": 2.5119856742437245,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21362.400000095367,
+          "player": [
+            -800.526360545224,
+            935.3109633314143
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 25033.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25337.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 26233.800000190735,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 27198.900000095367,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "VERIFIED",
+          "time": 27845.60000014305,
+          "player": [
+            -800.5260822120035,
+            932.9785633834744
+          ]
+        }
+      ]
+    },
+    "unchanged_fields": {
+      "mission": true,
+      "wage": true,
+      "registered": true,
+      "ppe": true
+    },
+    "collider_counts_same": true,
+    "success_ok": true,
+    "final_audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -724.1060206755608,
+          "z": 947.6328721078336
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -744.948637548022,
+          "z": 943.9567884405213
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -906.2128619262411,
+          "z": 431.2993870317872
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -725.6674558457407,
+          "z": 953.7213957179894
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -738.753596457046,
+          "z": 951.8063485846321
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -729.6228641831138,
+          "z": 940.7990972323486
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.9775624768979,
+          "z": 950.9908138118664
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -735.9849201343208,
+          "z": 953.1376371785178
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -926.0536084782941,
+          "z": 430.7913325045877
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.2931272678943,
+          "z": 961.7439826802682
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -925.879582290091,
+          "z": 421.7440444091681
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -905.5894372273003,
+          "z": 439.0059928980485
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -735.5691834815254,
+          "z": 959.6343803673169
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -722.9714199628094,
+          "z": 958.228004248708
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -736.6637241015475,
+          "z": 949.1204679209338
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -906.3067868034999,
+          "z": 437.4681110729473
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -918.0497438460638,
+          "z": 434.27527545288905
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.2926825807035,
+          "z": 950.871342207428
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.3375432291092,
+          "z": 948.0978243098984
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -723.665610689417,
+          "z": 951.475679074145
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.4623206728604,
+          "z": 440.3529137562806
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -725.0121511642286,
+          "z": 952.5057992881735
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -763.4880729104237,
+          "z": 950.3064703716879
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -737.6347754596256,
+          "z": 934.2281664196818
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -805.7005180258338,
+          "z": 925.1093257183784
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -719.5263804957938,
+          "z": 958.6058458928457
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -740.9048980217513,
+          "z": 950.8132676176862
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -730.935967408419,
+          "z": 949.7859920419679
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -738.8883950296356,
+          "z": 945.4863042042026
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -741.0683679870758,
+          "z": 947.5176096422654
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -744.8057220416209,
+          "z": 943.8272839280579
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -737.2474872544695,
+          "z": 956.8597741364813
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -738.5357355245663,
+          "z": 942.6660130593301
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -784.3150725793294,
+          "z": 953.8794988735863
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -796.3922285074074,
+          "z": 932.1929486801114
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    }
+  },
+  {
+    "case": "C",
+    "time": "2026-10-07T00:06:07.227855+00:00",
+    "url": "http://127.0.0.1:50713/?haSafetyScenarioTest=1&csdioff=1",
+    "errors": [],
+    "http": [],
+    "audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -925.4535781957026,
+          "z": 436.77260770678015
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -928.4011795808633,
+          "z": 441.91338579144514
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.169419763269,
+          "z": 929.4996235919812
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -911.7220796811615,
+          "z": 437.75995766832244
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -742.4505658119734,
+          "z": 945.8048159286061
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -737.0797452847454,
+          "z": 942.1783248696065
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -728.3172394233897,
+          "z": 966.6366797082875
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -931.2958199411996,
+          "z": 416.7706348990807
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -714.0643379509019,
+          "z": 964.187112242424
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -930.447603853194,
+          "z": 417.02734737793014
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -912.5518533998188,
+          "z": 424.1026035779484
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -751.2319661371698,
+          "z": 951.5402917275114
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -920.3133593828953,
+          "z": 420.53865545243724
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -919.845880752185,
+          "z": 416.1629906798159
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -733.1696890174583,
+          "z": 931.4011378048531
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.1064519888691,
+          "z": 960.818237634713
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -911.0539000404959,
+          "z": 420.24843209393646
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -727.3990421826164,
+          "z": 961.2249996637765
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -894.6288186671721,
+          "z": 427.42827224374975
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -744.6182849397267,
+          "z": 924.4272699002074
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.2475856070315,
+          "z": 941.3563439482182
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.8599665310977,
+          "z": 959.2003551611783
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -779.1169636562965,
+          "z": 947.039048123
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -735.8127202401087,
+          "z": 950.3328447494955
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -798.2106593536363,
+          "z": 941.0362871500373
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -711.6950238170724,
+          "z": 970.4324108754357
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -736.2882873976635,
+          "z": 957.1877462332073
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -725.9612656217422,
+          "z": 952.0982663328779
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -734.3032152164891,
+          "z": 960.1400394633969
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -730.0347245270739,
+          "z": 937.4008389194497
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -732.4385801078465,
+          "z": 964.2629815884146
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -722.3417215568068,
+          "z": 965.4125116585961
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -729.983025418013,
+          "z": 956.8988513745909
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -786.0279555319867,
+          "z": 954.3155833441093
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -791.6695553761177,
+          "z": 948.5443709527631
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    },
+    "collider_count": 1215,
+    "render": {
+      "frame": 198,
+      "calls": 1429,
+      "triangles": 1339372.6666666665,
+      "points": 0,
+      "lines": 2
+    },
+    "memory": {
+      "geometries": 1348,
+      "textures": 159
+    },
+    "median_ms": 33.30000000000291,
+    "p95_ms": 66.69999999999891,
+    "initial": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 0,
+      "rejections": 0,
+      "success": 0,
+      "distance": 6.923149572268337,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": []
+    },
+    "initial_mission": 0,
+    "route": {
+      "start": [
+        -801,
+        938
+      ],
+      "end": [
+        -800.5379658473871,
+        932.9686274925976
+      ],
+      "input": "A1.5sec"
+    },
+    "warning": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 0,
+      "success": 0,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        }
+      ]
+    },
+    "invalid_order": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24315.200000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        }
+      ]
+    },
+    "secured": {
+      "id": "S07",
+      "state": "SECURED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24315.200000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 24608.400000095367,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        }
+      ]
+    },
+    "cleared": {
+      "id": "S07",
+      "state": "CLEARED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24315.200000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 24608.400000095367,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25361.700000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        }
+      ]
+    },
+    "success": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 1,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24315.200000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 24608.400000095367,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25361.700000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 26206.800000190735,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        }
+      ]
+    },
+    "repeated_verify": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 2,
+      "success": 1,
+      "distance": 2.496559144612067,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 20958.10000014305,
+          "player": [
+            -800.5380309017063,
+            934.7760274899056
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24315.200000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 24608.400000095367,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25361.700000047684,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 26206.800000190735,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "VERIFIED",
+          "time": 26813.60000014305,
+          "player": [
+            -800.5379658473871,
+            932.9686274925976
+          ]
+        }
+      ]
+    },
+    "unchanged_fields": {
+      "mission": true,
+      "wage": true,
+      "registered": true,
+      "ppe": true
+    },
+    "collider_counts_same": true,
+    "success_ok": true,
+    "final_audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -925.4535781957026,
+          "z": 436.77260770678015
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -928.4011795808633,
+          "z": 441.91338579144514
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -722.4751388155283,
+          "z": 935.2184785116017
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -911.7220796811615,
+          "z": 437.75995766832244
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -748.9728426450083,
+          "z": 946.7550064894124
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -740.9152132107147,
+          "z": 942.12
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -726.0283198073906,
+          "z": 953.6413382223556
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -931.2958199411996,
+          "z": 416.7706348990807
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -718.4317593142433,
+          "z": 951.7354583774991
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -930.447603853194,
+          "z": 417.02734737793014
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -912.5518533998188,
+          "z": 424.1026035779484
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -745.4989534194448,
+          "z": 939.6554013820944
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -920.3133593828953,
+          "z": 420.53865545243724
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -919.845880752185,
+          "z": 416.1629906798159
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -737.1328311581309,
+          "z": 918.8149724763276
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -723.4410504821656,
+          "z": 950.0776755877197
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -911.0539000404959,
+          "z": 420.24843209393646
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -736.217729416678,
+          "z": 958.5621909212426
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -894.6288186671721,
+          "z": 427.42827224374975
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -748.7713149969118,
+          "z": 911.9024786968196
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -741.8878581680638,
+          "z": 949.1882177366164
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -725.6118527706831,
+          "z": 968.612604903865
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -782.4451583195064,
+          "z": 933.9179860048384
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -739.5620283853917,
+          "z": 953.0333272518887
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -785.2778882532361,
+          "z": 942.605691000447
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -724.8459177400854,
+          "z": 969.3498018255474
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -726.2517175054844,
+          "z": 955.482018211377
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -730.4490086284057,
+          "z": 939.6894704182577
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -731.8510196884959,
+          "z": 963.4017213405721
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -726.5744810679071,
+          "z": 944.6131961064633
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -739.2166725202981,
+          "z": 952.9415189358847
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -729.8200246043992,
+          "z": 969.1390077772619
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -740.4602841953896,
+          "z": 951.5483123174753
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -773.9305006628946,
+          "z": 959.347145857196
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -791.5389612617885,
+          "z": 950.4610579766255
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    }
+  },
+  {
+    "case": "D",
+    "time": "2026-10-07T00:06:34.523158+00:00",
+    "url": "http://127.0.0.1:50713/?worldAssetTest=1&spawnHeroTest=1&haSafetyScenarioTest=1&csdioff=1",
+    "errors": [],
+    "http": [],
+    "audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -897.5900894968075,
+          "z": 428.61235413818576
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -728.7239290066085,
+          "z": 958.0464148204918
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -892.665384493615,
+          "z": 417.1146756031757
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -751.340230792342,
+          "z": 943.278259811494
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.1649228474494,
+          "z": 963.4839998328712
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -742.2000000000002,
+          "z": 939.6611538746149
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -736.1735227269014,
+          "z": 944.5296134682409
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -754.8489507231043,
+          "z": 943.5908438150658
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -914.3758432950331,
+          "z": 434.6554815153486
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.5283175349176,
+          "z": 941.6388093156644
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -717.2688459082724,
+          "z": 952.0837407270998
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.3362833193269,
+          "z": 947.7360650246699
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -731.9030097131803,
+          "z": 963.5195668893515
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -736.2583090852795,
+          "z": 956.3647790306362
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.0942881026801,
+          "z": 966.4805666615131
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -710.5448085849347,
+          "z": 952.2500871468997
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -750.7656976526761,
+          "z": 952.2528652425566
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.1810889066676,
+          "z": 416.23187658822815
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -749.4020640788492,
+          "z": 940.029263435748
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -885.460513019709,
+          "z": 420.6483105028793
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -729.943648527911,
+          "z": 946.1051303994142
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -904.8064925158121,
+          "z": 402.80259412669324
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -773.0967861580658,
+          "z": 948.7432528906238
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -734.0556812512557,
+          "z": 950.766521708499
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -797.3475655282359,
+          "z": 942.5951461748932
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -711.6232412459293,
+          "z": 966.7113934694805
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -738.0574693927165,
+          "z": 953.521138698671
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -726.8372273949766,
+          "z": 955.3375312906882
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -731.9492605874864,
+          "z": 961.0872969026767
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -730.9845718206743,
+          "z": 967.2137544265464
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -742.4435373928594,
+          "z": 935.272437195577
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -736.4893885741601,
+          "z": 938.8123939514782
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -721.536863111295,
+          "z": 954.3526616968027
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -790.6290971546288,
+          "z": 952.6180307143035
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -793.913100553477,
+          "z": 944.994611348481
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    },
+    "collider_count": 1215,
+    "render": {
+      "frame": 224,
+      "calls": 1416,
+      "triangles": 1473094.6666666665,
+      "points": 0,
+      "lines": 2
+    },
+    "memory": {
+      "geometries": 1347,
+      "textures": 154
+    },
+    "median_ms": 33.29999999999927,
+    "p95_ms": 50,
+    "initial": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 0,
+      "rejections": 0,
+      "success": 0,
+      "distance": 6.923149572268337,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": []
+    },
+    "initial_mission": 0,
+    "route": {
+      "start": [
+        -801,
+        938
+      ],
+      "end": [
+        -800.5128074870601,
+        932.7664396924594
+      ],
+      "input": "A1.5sec"
+    },
+    "warning": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 0,
+      "success": 0,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        }
+      ]
+    },
+    "invalid_order": {
+      "id": "S07",
+      "state": "HAZARD",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": false,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24815.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        }
+      ]
+    },
+    "secured": {
+      "id": "S07",
+      "state": "SECURED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": true,
+      "tidyVisible": false,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24815.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25195.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        }
+      ]
+    },
+    "cleared": {
+      "id": "S07",
+      "state": "CLEARED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 0,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24815.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25195.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25946.400000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        }
+      ]
+    },
+    "success": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 1,
+      "success": 1,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24815.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25195.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25946.400000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 26998.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        }
+      ]
+    },
+    "repeated_verify": {
+      "id": "S07",
+      "state": "VERIFIED",
+      "warnings": 1,
+      "rejections": 2,
+      "success": 1,
+      "distance": 2.3765080240597642,
+      "anchor": [
+        -802.3,
+        0,
+        931.2
+      ],
+      "looseVisible": false,
+      "tidyVisible": true,
+      "barrierVisible": true,
+      "events": [
+        {
+          "type": "TRIP_WARNING",
+          "state": "HAZARD",
+          "time": 21451.300000190735,
+          "player": [
+            -800.5401819490581,
+            935.242159903432
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "HAZARD",
+          "time": 24815.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "REPORT_AND_SECURE",
+          "state": "SECURED",
+          "time": 25195.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "AUTHORIZED_TEAM_SIMULATED_CLEAR",
+          "state": "CLEARED",
+          "time": 25946.400000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "INSPECTION_CONFIRMED",
+          "state": "VERIFIED",
+          "time": 26998.900000095367,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        },
+        {
+          "type": "INVALID_ORDER",
+          "state": "VERIFIED",
+          "time": 27577.60000014305,
+          "player": [
+            -800.5128074870601,
+            932.7664396924594
+          ]
+        }
+      ]
+    },
+    "unchanged_fields": {
+      "mission": true,
+      "wage": true,
+      "registered": true,
+      "ppe": true
+    },
+    "collider_counts_same": true,
+    "success_ok": true,
+    "final_audit": {
+      "mpfbCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": "DISABLED",
+        "animation": "NOT ANIMATED YET",
+        "licence_status": "CC0_CORE_PROJECT_PPE",
+        "fallback_active": true
+      },
+      "build": "audit-2026.10.02",
+      "started": true,
+      "paused": false,
+      "mission": 0,
+      "wage": 0,
+      "registered": false,
+      "ppe": false,
+      "npcCount": 59,
+      "animationMixerCount": 0,
+      "adapterCostFlags": {
+        "noAnim": false,
+        "noPPE": false,
+        "hidden": false
+      },
+      "characterAdapter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "legalCharacter": {
+        "requested": false,
+        "loaded": false,
+        "visible": false,
+        "status": null
+      },
+      "workers": [
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -897.5900894968075,
+          "z": 428.61235413818576
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -715.2219469709164,
+          "z": 957.2345241352236
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -892.665384493615,
+          "z": 417.1146756031757
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -755.1337912273842,
+          "z": 930.2947477826702
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.8997339274447,
+          "z": 958.039730406794
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -738.5674412981231,
+          "z": 952.4903180090485
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -749.6389146509952,
+          "z": 943.2466849014846
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -749.9119199181067,
+          "z": 951.7364321799984
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -914.3758432950331,
+          "z": 434.6554815153486
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.9246820238469,
+          "z": 928.8468327436514
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.5921279245005,
+          "z": 949.748608676692
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -730.5727522036109,
+          "z": 955.9613376504245
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -736.0605628468167,
+          "z": 950.6479921093265
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -737.7511975486025,
+          "z": 947.717708787673
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.3389471616547,
+          "z": 953.6374535322949
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -715.0792110562879,
+          "z": 939.5063875425997
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -739.5903456241681,
+          "z": 947.7452510834177
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -902.1810889066676,
+          "z": 416.23187658822815
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -739.602527731803,
+          "z": 933.6837080606425
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -885.460513019709,
+          "z": 420.6483105028793
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -734.4739222022995,
+          "z": 933.3599624596785
+        },
+        {
+          "name": "工友",
+          "role": "worker",
+          "female": false,
+          "x": -904.8064925158121,
+          "z": 402.80259412669324
+        },
+        {
+          "name": "老總 PM · Richard",
+          "role": "worker",
+          "female": false,
+          "x": -759.6530812698271,
+          "z": 950.2363986486763
+        },
+        {
+          "name": "地盤經理 · 雄哥",
+          "role": "worker",
+          "female": false,
+          "x": -736.5417537969929,
+          "z": 956.6585732614623
+        },
+        {
+          "name": "管工 · 阿強",
+          "role": "foreman",
+          "female": false,
+          "x": -785.8557751758989,
+          "z": 946.4297300116143
+        },
+        {
+          "name": "機手 · 輝哥",
+          "role": "machineOp",
+          "female": false,
+          "x": -716.2938690154208,
+          "z": 954.0169883390469
+        },
+        {
+          "name": "安全督導員",
+          "role": "worker",
+          "female": false,
+          "x": -742.5417030449914,
+          "z": 940.7963559090671
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -735.0528645000378,
+          "z": 960.4879695007199
+        },
+        {
+          "name": "雜工",
+          "role": "worker",
+          "female": false,
+          "x": -724.4763284553086,
+          "z": 949.8126363434932
+        },
+        {
+          "name": "安全督導員 · 入職健康檢查",
+          "role": "safetyTrainer",
+          "female": false,
+          "x": -810.9590609433557,
+          "z": 952.179271156992
+        },
+        {
+          "name": "女工 · 阿珍",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -734.9386951088891,
+          "z": 960.6767166805564
+        },
+        {
+          "name": "女工 · 阿嫦",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -746.7119234511329,
+          "z": 922.437190184537
+        },
+        {
+          "name": "女工 · 細梅",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -741.0410372562555,
+          "z": 926.0748439652428
+        },
+        {
+          "name": "女工 · 好姨",
+          "role": "femaleWorker",
+          "female": true,
+          "x": -730.0175571085924,
+          "z": 964.8902380168659
+        },
+        {
+          "name": "地盤文員 · 明仔",
+          "role": "clerk",
+          "female": false,
+          "x": -783.4139170946019,
+          "z": 955.3472293004376
+        },
+        {
+          "name": "地盤總務 · May姐",
+          "role": "genAffairs",
+          "female": true,
+          "x": -796.4238040551649,
+          "z": 931.9172245812301
+        }
+      ],
+      "officers": 4,
+      "pedestrians": 18,
+      "events": [
+        {
+          "id": "ppe",
+          "state": "normal"
+        },
+        {
+          "id": "reverse",
+          "state": "normal"
+        },
+        {
+          "id": "lifting",
+          "state": "normal"
+        },
+        {
+          "id": "hole",
+          "state": "normal"
+        },
+        {
+          "id": "pathway",
+          "state": "normal"
+        },
+        {
+          "id": "heat",
+          "state": "normal"
+        }
+      ],
+      "errors": []
+    }
+  }
+]

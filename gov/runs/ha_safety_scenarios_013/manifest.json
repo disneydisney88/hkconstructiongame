@@ -1,0 +1,203 @@
+{
+  "run_id": "ha_safety_scenarios_013",
+  "title": "HA handbook scenario matrix and S07 proof",
+  "created_at": "2026-10-06T23:52:24.259866+00:00",
+  "updated_at": "2026-10-07T00:17:05.082591+00:00",
+  "controller_pid": null,
+  "lock_file": null,
+  "items": [
+    {
+      "id": "preserve",
+      "title": "preserve",
+      "core": true,
+      "priority": 0,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\current-work.diff",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\git-status.txt",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\app.js.before"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "safe_push",
+      "title": "safe_push",
+      "core": true,
+      "priority": 1,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\push-result.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\PREPUSH_REVIEW.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "handbook_research",
+      "title": "handbook_research",
+      "core": true,
+      "priority": 2,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\SOURCE.md",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\VISUAL_REFERENCE.md"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "scenario_matrix",
+      "title": "scenario_matrix",
+      "core": true,
+      "priority": 3,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SAFETY_SCENARIO_MATRIX.md"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "one_qa_proof",
+      "title": "one_qa_proof",
+      "core": true,
+      "priority": 4,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\source\\ha-safety-scenario.js",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\performance-final-ui.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "game_tests",
+      "title": "game_tests",
+      "core": true,
+      "priority": 5,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\performance.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\performance-final-ui.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\validation-commands.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "boundary",
+      "title": "boundary",
+      "core": true,
+      "priority": 6,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SCENARIO_BOUNDARY_CHECK.md",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\boundary-runtime.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\boundary-geometry.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "package",
+      "title": "package",
+      "core": true,
+      "priority": 7,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\package-check.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    },
+    {
+      "id": "guards",
+      "title": "guards",
+      "core": true,
+      "priority": 8,
+      "status": "VERIFIED",
+      "started_at": "2026-10-06T23:52:24.259866+00:00",
+      "updated_at": "2026-10-07T00:17:05.082591+00:00",
+      "last_success": "2026-10-07T00:17:05.082591+00:00",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\guard-output.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\outcome-guard-output.json"
+      ],
+      "blocker": null,
+      "error": null,
+      "next_action": "None for scoped batch",
+      "depends_on": [],
+      "notes": {}
+    }
+  ],
+  "history": [
+    {
+      "at": "2026-10-07T00:17:05.082591+00:00",
+      "event": "Scoped S07 proof verified; full mission regression not claimed"
+    }
+  ],
+  "outcomes": [
+    {
+      "id": "ha_safety_scenario_plan_and_one_proof",
+      "required": true,
+      "blocked_allowed": false,
+      "status": "MET",
+      "evidence": [
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\OUTCOME_EVALUATION.md",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SAFETY_SCENARIO_MATRIX.md",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\performance-final-ui.json",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SCENARIO_BOUNDARY_CHECK.md",
+        "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\screenshots\\HA_SCENARIO_06_success.png"
+      ]
+    }
+  ]
+}
