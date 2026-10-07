@@ -1,3 +1,5 @@
+import { createSpawnHeroSkin } from './spawn-hero-skin.js';
+import { createWorldAssetProof } from './world-asset-proof.js';
 /* =========================================================================
  * 香港地盤 GTA · 開工大吉
  * 真實地圖:九龍灣/啟德/觀塘 (OpenStreetMap)
@@ -2878,3 +2880,9 @@ $("gateScan").onclick=()=>{
   player.admitted=true;setGateOpen(true);inductionMode=null;$("gatePanel").style.display="none";
   toast("嘟！入閘核對通過，請沿行人通道入場。");
 };
+
+// Detached, non-collision visual proof only. No CSDI or gameplay changes.
+if (new URLSearchParams(location.search).get("worldAssetTest") === "1") {
+  window.__worldAssetProof = createWorldAssetProof(THREE, scene, BUILDINGS, [GATE[0],GATE[1]], () => false, {zones:zonesSorted,mainSite:MAIN_SITE,openings:{list:[{x:GATE[0],z:GATE[1]}]}});
+}
+if (new URLSearchParams(location.search).get("spawnHeroTest") === "1") createSpawnHeroSkin(THREE, scene);
