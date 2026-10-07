@@ -1,3 +1,5 @@
+import { createHaSafetyScenario } from './ha-safety-scenario.js';
+import { createSpawnHeroSkin } from './spawn-hero-skin.js';
 /* =========================================================================
  * 香港地盤 GTA · 開工大吉
  * 真實地圖:九龍灣/啟德/觀塘 (OpenStreetMap)
@@ -5,16 +7,29 @@
  * 敵人:白帽安全主任 | 危險源:天秤吊運/泥頭車倒後/吊重/坑洞 (參考勞工處意外類型)
  * ========================================================================= */
 import * as THREE from "three";
+import { createWorldAssetProof } from "./world-asset-proof.js";
 import { createInductionRoom } from "./induction-room.js";
 import { createWorker } from "./worker-rig.js";
 import { clone as skeletonClone } from "three/addons/utils/SkeletonUtils.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { KTX2Loader } from "three/addons/loaders/KTX2Loader.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 
 /* 錯誤收集(測試用) */
 window.__errs = [];
 window.addEventListener("error", e => window.__errs.push(`E: ${e.message} @${(e.filename || "").split("/").pop()}:${e.lineno}`));
 window.addEventListener("unhandledrejection", e => window.__errs.push("P: " + String(e.reason && e.reason.stack || e.reason).slice(0, 300)));
 window.__log = m => { window.__errs.push("L: " + m); };
+
+/* P10.1:app.js 改為 index.html 靜態 module 載入(與 boot.js 並行);
+   建世界前等 boot.js 模型就緒(健康環境模型早已就緒,零等待) */
+if (!(globalThis.WORKER_MODELS && globalThis.MIXAMO_WORKER)) {
+  await new Promise(res => {
+    const iv = setInterval(() => { if (globalThis.WORKER_MODELS && globalThis.MIXAMO_WORKER) { clearInterval(iv); res(); } }, 100);
+    setTimeout(() => { clearInterval(iv); res(); }, 45000);
+  });
+}
 
 /* ---------- 工具 ---------- */
 const $ = id => document.getElementById(id);
@@ -75,6 +90,19 @@ const BUILDINGS = MD.b, ROADS = MD.r, ZONES = MD.z, WATERS = MD.w, GREENS = MD.g
 function zoneArea(p) { let a = 0; for (let i = 0; i < p.length; i++) { const [x1, z1] = p[i], [x2, z2] = p[(i + 1) % p.length]; a += x1 * z2 - x2 * z1; } return Math.abs(a) / 2; }
 function centroid(p) { return [p.reduce((s, q) => s + q[0], 0) / p.length, p.reduce((s, q) => s + q[1], 0) / p.length]; }
 const mega = POIS.find(p => p[2] === "MegaBox") || [-1188, 441];
+/* ===== TASK C: CSDI 真實香港建築背景(feature flag,可一刀反轉) =====
+   ?csdioff=1 或 CSDI_BACKGROUND_TEST=false → 完全還原原本遊戲。
+   覆蓋範圍:MegaBox 真實位置 100–520m 環帶(與 MAIN_SITE 閘口相距約 700m,不觸碰近景 hero)。
+   資料:地政總署 3D 空間數據(見 models/csdibg/ATTRIBUTION.md)。僅視覺,無碰撞。 */
+const CSDI_BACKGROUND_TEST = true;
+const _qaParams = new URLSearchParams(location.search);
+/* QA runs stay deterministic and clean by default; explicitly opt in with csdi=1. */
+const csdiBgOn = CSDI_BACKGROUND_TEST && !_qaParams.has("csdioff") && (!_qaParams.has("qa") || _qaParams.get("csdi") === "1");
+const qaCloseAdapter = _qaParams.get("characterAdapterTest") === "1" && _qaParams.get("characterAdapterClose") === "1";
+const adapterNoAnim = _qaParams.get("characterAdapterNoAnim") === "1";
+const adapterNoPPE = _qaParams.get("characterAdapterNoPPE") === "1";
+const adapterHidden = _qaParams.get("characterAdapterHidden") === "1";
+const csdiBgRing = (x, z) => { const d = d2(x, z, mega[0], mega[1]); return d > 100 && d < 560; }; // true = 由 CSDI 取代(隱藏程序化樓)
 const zonesSorted = ZONES.map(z => ({ pts: z, area: zoneArea(z), c: centroid(z) })).sort((a, b) => b.area - a.area);
 const MAIN_SITE = zonesSorted.find(z => d2(z.c[0], z.c[1], mega[0], mega[1]) < 900) || zonesSorted[0];
 const SITE2 = zonesSorted.find(z => z !== MAIN_SITE && d2(z.c[0], z.c[1], MAIN_SITE.c[0], MAIN_SITE.c[1]) < 1100) || zonesSorted[1];
@@ -111,6 +139,31 @@ const GATE_DIR_IN = Math.atan2(MAIN_SITE.c[1] - GATE[1], MAIN_SITE.c[0] - GATE[0
 const OFFICE = [GATE[0] + Math.cos(GATE_DIR_IN) * 10, GATE[1] + Math.sin(GATE_DIR_IN) * 10];
 const HOSPITAL = (() => { const h = POIS.find(p => p[2].includes("專科門診")) || POIS.find(p => p[2].includes("醫院")); return h ? [h[0], h[1]] : [-1409, 662]; })();
 
+/* ---------- 共用周界 opening data(P1):圍板/碰撞/門禁單一來源 ----------
+   法例參考:Cap.59I《建築地盤(安全)規例》圍封及閘門高度≥2m;人車分隔。
+   每個 opening: { edge, tCentre, t0, t1, width, type:'pedestrian'|'vehicle', x, z, dir(沿邊單位向量), edgeLen }
+   t* 為沿 edge 參數(米)。視覺圍板、collide()、車閘 barrier 全部只讀呢份數據。 */
+function computeOpenings(zone, gate) {
+  const edge = gate[2];
+  const [ax, az] = zone.pts[edge], [bx, bz] = zone.pts[(edge + 1) % zone.pts.length];
+  const L = Math.hypot(bx - ax, bz - az);
+  const ux = (bx - ax) / L, uz = (bz - az) / L;
+  const tG = clamp((gate[0] - ax) * ux + (gate[1] - az) * uz, 4, L - 4);
+  const mk = (type, width, t) => {
+    t = clamp(t, width / 2 + .5, L - width / 2 - .5);
+    return { edge, type, width, tCentre: t, t0: t - width / 2, t1: t + width / 2, x: ax + ux * t, z: az + uz * t, ux, uz, edgeLen: L, ax, az };
+  };
+  const ped = mk("pedestrian", 6, tG);
+  let vt = tG + 16;                      // 車閘放行人閘側邊,唔經三棍閘
+  if (vt + 4 > L) vt = tG - 16;          // 唔夠位就放另一邊
+  if (vt < 4 || vt > L - 4 || Math.abs(vt - tG) < 12) vt = clamp(tG + 12, 4.5, L - 4.5); // 短邊後備
+  const veh = mk("vehicle", 9, vt);
+  return { list: [ped, veh], edgeLen: L, ax, az, ux, uz, edge };
+}
+const MAIN_OPENINGS = computeOpenings(MAIN_SITE, GATE);
+const SITE2_OPENINGS = (() => { const g2 = findGate(SITE2); const o = computeOpenings(SITE2, g2); return { ...o, list: o.list.filter(op => op.type === "pedestrian") }; })(); // SITE2 暫只有行人閘
+function vehicleGateOpen() { const v = MAIN_OPENINGS.list.find(o => o.type === "vehicle"); if (!v) return false; return !!((playerTruck && d2(playerTruck.x, playerTruck.z, v.x, v.z) < 12) || (typeof npcTruck !== "undefined" && npcTruck && d2(npcTruck.x, npcTruck.z, v.x, v.z) < 12)); } // P9.2:玩家車或NPC車12m內升起(d2 回傳米)
+
 /* ---------- three.js 基礎 ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas: $("c"), antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -138,10 +191,24 @@ addEventListener("resize", () => { camera.aspect = innerWidth / innerHeight; cam
 const hemi = new THREE.HemisphereLight(0xcfe2ff, 0x8f8878, 1.05); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff2dd, 2.3);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -70; sun.shadow.camera.right = 70; sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
+sun.shadow.mapSize.set(1024, 1024); /* P6:2048→1024,140m 範圍 ~7cm/texel */;
+sun.shadow.camera.left = -45; sun.shadow.camera.right = 45; sun.shadow.camera.top = 45; sun.shadow.camera.bottom = -45; /* P6: 收窄shadow範圍 */;
 sun.shadow.camera.near = 10; sun.shadow.camera.far = 600; sun.shadow.bias = -.0008;
 scene.add(sun); scene.add(sun.target);
+/* P5:HDRI 環境光(Poly Haven kloppenheim_02 2K,CC0)— PMREM 做 IBL;
+   hemi 降做補底,sun 保留主光+陰影。HDR 載入失敗唔阻街(keep hemi)。 */
+{
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  new RGBELoader().load("assets/textures/sky_1k.hdr", hdr => {
+    try {
+      const env = pmrem.fromEquirectangular(hdr).texture;
+      scene.environment = env;
+      scene.environmentIntensity = .55;
+      hemi.intensity = .45; sun.intensity = 2.6;
+      hdr.dispose(); pmrem.dispose();
+    } catch (e) { window.__errs.push("HDRI: " + e); }
+  }, undefined, () => { /* 網絡/檔案失敗:維持原有 hemi+sun */ });
+}
 
 /* ---------- 貼圖工廠 ---------- */
 function canvasTex(w, h, draw) {
@@ -160,8 +227,11 @@ const netTex = canvasTex(128, 128, (g) => { // 地盤綠網
   for (let i = 0; i <= 8; i++) { g.beginPath(); g.moveTo(i * 16, 0); g.lineTo(i * 16, 128); g.stroke(); g.beginPath(); g.moveTo(0, i * 16); g.lineTo(128, i * 16); g.stroke(); }
 });
 netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+const _vestTexCache = new Map(); // P8e:同規格反光衣貼圖共用一份 GPU 資源
 function vestTex(back, base = "#ff7a1a", label = "香港建築") { // 反光衣:前/背(銀反光帶+灰邊+拉鏈+布紋)
-  return canvasTex(256, 256, (g) => {
+  const key = (back ? 1 : 0) + "|" + base + "|" + label;
+  if (_vestTexCache.has(key)) return _vestTexCache.get(key);
+  const t = canvasTex(256, 256, (g) => {
     g.fillStyle = base; g.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 900; i++) { g.fillStyle = `rgba(0,0,0,${Math.random() * .05})`; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); } // 布料噪點
     g.fillStyle = "#7e8894"; g.fillRect(0, 0, 256, 24); g.fillRect(0, 234, 256, 22); // 膊頭/底灰邊
@@ -176,6 +246,8 @@ function vestTex(back, base = "#ff7a1a", label = "香港建築") { // 反光衣:
       g.font = "700 12px sans-serif"; g.fillText("SITE SAFETY", 62, 205);
     }
   });
+  _vestTexCache.set(key, t);
+  return t;
 }
 function textPill(text, fg = "#fff", bg = "rgba(12,12,20,.72)", border = "rgba(255,255,255,.25)", font = 700) {
   const c = document.createElement("canvas"); const g = c.getContext("2d");
@@ -350,7 +422,7 @@ function makeCar(kind) {
   const tl = new THREE.Mesh(new THREE.BoxGeometry(.06, .12, .3), new THREE.MeshBasicMaterial({ color: 0xff3030 }));
   tl.position.set(-frontX, isBus ? 1.1 : .85, .55); g.add(tl);
   const tl2 = tl.clone(); tl2.position.z = -.55; g.add(tl2);
-  const wg = new THREE.CylinderGeometry(isBus ? .42 : .32, isBus ? .42 : .32, .26, 8); wg.rotateX(Math.PI / 2);
+  const wg = new THREE.CylinderGeometry(isBus ? .42 : .32, isBus ? .42 : .32, .26, 16); /* P8f:8→16邊 */; wg.rotateX(Math.PI / 2);
   const wm = new THREE.MeshLambertMaterial({ color: 0x14161a });
   const wheels = [];
   const rows = isBus ? [3.6, -1.2, -3.4] : [.9, -.9];
@@ -424,7 +496,7 @@ const colliders = []; // {x,z,hw,hd,rot,minx,maxx,minz,maxz}
   const geo = new THREE.BoxGeometry(1, 1, 1);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
   for (const bk of buckets) {
-    const list = BUILDINGS.filter(b => b[6] !== 1 && b[5] <= bk.maxH && b[5] > (bk === buckets[0] ? 0 : buckets[buckets.indexOf(bk) - 1].maxH));
+    const list = BUILDINGS.filter(b => b[6] !== 1 && b[5] <= bk.maxH && b[5] > (bk === buckets[0] ? 0 : buckets[buckets.indexOf(bk) - 1].maxH) && !(csdiBgOn && csdiBgRing(b[0], b[1])));
     if (!list.length) continue;
     const { map, ems } = buildingTexPair(bk.floors, bk.cols, bk.lit, walls[randi(0, walls.length - 1)]);
     const mat = new THREE.MeshLambertMaterial({ map, emissive: 0xffffff, emissiveMap: ems, emissiveIntensity: .45 });
@@ -441,28 +513,174 @@ const colliders = []; // {x,z,hw,hd,rot,minx,maxx,minz,maxz}
   }
   for (const b of BUILDINGS) {
     if (b[6] === 1) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: CSDI 背景帶內樓宇交畀 CSDI(視覺only,冇碰撞)
     const [x, z, hw, hd, rot] = b;
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
     const ew = hw * ca + hd * sa, ed = hw * sa + hd * ca;
     colliders.push({ x, z, hw, hd, rot, minx: x - ew, maxx: x + ew, minz: z - ed, maxz: z + ed });
   }
 }
+/* ========== P10.1R-D:香港竹棚 helper — 密排竹杆(帶微傾斜抖動)/橫擔/斜撐/工作台/綠網前後層次 ========== */
+function bambooScaffoldFaces(px, pz, w, d, h, liftH, opts = {}) {
+  const lift = liftH || 2.9;
+  const lifts = Math.max(2, Math.round(h / lift));
+  const H = lifts * lift;
+  const off = opts.offset ?? .8;
+  const bambooA = new THREE.MeshLambertMaterial({ color: 0xc9a96b });
+  const bambooB = new THREE.MeshLambertMaterial({ color: 0xb5924f });
+  const verts = [], ledgers = [], diags = [];
+  const faces = [
+    { x: px, z: pz - d / 2 - off, ax: 0, len: w },
+    { x: px, z: pz + d / 2 + off, ax: 0, len: w },
+    { x: px - w / 2 - off, z: pz, ax: 1, len: d },
+    { x: px + w / 2 + off, z: pz, ax: 1, len: d }
+  ];
+  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3(), E = new THREE.Euler(), UP = new THREE.Vector3(0, 1, 0);
+  const pushStd = (x, y, z, len, ax) => {
+    verts.push([x + rand(-.05, .05), y, z + rand(-.05, .05), len, ax === 0 ? rand(-.035, .035) : 0, ax === 1 ? rand(-.035, .035) : 0, Math.random() < .5 ? 0 : 1]);
+  };
+  for (const f of faces) {
+    const bays = Math.max(3, Math.round(f.len / 1.05));
+    const step = f.len / bays;
+    const dirX = f.ax === 0 ? 1 : 0, dirZ = f.ax === 0 ? 0 : 1;
+    for (let b = 0; b <= bays; b++) {
+      pushStd(f.x + dirX * (-f.len / 2 + b * step), H / 2, f.z + dirZ * (-f.len / 2 + b * step), H * 1.02, f.ax);
+    }
+    for (let lf = 0; lf <= lifts; lf++) {
+      ledgers.push([f.x, lf * lift + .06, f.z, f.len + .15, f.ax]);
+    }
+    for (let b = 0; b < bays; b += 3) for (let lf = 0; lf < lifts; lf++) {
+      const x0 = f.x + dirX * (-f.len / 2 + b * step), x1 = f.x + dirX * (-f.len / 2 + (b + 1) * step);
+      const z0 = f.z + dirZ * (-f.len / 2 + b * step), z1 = f.z + dirZ * (-f.len / 2 + (b + 1) * step);
+      const y0 = lf * lift, y1 = y0 + lift;
+      const flip = (b + lf) % 2 === 0 ? 1 : -1;
+      const dx = (x1 - x0) * flip, dy = y1 - y0, dz = (z1 - z0) * flip;
+      const L = Math.hypot(dx, dy, dz);
+      diags.push([(x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, L, dx / L, dy / L, dz / L]);
+    }
+  }
+  const stdIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.042, .048, 1, 5, 1, true), bambooA, verts.length);
+  verts.forEach((v, i) => {
+    S.set(1, v[3], 1);
+    Q.setFromEuler(E.set(v[5], 0, v[4]));
+    P.set(v[0], v[1], v[2]); M.compose(P, Q, S); stdIM.setMatrixAt(i, M);
+  });
+  stdIM.castShadow = false; scene.add(stdIM);
+  const ledIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.05, .05, 1, 5, 1, true), bambooB, ledgers.length);
+  ledgers.forEach((l, i) => {
+    S.set(1, l[3], 1);
+    if (l[4] === 0) Q.setFromEuler(E.set(0, 0, Math.PI / 2)); else Q.setFromEuler(E.set(Math.PI / 2, 0, 0));
+    P.set(l[0], l[1], l[2]); M.compose(P, Q, S); ledIM.setMatrixAt(i, M);
+  });
+  scene.add(ledIM);
+  if (diags.length) {
+    const dgIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.035, .035, 1, 5, 1, true), bambooB, diags.length);
+    diags.forEach((dg, i) => {
+      S.set(1, dg[3], 1);
+      Q.setFromUnitVectors(UP, new THREE.Vector3(dg[4], dg[5], dg[6]).normalize());
+      P.set(dg[0], dg[1], dg[2]); M.compose(P, Q, S); dgIM.setMatrixAt(i, M);
+    });
+    scene.add(dgIM);
+  }
+  /* 綠網:每面獨立 plane,offset 喺杆件外 0.16(杆件前後層次),半透明 */
+  const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .5, side: THREE.DoubleSide, depthWrite: false });
+  for (let fi = 0; fi < faces.length; fi++) {
+    const f = faces[fi];
+    const alongX = f.ax === 0;
+    const mw = alongX ? f.len : .1, md = alongX ? .1 : f.len;
+    const nOff = off + .18;
+    const nx = f.x + (alongX ? 0 : (f.x > px ? nOff : -nOff));
+    const nz = f.z + (alongX ? (f.z > pz ? nOff : -nOff) : 0);
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(mw, H), netMat);
+    net.position.set(alongX ? f.x : nx, H / 2, alongX ? nz : f.z);
+    net.rotation.y = alongX ? 0 : Math.PI / 2;
+    scene.add(net);
+  }
+  return { lifts, H };
+}
+/* 工作台+踢腳板(指定面,每 lift 一塊) */
+function bambooPlatforms(px, pz, w, d, h, liftH, face = 0) {
+  const lift = liftH || 2.9;
+  const lifts = Math.max(2, Math.round(h / lift));
+  const off = .8;
+  const plankM = new THREE.MeshLambertMaterial({ color: 0x9a7a42 });
+  const faces = [
+    { x: px, z: pz - d / 2 - off, ax: 0, len: w, nx: 0, nz: -1 },
+    { x: px, z: pz + d / 2 + off, ax: 0, len: w, nx: 0, nz: 1 },
+    { x: px - w / 2 - off, z: pz, ax: 1, len: d, nx: -1, nz: 0 },
+    { x: px + w / 2 + off, z: pz, ax: 1, len: d, nx: 1, nz: 0 }
+  ];
+  const f = faces[face] || faces[0];
+  for (let lf = 1; lf <= lifts; lf++) {
+    const y = lf * lift - .12;
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(f.ax === 0 ? f.len * .96 : .6, .05, f.ax === 0 ? .6 : f.len * .96), plankM);
+    plank.position.set(f.x - f.nx * .35, y, f.z - f.nz * .35);
+    plank.castShadow = true; scene.add(plank);
+    const toe = new THREE.Mesh(new THREE.BoxGeometry(f.ax === 0 ? f.len * .96 : .05, .14, f.ax === 0 ? .05 : f.len * .96), plankM);
+    toe.position.set(f.x + f.nx * .02, y + .1, f.z + f.nz * .02);
+    scene.add(toe);
+  }
+}
+
 /* 施工中樓宇:水泥框 + 綠網 + 塔吊感 */
 const craneSpots = [];
+const hWalls = [], hCaps = [], hPosts = []; /* P10.1R-E:demo zone 圍板 colliders+visual 同源 */
 {
   const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .88, side: THREE.DoubleSide });
+  /* P10.1R-E:demo zone 圍板牆/頂/post 收納入全域 InstancedMesh(draw-call guardrail) */
   for (const b of BUILDINGS) {
     if (b[6] !== 1) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: 背景帶內施工樓都由 CSDI 取代
     const [x, z, hw, hd, rot, h0] = b;
     const h = Math.min(h0, 14);
     const g = new THREE.Group();
     const core = new THREE.Mesh(new THREE.BoxGeometry(hw * 2, h, hd * 2), new THREE.MeshLambertMaterial({ color: 0xbcb6a8 }));
     core.position.y = h / 2; core.castShadow = true; core.receiveShadow = true; g.add(core);
-    const net = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.06, h * 1.08, hd * 2 * 1.06), netMat);
-    net.position.y = h / 2; g.add(net);
-    for (let lv = 1; lv < h / 3.2; lv++) { // 棚架橫桿
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.07, .12, hd * 2 * 1.07), new THREE.MeshLambertMaterial({ color: 0x7a6a3a }));
-      edge.position.y = lv * 3.2; g.add(edge);
+    const demo = d2(x, z, GATE[0], GATE[1]) < 130 * 130;
+    if (demo) {
+      /* P10.1R-D/E:demo zone 施工中樓宇 — 竹棚(杆件+綠網層次)+基座圍街板帶,唔再係綠色 grid 盒 */
+      bambooScaffoldFaces(x, z, hw * 2 + .9, hd * 2 + .9, h, 3.2, { offset: .55 });
+      // Hero near-field facade dressing: recessed window bays, AC units and a service entrance.
+      const facadeMat = new THREE.MeshLambertMaterial({ color: 0x66717a });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0x9bb7c8, roughness: .22, metalness: .15 });
+      const acMat = new THREE.MeshLambertMaterial({ color: 0xd2d0c5 });
+      const doorMat = new THREE.MeshLambertMaterial({ color: 0x303840 });
+      const frontZ = z - hd - .08;
+      for (let floor = 0; floor < Math.min(4, Math.floor(h / 3.1)); floor++) {
+        for (let col = -1; col <= 1; col++) {
+          const wx = x + col * Math.min(2.2, hw * .65), wy = 1.55 + floor * 3.05;
+          const recess = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.25, .12), facadeMat); recess.position.set(wx, wy, frontZ); g.add(recess);
+          const glass = new THREE.Mesh(new THREE.BoxGeometry(.82, .88, .035), glassMat); glass.position.set(wx, wy + .02, frontZ - .08); g.add(glass);
+          const ac = new THREE.Mesh(new THREE.BoxGeometry(.42, .25, .24), acMat); ac.position.set(wx + .58, wy - .62, frontZ - .18); g.add(ac);
+        }
+      }
+      const door = new THREE.Mesh(new THREE.BoxGeometry(1.15, 2.25, .12), doorMat); door.position.set(x - hw * .55, 1.13, frontZ - .1); g.add(door);
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(2.2, .12, 1.05), new THREE.MeshLambertMaterial({ color: 0xb98b43 })); canopy.position.set(x - hw * .55, 2.35, frontZ - .55); g.add(canopy);
+      const faces = [
+        { x: x, z: z - hd - .42, ax: 0, len: hw * 2 + 1 },
+        { x: x, z: z + hd + .42, ax: 0, len: hw * 2 + 1 },
+        { x: x - hw - .42, z: z, ax: 1, len: hd * 2 + 1 },
+        { x: x + hw + .42, z: z, ax: 1, len: hd * 2 + 1 }
+      ];
+      for (const f of faces) {
+        hWalls.push([f.x, f.z, f.ax === 0 ? f.len : .14, f.ax === 0 ? .14 : f.len]);
+        hCaps.push([f.x, f.z, f.ax === 0 ? f.len : .2, f.ax === 0 ? .2 : f.len]);
+        const nP = Math.max(2, Math.round(f.len / 3.6));
+        for (let pp = 0; pp <= nP; pp++) {
+          const t = -f.len / 2 + pp * (f.len / nP);
+          hPosts.push([f.ax === 0 ? f.x + t : f.x, f.ax === 0 ? f.z : f.z + t]);
+        }
+        /* 圍板碰撞(4 面薄牆) */
+        const ew = f.ax === 0 ? f.len / 2 : .1, ed = f.ax === 0 ? .1 : f.len / 2;
+        colliders.push({ x: f.x, z: f.z, hw: ew, hd: ed, rot: 0, minx: f.x - ew, maxx: f.x + ew, minz: f.z - ed, maxz: f.z + ed });
+      }
+    } else {
+      const net = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.06, h * 1.08, hd * 2 * 1.06), netMat);
+      net.position.y = h / 2; g.add(net);
+      for (let lv = 1; lv < h / 3.2; lv++) { // 棚架橫桿
+        const edge = new THREE.Mesh(new THREE.BoxGeometry(hw * 2 * 1.07, .12, hd * 2 * 1.07), new THREE.MeshLambertMaterial({ color: 0x7a6a3a }));
+        edge.position.y = lv * 3.2; g.add(edge);
+      }
     }
     g.position.set(x, 0, z); g.rotation.y = -rot; scene.add(g);
     const ca = Math.abs(Math.cos(rot)), sa = Math.abs(Math.sin(rot));
@@ -471,11 +689,33 @@ const craneSpots = [];
   }
 }
 
+  {
+    const hoardM = new THREE.MeshLambertMaterial({ color: 0x2a7a4a });
+    const capM = new THREE.MeshLambertMaterial({ color: 0x1e5a3a });
+    const postM2 = new THREE.MeshLambertMaterial({ color: 0x3a4046 });
+    const mkIM = (geo, mat, list, fn) => {
+      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+      list.forEach((it, i) => { P.set(it[0], 0, it[1]); Q.identity(); S.set(1, 1, 1); const ex = fn(it); if (ex) { P.set(it[0], 0, it[1]); } M.compose(P, Q, S); im.setMatrixAt(i, M); });
+      scene.add(im); return im;
+    };
+    const wallIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 2.2, 1), hoardM, hWalls.length);
+    const capIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1, .1, 1), capM, hCaps.length);
+    const postIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.14, 2.4, .14), postM2, hPosts.length);
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3();
+    hWalls.forEach((w2, i) => { S.set(w2[2], 1, w2[3]); P.set(w2[0], 1.1, w2[1]); M.compose(P, Q, S); wallIM.setMatrixAt(i, M); });
+    hCaps.forEach((w2, i) => { S.set(w2[2], 1, w2[3]); P.set(w2[0], 2.25, w2[1]); M.compose(P, Q, S); capIM.setMatrixAt(i, M); });
+    hPosts.forEach((w2, i) => { S.set(1, 1, 1); P.set(w2[0], 1.2, w2[1]); M.compose(P, Q, S); postIM.setMatrixAt(i, M); });
+    wallIM.castShadow = true; postIM.castShadow = true;
+    scene.add(wallIM, capIM, postIM);
+  }
+
 /* ---------- 霓虹招牌 ---------- */
 {
   const signs = [["茶餐廳", "#ff5f8a"], ["雲吞麵", "#ffd23a"], ["五金", "#5fd0ff"], ["建材", "#7ef08a"], ["涼茶", "#ff9d3c"], ["麻雀耍樂", "#c88aff"], ["找換", "#ffe28a"], ["跌打", "#7affd2"]];
   for (const b of BUILDINGS) {
     if (b[6] === 1 || b[5] < 12) continue;
+    if (csdiBgOn && csdiBgRing(b[0], b[1])) continue; // TASK C: 樓已隱藏,招牌唔可以浮空
     if (Math.random() > .05) continue;
     const s = signs[randi(0, signs.length - 1)];
     const t = neonTex(s[0], s[1]);
@@ -607,6 +847,37 @@ function makeHumanProc(o) {
   }
 
   const r = { g, lLeg: L.lg, rLeg: R.lg, lArm: La.ag, rArm: Ra.ag, torso: chest, head, upper, phase: Math.random() * 6, walk: 0 };
+  // V3 visual-sprint profiles: reversible silhouette variation for QA/runtime audition.
+  if (o.profile) {
+    const p = o.profile;
+    g.scale.y = p.height || 1;
+    L.lg.scale.x = R.lg.scale.x = p.legWidth || 1;
+    L.lg.scale.z = R.lg.scale.z = p.legDepth || 1;
+    upper.scale.x = p.shoulder || 1; upper.scale.z = p.torsoDepth || 1;
+    pelvis.scale.x = p.hip || 1; pelvis.scale.z = p.hipDepth || 1;
+    head.scale.set(p.head || 1, p.head || 1, p.head || 1);
+    backHair.scale.y = p.hair || 1;
+    // Distinct V3 head/hair meshes: these are real geometry additions, not tint-only variation.
+    if (p.style === 'beard') {
+      const beard = new THREE.Mesh(new THREE.SphereGeometry(.055, 10, 8), hairMat);
+      beard.scale.set(1.25, .72, .65); beard.position.set(0, -.07, .075); head.add(beard);
+    } else if (p.style === 'bun') {
+      const bun = new THREE.Mesh(new THREE.SphereGeometry(.065, 12, 10), hairMat);
+      bun.position.set(0, .035, -.095); head.add(bun);
+      const fringe = new THREE.Mesh(new THREE.BoxGeometry(.13, .022, .018), hairMat);
+      fringe.position.set(0, .052, .088); head.add(fringe);
+    } else if (p.style === 'elderM') {
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(.16, .018, .018), hairMat);
+      brow.position.set(0, .045, .088); head.add(brow);
+      const chin = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), skinMat);
+      chin.scale.set(1.15, .65, .8); chin.position.set(0, -.09, .055); head.add(chin);
+    } else if (p.style === 'elderF') {
+      const bunL = new THREE.Mesh(new THREE.SphereGeometry(.055, 10, 8), hairMat);
+      const bunR = bunL.clone(); bunL.position.set(-.075, .02, -.065); bunR.position.set(.075, .02, -.065); head.add(bunL, bunR);
+      const chin = new THREE.Mesh(new THREE.SphereGeometry(.04, 8, 6), skinMat);
+      chin.scale.set(1.1, .7, .8); chin.position.set(0, -.085, .05); head.add(chin);
+    }
+  }
   r.animate = (dt, speed, lean = 0) => {
     r.phase += dt * (2.2 + speed * 2.4);
     const amp = clamp(speed / 3.4, 0, 1) * .68 + (speed > .2 ? .1 : 0);
@@ -626,8 +897,8 @@ function makeHumanProc(o) {
 }
 
 /* ---------- 人物工廠(GLB真模型版 — 實測歸一化 + PPE骨骼挂接) ---------- */
-function makeHumanGLB(o) {
-  const tpl = WORKER_MODELS.male;
+function makeHumanGLB(o, tplOverride = null) {
+  const tpl = tplOverride || WORKER_MODELS.male;
   const model = skeletonClone(tpl.scene);
   /* P0根因修復:唔可以硬編高度 — 模型內部root節點自帶scale,
      必須用渲染實測(box量matrixWorld)歸一化,並用外層g隔離(動畫唔寫root scale,已驗證) */
@@ -654,8 +925,12 @@ function makeHumanGLB(o) {
     const back = new THREE.MeshStandardMaterial({ map: vestTex(true, vc, o.vestLabel), roughness: .8 });
     const side = new THREE.MeshStandardMaterial({ color: new THREE.Color(vc).getHex(), roughness: .8 });
     const vest = new THREE.Group();
-    const bodyM = new THREE.Mesh(new THREE.BoxGeometry(.42, .56, .27), [side, side, side, side, front, back]);
+    const bodyM = new THREE.Mesh(new RoundedBoxGeometry(.38, .50, .24, 4, .05), side);
     bodyM.castShadow = true; vest.add(bodyM);
+    const vestFront = new THREE.Mesh(new THREE.PlaneGeometry(.34, .44), front);
+    vestFront.position.set(0, .01, .139); vestFront.castShadow = true; vest.add(vestFront);
+    const vestBack = new THREE.Mesh(new THREE.PlaneGeometry(.34, .44), back);
+    vestBack.position.set(0, .01, -.139); vestBack.rotation.y = Math.PI; vestBack.castShadow = true; vest.add(vestBack);
     const strapM = new THREE.MeshStandardMaterial({ color: new THREE.Color(vc).getHex(), roughness: .8 });
     for (const sx of [-.13, .13]) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(.07, .02, .24), strapM);
@@ -683,12 +958,13 @@ function makeHumanGLB(o) {
     if (!acts[n]) acts[n] = mixer.clipAction(clip);
   }
   const pick = (...names) => { for (const n of names) if (acts[n]) return acts[n]; return Object.values(acts)[0]; };
-  const aIdle = pick("Idle"), aWalk = pick("Walk"), aRun = pick("Run");
+  const aIdle = pick("Idle", "2H_Melee_Idle", "1H_Melee_Idle"), aWalk = pick("Walk", "2H_Melee_Walk", "1H_Melee_Walk"), aRun = pick("Run", "2H_Melee_Run", "1H_Melee_Run");
   let cur = null;
-  const setAnim = a => { if (a && a !== cur) { a.reset().fadeIn(.22).play(); if (cur) cur.fadeOut(.22); cur = a; } };
+  const setAnim = a => { if (a && a !== cur) { a.reset().fadeIn(.22).play(); if (cur) cur.fadeOut(.22); cur = a; window.__characterAdapterAnimationClip = a.getClip?.().name || "unknown"; } };
   setAnim(aIdle);
   const r = { g, mixer, phase: Math.random() * 6, walk: 0 };
   r.animate = (dt, speed, lean = 0) => {
+    if (adapterNoAnim && typeof CHARACTER_ADAPTER_TEST !== "undefined" && tplOverride === CHARACTER_ADAPTER_TEST) return;
     mixer.update(dt);
     if (speed > 4.2) { setAnim(aRun); if (cur) cur.timeScale = clamp(speed / 4.2, .75, 1.4); }
     else if (speed > .25) { setAnim(aWalk); if (cur) cur.timeScale = clamp(speed / 1.5, .6, 2); }
@@ -697,7 +973,20 @@ function makeHumanGLB(o) {
   return r;
 }
 function makeHuman(o) {
+  if (o.profile) return makeHumanProc(o);
   if (o.helmet === null) return makeHumanProc(o);
+  if (typeof CHARACTER_ADAPTER_TEST !== "undefined" && CHARACTER_ADAPTER_TEST && !window.__characterAdapterSpawned) {
+    window.__characterAdapterSpawned = true;
+    try {
+      const r = makeHumanGLB({ ...o, vest: !adapterNoPPE, vestColor: "#12b8d6", vestLabel: "ADAPTER", helmet: 0x35d0ff }, CHARACTER_ADAPTER_TEST);
+      if (adapterHidden) r.g.visible = false;
+      window.__characterAdapterStatus = "spawned";
+      return r;
+    } catch (e) {
+      window.__characterAdapterStatus = "fallback: " + (e.message || e);
+      console.warn("character adapter 失敗,退回原系統:", e);
+    }
+  }
   /* 全員worker-rig(用戶指示:其他人物都要改) — 失敗先退Soldier/程序化 */
   if (typeof MIXAMO_WORKER !== "undefined" && MIXAMO_WORKER) {
     try { const r = makeHumanMixamo(o); window.__rigLog = (window.__rigLog||[]).concat(['worker-rig']); return r; }
@@ -737,35 +1026,79 @@ const waterBBoxes = WATERS.filter(w => w.length >= 3).map(w => {
   return { pts: w, minx, maxx, minz, maxz };
 });
 
-/* 圍板 */
-function buildHoarding(zone, gateInfo) {
+/* 圍板(P1 重做):沿整個 perimeter 連續生成,每條 edge 精確鋪滿(角落收口),
+   只喺 openings 實際闊度內留口;數據同 collide()/門禁共用。 */
+function buildHoarding(zone, openings) {
   const pts = zone.pts;
   const geo = new THREE.BoxGeometry(2.45, 2.3, .12);
   const mat = new THREE.MeshLambertMaterial({ color: 0x2a7a4a });
   const panels = [];
-  const gateEdge = gateInfo[2];
+  const PW = 2.45;
+  // P8b:立柱喺每塊板介面(角落/尾板收口)+壓頂+基座,同板共用 opening 數據
+  const posts = [];
   for (let i = 0; i < pts.length; i++) {
-    if (i === gateEdge) continue;
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
     const L = Math.hypot(bx - ax, bz - az);
-    for (let t = 0; t < L; t += 2.5) {
+    if (L < .1) continue;
+    const n = Math.max(1, Math.round(L / PW));
+    const spacing = L / n; // 精確鋪滿成條邊,角落冇罅
+    const ops = openings.list.filter(o => o.edge === i);
+    for (let j = 0; j < n; j++) {
+      const t = (j + .5) * spacing;
+      if (ops.some(o => t + PW / 2 > o.t0 && t - PW / 2 < o.t1)) continue; // 只跳開口範圍內嘅板
       const k = t / L;
       panels.push([lerp(ax, bx, k), lerp(az, bz, k), Math.atan2(bz - az, bx - ax)]);
     }
+    // 柱:每塊板邊界一枝(開口邊界由兩端第一塊板夾住)
+    for (let j = 0; j <= n; j++) {
+      const t = j * spacing;
+      if (ops.some(o => t + .4 > o.t0 && t - .4 < o.t1)) continue;
+      const k = t / L;
+      posts.push([lerp(ax, bx, k), lerp(az, bz, k), Math.atan2(bz - az, bx - ax)]);
+    }
   }
-  const im = new THREE.InstancedMesh(geo, mat, panels.length);
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+  const im = new THREE.InstancedMesh(geo, mat, panels.length);
   panels.forEach((p, i) => {
     Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
     P.set(p[0], 1.15, p[1]); M.compose(P, Q, S); im.setMatrixAt(i, M);
   });
   im.castShadow = true; im.receiveShadow = true; scene.add(im);
+  /* P10.2:雨痕變化 — 約1/8板用深色共享材質(修補/污漬 variation),唔逐板開新材質 */
+  const fixMat = new THREE.MeshLambertMaterial({ color: 0x23623e });
+  const fixIdx = panels.map((_, i) => i).filter(i => i % 7 === 3);
+  const fixIM = new THREE.InstancedMesh(geo, fixMat, fixIdx.length);
+  fixIdx.forEach((pi, k) => {
+    const p = panels[pi];
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 1.15, p[1]); M.compose(P, Q, S); fixIM.setMatrixAt(k, M);
+  });
+  scene.add(fixIM);
+  // P8b:立柱(深色金屬)+壓頂(同板數)+基座
+  const postIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.16, 2.55, .16), new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: .5, metalness: .6 }), posts.length);
+  posts.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 1.28, p[1]); M.compose(P, Q, S); postIM.setMatrixAt(i, M);
+  });
+  postIM.castShadow = true; scene.add(postIM);
+  const capIM = new THREE.InstancedMesh(new THREE.BoxGeometry(2.45, .1, .2), new THREE.MeshLambertMaterial({ color: 0x1e5a3a }), panels.length);
+  panels.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], 2.36, p[1]); M.compose(P, Q, S); capIM.setMatrixAt(i, M);
+  });
+  scene.add(capIM);
+  const baseIM = new THREE.InstancedMesh(new THREE.BoxGeometry(2.45, .22, .18), new THREE.MeshLambertMaterial({ color: 0x4a4640 }), panels.length);
+  panels.forEach((p, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -p[2]);
+    P.set(p[0], .11, p[1]); M.compose(P, Q, S); baseIM.setMatrixAt(i, M);
+  });
+  scene.add(baseIM);
   return { panels };
 }
-buildHoarding(MAIN_SITE, GATE);
-buildHoarding(SITE2, findGate(SITE2));
+buildHoarding(MAIN_SITE, MAIN_OPENINGS);
+buildHoarding(SITE2, SITE2_OPENINGS);
 
-/* 水馬(可以撞跌) */
+/* 水馬(可以撞跌)— P10.1 重造:真實梯形水馬輪廓(上窄下闊)+白反光帶+凹手位 */
 const barrier = { mesh: null, state: [], anim: [] };
 {
   const spots = [];
@@ -774,29 +1107,41 @@ const barrier = { mesh: null, state: [], anim: [] };
   addRow(GATE[0] - Math.cos(GATE_DIR_IN) * 3.5 - Math.cos(GATE_DIR_IN + Math.PI / 2) * 7.6, GATE[1] - Math.sin(GATE_DIR_IN) * 3.5 - Math.sin(GATE_DIR_IN + Math.PI / 2) * 7.6, GATE_DIR_IN + Math.PI / 2, 4);
   const rp = nearestRoadPt(MAIN_SITE.c[0], MAIN_SITE.c[1]);
   if (rp) addRow(rp[0], rp[1], 0.4, 5);
-  const geo = new THREE.BoxGeometry(1.8, 1.05, .55);
-  const mat = new THREE.MeshLambertMaterial({ color 	: 0xff8c1a });
-  barrier.mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+  /* 梯形輪廓:P10.1 改 InstancedMesh(3 個 instanced 部件,共用 state)— clone group 27×3 mesh 令 draw call 惡化 */
+  const bodyM = new THREE.MeshLambertMaterial({ color: 0xff8c1a });
+  const bandM = new THREE.MeshLambertMaterial({ color: 0xf2f2ee });
+  const N = spots.length;
+  const mkIM = (w, h, d, mat, y) => {
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(w, h, d), mat, N);
+    im.castShadow = true; scene.add(im); return im;
+  };
+  barrier.ims = [
+    { im: mkIM(1.72, .55, .55, bodyM, .275), ly: .275 },
+    { im: mkIM(1.5, .55, .35, bodyM, .825), ly: .825 },
+    { im: mkIM(1.56, .18, .42, bandM, .82), ly: .82 }
+  ];
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
-  spots.forEach((s, i) => {
-    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -s[2]); P.set(s[0], .55, s[1]);
-    M.compose(P, Q, S); barrier.mesh.setMatrixAt(i, M);
-    barrier.state.push({ x: s[0], z: s[1], rot: s[2], vx: 0, vz: 0, spin: 0, y: .55, fly: false });
-  });
-  barrier.mesh.castShadow = true; scene.add(barrier.mesh);
+  barrier.state = spots.map(s => ({ x: s[0], z: s[1], rot: s[2], vx: 0, vz: 0, spin: 0, y: .55, fly: false }));
+  barrier.ims.forEach(({ im, ly }) => barrier.state.forEach((s, i) => {
+    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -s.rot);
+    P.set(s.x, ly, s.z); M.compose(P, Q, S); im.setMatrixAt(i, M);
+  }));
 }
 function updateBarriers(dt) {
-  let dirty = false;
   const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+  let dirty = false;
   for (let i = 0; i < barrier.state.length; i++) {
     const b = barrier.state[i];
     if (!b.fly) continue;
     b.x += b.vx * dt; b.z += b.vz * dt; b.y += 2.2 * dt; b.vz -= 9.8 * dt * .35; b.rot += b.spin * dt;
     if (b.y <= .55) { b.y = .55; b.fly = false; }
-    Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -b.rot); P.set(b.x, b.y, b.z);
-    M.compose(P, Q, S); barrier.mesh.setMatrixAt(i, M); dirty = true;
+    barrier.ims.forEach(({ im, ly }) => {
+      Q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), -b.rot);
+      P.set(b.x, ly + (b.y - .55), b.z); M.compose(P, Q, S); im.setMatrixAt(i, M);
+    });
+    dirty = true;
   }
-  if (dirty) barrier.mesh.instanceMatrix.needsUpdate = true;
+  if (dirty) barrier.ims.forEach(({ im }) => im.instanceMatrix.needsUpdate = true);
 }
 
 /* 貨櫃(寫字樓/儲物) */
@@ -804,8 +1149,30 @@ function makeContainer(x, z, rotY, color, label) {
   const g = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.6, 2.44), new THREE.MeshLambertMaterial({ color }));
   body.position.y = 1.3; body.castShadow = true; body.receiveShadow = true; g.add(body);
-  const rib = new THREE.Mesh(new THREE.BoxGeometry(6.14, 2.6, 2.3), new THREE.MeshLambertMaterial({ color: 0x000000, wireframe: false }));
-  g.add(rib); rib.visible = false;
+  /* P10.1:瓦楞肋(側面凹槽)+角柱+門縫 — 共享材質,唔再用無 rib 嘅實心盒 */
+  const darker = new THREE.Color(color).multiplyScalar(.82);
+  const ribM = new THREE.MeshLambertMaterial({ color: darker });
+  const sideOfs = 1.23;
+  for (const s of [-1, 1]) for (let i = 0; i < 9; i++) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(.08, 2.55, .05), ribM);
+    r.position.set(-2.75 + i * .69, 1.3, s * sideOfs); g.add(r);
+  }
+  for (const [cx, cz] of [[-2.95, -1.15], [-2.95, 1.15], [2.95, -1.15], [2.95, 1.15]]) {
+    const corner = new THREE.Mesh(new THREE.BoxGeometry(.18, 2.66, .18), ribM);
+    corner.position.set(cx, 1.33, cz); g.add(corner);
+  }
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(.02, 2.5, .04), new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+  seam.position.set(0, 1.3, sideOfs + .02); g.add(seam);
+  /* P10.1-A:門絞位×4+頂角鑄件(共享材質)— 遠睇都有 container 感 */
+  const hingeM = new THREE.MeshLambertMaterial({ color: 0x3a3d42 });
+  for (const s of [-1, 1]) for (const hy of [.4, 2.2]) {
+    const hinge = new THREE.Mesh(new THREE.BoxGeometry(.06, .16, .1), hingeM);
+    hinge.position.set(-2.95, hy, s * .7); g.add(hinge);
+  }
+  for (const [cx, cy] of [[-2.95, 2.55], [2.95, 2.55]]) {
+    const cast = new THREE.Mesh(new THREE.BoxGeometry(.22, .12, .22), hingeM);
+    cast.position.set(cx, cy, 0); g.add(cast);
+  }
   if (label) {
     const p = textPill(label, "#ffffff", "rgba(28,60,120,.88)", "rgba(255,255,255,.5)");
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: p.tex, transparent: true }));
@@ -974,27 +1341,24 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
     }
     scene.add(rbIM);
   }
-  /* 竹棚(四邊) + 綠網 */
+  /* 竹棚(P10.1R-D 重造):密排竹杆+橫擔+斜撐+工作台+綠網層次+通道開口 */
   {
-    const poles = [];
-    for (let x = -W / 2; x <= W / 2 + .1; x += 2.5) { poles.push([cx + x, H / 2, cz - D / 2 - .8, 0]); poles.push([cx + x, H / 2, cz + D / 2 + .8, 0]); }
-    for (let z = -D / 2; z <= D / 2 + .1; z += 2.5) { poles.push([cx - W / 2 - .8, H / 2, cz + z, 1]); poles.push([cx + W / 2 + .8, H / 2, cz + z, 1]); }
-    for (let f = 0; f <= floors; f++) {
-      const y = f * floorH;
-      poles.push([cx, y, cz - D / 2 - .8, 2]); poles.push([cx, y, cz + D / 2 + .8, 2]);
-      poles.push([cx - W / 2 - .8, y, cz, 3]); poles.push([cx + W / 2 + .8, y, cz, 3]);
-    }
-    const bIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.06, .06, 1, 5), new THREE.MeshLambertMaterial({ color: 0xc8a86a }), poles.length);
-    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), P = new THREE.Vector3(), E = new THREE.Euler();
-    poles.forEach((p, i) => {
-      if (p[3] === 0 || p[3] === 1) { S.set(1, H + 1, 1); Q.identity(); }
-      else if (p[3] === 2) { S.set(W + 2, 1, 1); Q.setFromEuler(E.set(0, 0, Math.PI / 2)); }
-      else { S.set(D + 2, 1, 1); Q.setFromEuler(E.set(Math.PI / 2, 0, 0)); }
-      P.set(p[0], p[1], p[2]); M.compose(P, Q, S); bIM.setMatrixAt(i, M);
-    });
-    scene.add(bIM);
-    const net = new THREE.Mesh(new THREE.BoxGeometry(W * 1.08, H * 1.04, D * 1.08), new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .8, side: THREE.DoubleSide }));
-    net.position.set(cx, H / 2, cz); scene.add(net);
+    bambooScaffoldFaces(cx, cz, W + 1.4, D + 1.4, H + .6, floorH, { offset: .8 });
+    bambooPlatforms(cx, cz, W + 1.4, D + 1.4, H + .6, floorH, 0);
+    /* 綠網:前後兩面 plane(留一面通道開口:前面分兩截留 1.4m 空位),左右兩面 */
+    const netMat = new THREE.MeshLambertMaterial({ map: netTex, transparent: true, opacity: .5, side: THREE.DoubleSide, depthWrite: false });
+    const off = .8 + .18, FW = W + 1.4, FD = D + 1.4;
+    const mkNet = (w2, h2, x2, z2, rotY2) => {
+      const net = new THREE.Mesh(new THREE.PlaneGeometry(w2, h2), netMat);
+      net.position.set(x2, h2 / 2, z2); net.rotation.y = rotY2; scene.add(net);
+      return net;
+    };
+    const openW = 1.5, openAt = cx - FW / 2 + 3; // 通道開口(前面偏左)
+    mkNet(openAt - openW / 2 - (cx - FW / 2), H, (cx - FW / 2 + openAt - openW / 2) / 2, cz - D / 2 - off, 0);
+    mkNet(cx + FW / 2 - (openAt + openW / 2), H, (openAt + openW / 2 + cx + FW / 2) / 2, cz - D / 2 - off, 0);
+    mkNet(FW, H, cx, cz + D / 2 + off, 0);
+    mkNet(FD, H, cx - FW / 2 - off, cz, Math.PI / 2);
+    mkNet(FD, H, cx + FW / 2 + off, cz, Math.PI / 2);
     /* 安全橫額掛棚 */
     const slogans = [["高高興興上班去 · 平平安安回家來", "#1a7a3a"], ["安全第一 · 零意外", "#c02525"]];
     for (let s = 0; s < 2; s++) {
@@ -1076,22 +1440,40 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
       g => placeGLBProp(g, OFFICE[0] + Math.cos(GATE_DIR_IN + 2.1) * 8, OFFICE[1] + Math.sin(GATE_DIR_IN + 2.1) * 8, rand(0, 6), 2.6, { name: "kenney-container-b", color: 0x2a6a5a, rough: .75, metal: .25 }));
     propLoader.load("assets/kenney-industrial/Models/GLB format/shipping-container-c.glb",
       g => placeGLBProp(g, yardX + 4, yardZ - 4, .5, 2.6, { name: "kenney-container-c", color: 0x8a4a3a, rough: .75, metal: .25 }));
-    /* AI生成手推車(Hunyuan3D-2,白模上色) */
-    propLoader.load("models/ai-wheelbarrow.glb",
-      g => placeGLBProp(g, yardX + 1.5, yardZ + .5, 1.15, .55, { name: "ai-wheelbarrow", color: 0xb84a18, rough: .55, metal: .35 }));
+    /* P6:程序化手推車取代 ai-wheelbarrow.glb(舊 GLB 410,176 tri = 全場25%,白模上色晒料)
+       — 車斗+車輪+腳架+把手,~230 tri,連碰撞體 */
+    {
+      const wb = new THREE.Group();
+      const trayM = new THREE.MeshStandardMaterial({ color: 0xb84a18, roughness: .55, metalness: .35 });
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(1.05, .08, .62), trayM); tray.position.set(0, .48, 0); tray.castShadow = true; wb.add(tray);
+      for (const s of [-1, 1]) {
+        const side = new THREE.Mesh(new THREE.BoxGeometry(1.05, .3, .05), trayM); side.position.set(0, .62, s * .3); side.castShadow = true; wb.add(side);
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(.06, .42, .06), new THREE.MeshStandardMaterial({ color: 0x3a3a40, roughness: .7, metalness: .4 })); leg.position.set(-.42, .26, s * .22); wb.add(leg);
+      }
+      const front = new THREE.Mesh(new THREE.BoxGeometry(.05, .3, .62), trayM); front.position.set(.5, .62, 0); wb.add(front);
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .09, 14), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: .95 }));
+      wheel.rotation.x = Math.PI / 2; wheel.position.set(.48, .2, 0); wheel.castShadow = true; wb.add(wheel);
+      const handleM = new THREE.MeshStandardMaterial({ color: 0x6a6a70, roughness: .5, metalness: .6 });
+      for (const s of [-1, 1]) { const h = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, .8, 8), handleM); h.rotation.z = Math.PI / 2 - .35; h.position.set(-.62, .62, s * .26); wb.add(h); }
+      wb.position.set(yardX + 1.5, 0, yardZ + .5); wb.rotation.y = 1.15;
+      scene.add(wb);
+      colliders.push({ x: yardX + 1.5, z: yardZ + .5, hw: .55, hd: .4, rot: 0, minx: yardX + .95, maxx: yardX + 2.05, minz: yardZ + .1, maxz: yardZ + .9 });
+      window.__propsLoaded.push("proc-wheelbarrow");
+    }
   }
 }
 /* 圍板安全橫額 */
 {
   const slogans = [["安全第一 · 零意外", "#c02525"], ["戴好安全帽 · 扣好帽帶", "#1a5ac0"], ["小心吊運 · 唔好行天秤下面", "#c07800"], ["香港建築", "#1a7a3a"]];
   let bi = 0;
-  const addBanners = (zone, gateEdge) => {
+  const addBanners = (zone, openings) => {
     const pts = zone.pts;
     for (let i = 0; i < pts.length; i++) {
-      if (i === gateEdge) continue;
       const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
       const L = Math.hypot(bx - ax, bz - az);
+      const ops = openings.list.filter(o => o.edge === i);
       for (let t = 8; t < L - 4; t += 17) {
+        if (ops.some(o => Math.abs(t - o.tCentre) < o.width / 2 + 6)) continue; // 唔好橫跨開口
         const k = t / L;
         const bt = makeBannerTex(slogans[bi % slogans.length][0], slogans[bi % slogans.length][1]);
         bi++;
@@ -1102,7 +1484,7 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
       }
     }
   };
-  addBanners(MAIN_SITE, GATE[2]);
+  addBanners(MAIN_SITE, MAIN_OPENINGS);
 }
 /* 閘口橫額 */
 {
@@ -1123,8 +1505,39 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
     const x = GATE[0] + Math.cos(GO3) * t + Math.cos(GO3 + pp) * side * 6.5;
     const z = GATE[1] + Math.sin(GO3) * t + Math.sin(GO3 + pp) * side * 6.5;
     if (i % 2) {
-      const cage = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1, 1.1), new THREE.MeshLambertMaterial({ color: 0xc07830 }));
-      cage.position.set(x, .5, z); cage.castShadow = true; scene.add(cage);
+      /* P10.1R-F:磚疊重造 — 卡板+實磚排列(色差)+四角鋼柱+頂帶,唔再係啡色方盒 */
+      const cageG = new THREE.Group();
+      const palM = new THREE.MeshLambertMaterial({ color: 0x7a5a32 });
+      for (const pz of [-.5, 0, .5]) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(1.35, .09, .16), palM);
+        slat.position.set(0, .065, pz); cageG.add(slat);
+      }
+      for (const px of [-.62, .62]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(.14, .09, 1.15), palM);
+        rail.position.set(px, .065, 0); cageG.add(rail);
+      }
+      const brickIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.21, .1, .1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .92 }), 168);
+      const c = new THREE.Color();
+      let bi = 0;
+      const M5 = new THREE.Matrix4(), Q5 = new THREE.Quaternion(), S5 = new THREE.Vector3(1, 1, 1), P5 = new THREE.Vector3();
+      for (let row = 0; row < 7; row++) for (let cx2 = 0; cx2 < 6; cx2++) for (let cz2 = 0; cz2 < 4; cz2++) {
+        c.setHSL(.05 + Math.random() * .02, .55 + Math.random() * .15, .3 + Math.random() * .12);
+        brickIM.setColorAt(bi, c);
+        Q5.identity(); P5.set(-.53 + cx2 * .213 + (row % 2) * .02, .17 + row * .105, -.35 + cz2 * .225 + (row % 2) * .015);
+        M5.compose(P5, Q5, S5); brickIM.setMatrixAt(bi, M5); bi++;
+      }
+      brickIM.castShadow = true; cageG.add(brickIM);
+      const postM = new THREE.MeshLambertMaterial({ color: 0x4a4f56 });
+      for (const [px, pz] of [[-.66, -.56], [-.66, .56], [.66, -.56], [.66, .56]]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.05, .06), postM);
+        post.position.set(px, .58, pz); post.castShadow = true; cageG.add(post);
+      }
+      for (const pz of [-.56, .56]) {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(1.38, .05, .05), postM);
+        strap.position.set(0, .92, pz); cageG.add(strap);
+      }
+      cageG.position.set(x, 0, z); cageG.rotation.y = rand(0, Math.PI);
+      scene.add(cageG);
     } else {
       const drum = new THREE.Mesh(new THREE.CylinderGeometry(.34, .34, .95, 10), new THREE.MeshLambertMaterial({ color: 0x2a5ad0 }));
       drum.position.set(x, .48, z); drum.castShadow = true; scene.add(drum);
@@ -1133,44 +1546,209 @@ function makeBannerTex(text, bg = "#c02525", fg = "#ffffff") {
 }
 
 /* 斗車(可駕駛) + NPC泥頭車 */
+/* P10.1R-B:泥頭車重造 — 香港cab-over重型泥頭車比例
+   cab 闊2.35/高3.0、前軸單胎+後軸雙胎(duals)、薄殼輪拱、斗有底板厚/側肋/頂欄/尾閘/液壓頂罐
+   介面不變:g/wheels/beacon/x/z/heading/v */
 function makeTruck(x, z, rotY, color) {
   const g = new THREE.Group();
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 1.9), new THREE.MeshLambertMaterial({ color }));
-  cab.position.set(1.55, 1.45, 0); cab.castShadow = true; g.add(cab);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(.3, .8, 1.7), new THREE.MeshLambertMaterial({ color: 0x9ac8e8 }));
-  glass.position.set(2.5, 1.7, 0); g.add(glass);
-  const bed = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.3, 2.1), new THREE.MeshLambertMaterial({ color: 0x5c5c66 }));
-  bed.position.set(-1.2, 1.2, 0); bed.castShadow = true; g.add(bed);
-  const stripeMat = new THREE.MeshLambertMaterial({ color: 0xffd23a });
-  for (const side of [-1, 1]) {
-    const st = new THREE.Mesh(new THREE.BoxGeometry(3.4, .18, .04), stripeMat);
-    st.position.set(-1.2, 1.7, side * 1.06); g.add(st);
+  const M = {
+    paint: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(rand(.86, 1)), roughness: .35, metalness: .2 }),
+    paintDark: new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(.5), roughness: .55, metalness: .2 }),
+    rubber: new THREE.MeshStandardMaterial({ color: 0x141519, roughness: .96 }),
+    rubber2: new THREE.MeshStandardMaterial({ color: 0x1d1f24, roughness: .9 }),
+    metal: new THREE.MeshStandardMaterial({ color: 0x8a9099, roughness: .35, metalness: .85 }),
+    darkMetal: new THREE.MeshStandardMaterial({ color: 0x33363c, roughness: .55, metalness: .7 }),
+    glass: new THREE.MeshStandardMaterial({ color: 0x8fb8d8, roughness: .1, metalness: .5, transparent: true, opacity: .68 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: .18, metalness: .95 }),
+    bed: new THREE.MeshStandardMaterial({ color: 0x51545c, roughness: .68, metalness: .4 }),
+    bedIn: new THREE.MeshStandardMaterial({ color: 0x2c2e34, roughness: .92, metalness: .1 }),
+    stripe: new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: .5 }),
+    lamp: new THREE.MeshStandardMaterial({ color: 0xfff2c0, emissive: 0xcfb96a, emissiveIntensity: .75, roughness: .3 }),
+    red: new THREE.MeshStandardMaterial({ color: 0x9c1f1f, emissive: 0x550808, emissiveIntensity: .6, roughness: .4 })
+  };
+  const B = (w, h, d, mat, px, py, pz, cast = false, parent = g) => { // TASK D: parent 參數(斗/尾閘 pivot 掛件)
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    m.position.set(px, py, pz); m.castShadow = cast; parent.add(m); return m;
+  };
+  const CYL = (r, len, mat, px, py, pz, axis, cast = false, seg = 14, parent = g) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, seg), mat);
+    if (axis === 'z') m.rotation.x = Math.PI / 2;
+    else if (axis === 'x') m.rotation.z = Math.PI / 2;
+    m.position.set(px, py, pz); m.castShadow = cast; parent.add(m); return m;
+  };
+  /* --- 底盤:琵琶架+橫樑+軸殼+傳動軸+葉片彈簧hint --- */
+  for (const s of [-1, 1]) B(5.7, .24, .1, M.darkMetal, -.15, .8, s * .44, true);
+  for (let i = 0; i < 4; i++) B(.16, .2, .92, M.darkMetal, 2.35 - i * 1.5, .8, 0);
+  CYL(.11, 2.1, M.darkMetal, 1.95, .54, 0, 'z', true);
+  CYL(.13, 1.9, M.darkMetal, -1.45, .54, 0, 'z', true);
+  CYL(.06, 2.0, M.metal, .3, .62, 0, 'x');
+  CYL(.09, .5, M.darkMetal, -.75, .6, 0, 'x');
+  for (const [ax, az] of [[1.95, .95], [1.95, -.95], [-1.45, .95], [-1.45, -.95]])
+    B(.95, .07, .1, M.darkMetal, ax, .74, az);
+  CYL(.3, 1.2, M.metal, .55, .6, -.88, 'z', true);
+  B(.95, .55, .5, M.darkMetal, .55, .58, .86);
+  CYL(.06, 1.55, M.chrome, 1.18, 2.2, -1.16, 'y', true);
+  CYL(.085, .18, M.chrome, 1.18, 3.05, -1.16, 'y');
+  /* --- 駕駛室(cab-over 2.35闊×高3.0,大斜擋風+A柱+門+踏級+鏡) --- */
+  B(1.6, 1.42, 2.35, M.paint, 1.95, 1.66, 0, true);
+  B(1.52, .68, 2.26, M.paint, 1.9, 2.68, 0, true);
+  B(1.56, .16, 2.4, M.paintDark, 1.95, .88, 0, true);
+  const ws = B(.07, .88, 2.1, M.glass, 2.72, 2.62, 0, true);
+  ws.rotation.z = -.18;
+  for (const s of [-1, 1]) {
+    const ap = B(.16, .95, .16, M.paint, 2.68, 2.6, s * 1.1, true);
+    ap.rotation.z = -.18;
+    B(.72, .52, .06, M.glass, 2.02, 2.66, s * 1.14, false);
+    B(.78, .07, .08, M.paintDark, 2.02, 2.95, s * 1.13);
+    B(.025, .95, .04, M.darkMetal, 1.55, 1.62, s * 1.19, false);
+    B(.19, .045, .06, M.chrome, 1.82, 1.78, s * 1.2, false);
+    B(.45, .07, .8, M.darkMetal, 1.28, .58, s * .95);
+    B(.4, .07, .7, M.darkMetal, 1.42, .28, s * .95);
+    B(.5, .05, .05, M.darkMetal, 2.78, 2.85, s * 1.2);
+    B(.05, .3, .05, M.darkMetal, 2.98, 2.7, s * 1.38);
+    B(.05, .34, .22, M.chrome, 2.98, 2.44, s * 1.38, false);
+    B(.09, .07, .11, M.lamp, 2.52, 3.06, s * .62, false);
   }
-  const wheels = [];
-  const wg = new THREE.CylinderGeometry(.55, .55, .4, 10); wg.rotateX(Math.PI / 2);
-  const wm = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
-  [[1.55, 1], [1.55, -1], [-.4, 1], [-.4, -1], [-1.6, 1], [-1.6, -1]].forEach(([wx, side]) => {
-    const w = new THREE.Mesh(wg, wm); w.position.set(wx, .55, side * 1.05); g.add(w); wheels.push(w);
+  B(.09, .07, .11, M.lamp, 2.52, 3.06, 0, false);
+  B(1.58, .1, 2.3, M.paintDark, 1.95, 2.37, 0);
+  B(1.5, .12, 2.28, M.paintDark, 2.62, 3.03, 0);
+  /* --- 前臉 --- */
+  B(.08, .6, 1.78, M.darkMetal, 2.78, 1.55, 0);
+  for (let i = 0; i < 4; i++) B(.05, .08, 1.66, M.chrome, 2.82, 1.36 + i * .13, 0, false);
+  B(.34, .44, 2.42, M.darkMetal, 2.86, .5, 0, true);
+  B(.04, .3, .5, M.stripe, 3.03, .5, 0, false);
+  for (const s of [-1, 1]) {
+    B(.07, .22, .44, M.lamp, 2.84, .78, s * .95);
+    B(.06, .09, .14, M.lamp, 2.88, .38, s * 1.0, false);
+  }
+  /* --- TASK D:泥斗重構為可動機構 — dumpBedPivot(尾絞)+ tailgatePivot(頂絞)+ 液壓頂 --- */
+  const bedPivot = new THREE.Group();          // 鉸位:斗底後緣 (-2.9, 1.02, 0)
+  bedPivot.position.set(-2.9, 1.02, 0); g.add(bedPivot);
+  const tailgatePivot = new THREE.Group();     // 頂絞:斗後上緣(g-local -3.2, 2.08)
+  tailgatePivot.position.set(-.3, 1.06, 0); bedPivot.add(tailgatePivot);
+  /* 斗件(pivot 局部座標 = 舊座標 + (2.9, -1.02)) */
+  B(3.5, .16, 2.14, M.bedIn, 1.45, .03, 0, true, bedPivot);              // 斗底
+  for (const s of [-1, 1]) {
+    B(3.5, .92, .15, M.bed, 1.45, .56, s * 1.09, true, bedPivot);        // 外側壁
+    B(3.4, .8, .05, M.bedIn, 1.45, .53, s * 1.0, false, bedPivot);       // 內襯
+    B(3.58, .1, .22, M.stripe, 1.45, 1.06, s * 1.09, true, bedPivot);    // 頂欄外翻
+    for (let i = 0; i < 6; i++) B(.1, .78, .09, M.paintDark, -.05 + i * .66, .56, s * 1.2, false, bedPivot); // 外肋
+  }
+  B(.16, 1.42, 2.24, M.bed, 3.2, .70, 0, true, bedPivot);                // 前擋板(高過側壁)
+  B(.14, .34, 2.2, M.stripe, 3.2, 1.48, 0, true, bedPivot);              // 前擋黃欄
+  B(.1, .88, 2.08, M.bed, .06, -.48, 0, true, tailgatePivot);            // 尾閘(掛頂絞)
+  B(.1, .1, 2.12, M.stripe, .04, 0, 0, false, tailgatePivot);            // 尾閘黃欄
+  for (const s of [-1, 1]) CYL(.04, .16, M.chrome, 0, .04, s * .7, 'y', false, 14, tailgatePivot); // 鉸銷
+  /* 液壓頂:底座(車架)+ 伸縮桿(瞄向斗底前部安裝點) */
+  const hoistPivot = new THREE.Group();
+  hoistPivot.position.set(1.2, .95, 0); g.add(hoistPivot);
+  CYL(.09, .72, M.darkMetal, .36, 0, 0, 'x', true, 14, hoistPivot);      // 底缸
+  const hoistRod = CYL(.05, .8, M.chrome, .8, 0, 0, 'x', false, 12, hoistPivot); // 活塞桿(scale.y 伸縮)
+  hoistRod.geometry.translate(.4, 0, 0);                                   // 原點移到桿尾
+  const updateHoist = (bedAngle) => { // bedAngle(rad): 0=平
+    const mx = -2.9 + 2.6 * Math.cos(bedAngle), my = 1.02 + 2.6 * Math.sin(bedAngle); // 斗底安裝點
+    const dx = mx - 1.2, dy = my - .95;
+    const L = Math.hypot(dx, dy);
+    hoistPivot.rotation.z = Math.atan2(dy, dx);
+    hoistRod.scale.y = Math.max(.25, L - .62);
+  };
+  updateHoist(0);
+  /* 貨物(低模泥土三件,卸料時縮細;入斗局部座標) */
+  const cargo = new THREE.Group();
+  const soilM = new THREE.MeshStandardMaterial({ color: 0x6b4f2e, roughness: 1 });
+  [[.9, .62, .3, .95], [1.9, .58, -.2, 1.05], [2.7, .56, .25, .8]].forEach(([cx, cy, cz, r], i) => {
+    const ch = new THREE.Mesh(new THREE.IcosahedronGeometry(r * .62, 0), soilM);
+    ch.position.set(cx, cy + .1, cz); ch.scale.set(1.3, .55, 1.15); ch.rotation.y = i * 1.3;
+    ch.castShadow = false; cargo.add(ch);
   });
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
-  beacon.position.set(1.55, 2.32, 0); g.add(beacon);
-  g.position.set(x, 0, z); g.rotation.y = rotY; scene.add(g);
-  return { g, wheels, beacon, x, z, heading: rotY, v: 0 };
+  B(3.2, .12, 1.9, soilM, 1.5, .16, 0, false, cargo); // 底層填平
+  bedPivot.add(cargo);
+  const tailLamps = [];
+  for (const s of [-1, 1]) tailLamps.push(B(.08, .24, .32, M.red, .02, -.52, s * .78, false, tailgatePivot)); // 車尾燈(隨尾閘)
+  /* --- 車輪:前單胎+後雙胎 --- */
+  const wheels = [];
+  const mkWheel = (wx, wz, tw) => {
+    const w = new THREE.Group();
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(.54, .54, tw, 24), M.rubber);
+    tyre.rotation.x = Math.PI / 2; tyre.castShadow = true; w.add(tyre);
+    for (let i = 0; i < 10; i++) {
+      const tb = new THREE.Mesh(new THREE.BoxGeometry(.55, .1, .1), i % 2 ? M.rubber : M.rubber2);
+      const a = i / 10 * Math.PI * 2;
+      tb.position.set(Math.cos(a) * .5, Math.sin(a) * .5, 0); tb.rotation.z = a;
+      w.add(tb);
+    }
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, tw + .02, 14), M.metal);
+    rim.rotation.x = Math.PI / 2; w.add(rim);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(.11, .11, tw + .06, 10), M.chrome);
+    hub.rotation.x = Math.PI / 2; w.add(hub);
+    const spokeSide = wz >= 0 ? 1 : -1;
+    for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.02, .46, .07), M.darkMetal); b.rotation.z = i * Math.PI / 3; b.position.x = spokeSide * (tw / 2 + .01); w.add(b); }
+    w.position.set(wx, .54, wz); g.add(w); wheels.push(w);
+  };
+  mkWheel(1.95, 1.02, .42); mkWheel(1.95, -1.02, .42);
+  for (const s of [-1, 1]) { mkWheel(-1.45, s * .72, .34); mkWheel(-1.45, s * 1.14, .34); }
+  /* --- 薄殼輪拱(openEnded 殼,唔係實心半圓板) --- */
+  const guardMat = new THREE.MeshStandardMaterial({ color: 0x33363c, roughness: .55, metalness: .7, side: THREE.DoubleSide });
+  const guard = (fx, fz, len) => {
+    const f = new THREE.Mesh(new THREE.CylinderGeometry(.68, .68, len, 12, 1, true, 0, Math.PI), guardMat);
+    f.rotation.x = Math.PI / 2;
+    f.position.set(fx, .6, fz); f.castShadow = true; g.add(f);
+  };
+  guard(1.95, 1.02, .6); guard(1.95, -1.02, .6);
+  guard(-1.45, .93, 1.05); guard(-1.45, -.93, 1.05);
+  for (const s of [-1, 1]) B(.05, .55, .5, M.rubber, -2.2, .38, s * .93, false);
+  /* --- 車尾 --- */
+  for (const s of [-1, 1]) {
+    B(.08, .24, .32, M.red, -3.16, .95, s * .8);
+    B(.06, .3, .1, M.red, -3.16, .72, s * .55, false);
+  }
+  B(.08, .1, 1.7, M.darkMetal, -3.05, .55, 0);
+  /* --- 警示燈(介面保留) --- */
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffaa20 }));
+  beacon.position.set(1.9, 3.2, 0); g.add(beacon);
+  B(.34, .1, .34, M.stripe, 1.9, 3.08, 0);
+  const mudM = new THREE.MeshStandardMaterial({ color: 0x453a2c, roughness: .98 });
+  for (const s of [-1, 1]) B(3.3, .32, .07, mudM, -1.45, .72, s * 1.14, false);
+  B(.07, .34, 2.0, mudM, -3.18, .72, 0, false);
+  /* P6:LOD — 輪廓跟新版 */
+  const lod = new THREE.LOD();
+  lod.addLevel(g, 0);
+  const g1 = new THREE.Group();
+  const lam = new THREE.MeshLambertMaterial({ color });
+  const cab1 = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.1, 2.32), lam); cab1.position.set(2.0, 1.95, 0); g1.add(cab1);
+  const bed1 = new THREE.Mesh(new THREE.BoxGeometry(3.55, 1.0, 2.2), new THREE.MeshLambertMaterial({ color: 0x5c5c66 })); bed1.position.set(-1.45, 1.55, 0); g1.add(bed1);
+  const wg1 = new THREE.CylinderGeometry(.54, .54, .42, 10); wg1.rotateX(Math.PI / 2);
+  const wm1 = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+  [[1.95, 1.02], [1.95, -1.02], [-1.45, 1.02], [-1.45, -1.02], [-1.45, .62], [-1.45, -.62]].forEach(([wx, wz]) => { const w = new THREE.Mesh(wg1, wm1); w.position.set(wx, .54, wz); g1.add(w); });
+  lod.addLevel(g1, 70);
+  const g2 = new THREE.Group();
+  const s2 = new THREE.Mesh(new THREE.BoxGeometry(6.1, 2.5, 2.3), new THREE.MeshLambertMaterial({ color })); s2.position.set(-.1, 1.45, 0); g2.add(s2);
+  lod.addLevel(g2, 170);
+  lod.position.set(x, 0, z); lod.rotation.y = rotY; scene.add(lod);
+  /* TASK D:可動機構 refs + 零件命名(hero GLB 到位後按同樣 pivots 接) */
+  g.userData.parts = lod.userData.parts = { CHASSIS: g, FRONT_WHEELS: [wheels[0], wheels[1]], REAR_WHEELS: wheels.slice(2), DUMP_BED: bedPivot, TAILGATE: tailgatePivot, HYDRAULIC_HOIST: hoistPivot };
+  return { g: lod, wheels, beacon, x, z, heading: rotY, v: 0, bedPivot, tailgatePivot, hoistPivot, hoistRod, updateHoist, cargo, tailLamps, unloading: false };
 }
+
 const playerTruck = makeTruck(OFFICE[0] + Math.cos(GATE_DIR_IN) * 16, OFFICE[1] + Math.sin(GATE_DIR_IN) * 16, GATE_DIR_IN + Math.PI / 2, 0x3a8a4a);
 /* NPC 泥頭車:繞圈 + 倒車入地盤 */
 const npcTruck = makeTruck(0, 0, 0, 0x8a3a3a);
 npcTruck.route = (() => {
-  const pts = [];
-  const base = nearestRoadPt(GATE[0], GATE[1]);
-  if (!base) return [[0, 0]];
-  // 沿主路搵一條循環線
-  const cand = roadPts.filter(p => d2(p[0], p[1], base[0], base[1]) < 320);
-  for (let i = 0; i < 7 && cand.length; i++) {
-    const p = cand.splice(randi(0, cand.length - 1), 1)[0]; pts.push([p[0], p[1]]);
-  }
-  pts.push([GATE[0] - Math.cos(GATE_DIR_IN) * 14, GATE[1] - Math.sin(GATE_DIR_IN) * 14]);
-  return pts;
+  /* P9.2:固定入場-卸貨-出場循環,必經 vehicle opening,唔經行人閘/圍板。
+     路線尾喺閘外街尾 → 觸發 reverse hazard → 由 wp 0 重新起步。 */
+  const veh = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  if (!veh) return [[0, 0]];
+  let nx = MAIN_SITE.c[0] - veh.x, nz = MAIN_SITE.c[1] - veh.z;
+  const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl; // 車閘向內
+  const out = (d) => [veh.x - nx * d, veh.z - nz * d], inw = (d) => [veh.x + nx * d, veh.z + nz * d];
+  // P9.2:純穿梭軸(閘中心進出直線),避開安全訓練室貨櫃(-811,947)等閘前物件
+  return [
+    out(30), out(9),                 // 0-1 埋閘(觸發 barrier 升)
+    inw(6), inw(16), inw(24),        // 2-4 入場沿車道到卸貨區
+    inw(8), out(2),                  // 5-6 掉頭出閘
+    out(14), out(30),                // 7-8 出閘離開(barrier 落)
+    out(42)                          // 9 再前行(之後 reverse hazard 喺空曠街上)
+  ];
 })();
 npcTruck.wp = 0; npcTruck.mode = "drive"; npcTruck.timer = 0;
 hazards.push({ type: "npcTruck" });
@@ -1197,12 +1775,165 @@ const player = {
 };
 player.h.g.position.set(player.x, 0, player.z); scene.add(player.h.g);
 
+// 008: one generated facade study; no production wall/collider replacement.
+if (_qaParams.get('worldAssetTest') === '1') {
+  window.__worldAssetProof = createWorldAssetProof(THREE, scene, BUILDINGS, SPAWN, (x,z)=>csdiBgRing(x,z), {zones:zonesSorted,openings:MAIN_OPENINGS,mainSite:MAIN_SITE});
+}
+
+// Isolated candidate audition. Original player/workers stay intact.
+let mpfbCharacterTestActor = null;
+let updateMpfbCandidate = () => {};
+if (_qaParams.get('mpfbCharacterTest') === '1' && globalThis.MPFB_CHARACTER_TEST) {
+  const g = skeletonClone(globalThis.MPFB_CHARACTER_TEST.scene);
+  g.name = 'MPFB_WORKER_MALE_V4_TEST';
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  const bounds = new THREE.Box3().setFromObject(g);
+  g.position.set(player.x + 2.2, -bounds.min.y, player.z + 1.5);
+  g.rotation.y = Math.PI;
+  scene.add(g);
+  mpfbCharacterTestActor = g;
+  const mode = _qaParams.get('mpfbWorkingPose') === '1' ? 'work' : (_qaParams.get('mpfbAnimation') === 'walk' ? 'walk' : 'idle');
+  g.visible = _qaParams.get('mpfbCharacterHidden') !== '1';
+  Object.assign(globalThis.__mpfbCharacterQA, {visible: g.visible, status: mode === 'walk' ? 'IN_PLACE_WALK_TEST' : 'ANIMATED_PROCEDURAL_TEST', animation: mode, animationFrame: 0, fallback_active: false});
+  g.updateMatrixWorld(true);
+  const bones = {};
+  g.traverse(o => { if (o.isBone) bones[o.name] = {bone:o, rest:o.quaternion.clone(), parentWorld:o.parent.getWorldQuaternion(new THREE.Quaternion()).invert()}; });
+  const delta = new THREE.Quaternion(), axis = new THREE.Vector3();
+  function rotate(name, worldAxis, angle) {
+    const b = bones[name]; if (!b) return;
+    axis.copy(worldAxis).applyQuaternion(b.parentWorld);
+    b.bone.quaternion.premultiply(delta.setFromAxisAngle(axis,angle));
+  }
+  const actorRotation = g.getWorldQuaternion(new THREE.Quaternion());
+  const X = new THREE.Vector3(1,0,0).applyQuaternion(actorRotation), Z = new THREE.Vector3(0,0,1).applyQuaternion(actorRotation);
+  const candidateBoots = [];
+  g.traverse(o => { if (o.isSkinnedMesh && /PPE.*work.*boot/i.test(o.name+" "+(o.parent?.name||""))) candidateBoots.push(o); });
+  const soleSamples = candidateBoots.map(boot => {
+    const joint = boot.geometry.attributes.skinIndex.getX(0);
+    const bone = boot.skeleton.bones[joint];
+    const corners = []; const v = new THREE.Vector3();
+    boot.skeleton.update(); const boneInverseWorld = bone.matrixWorld.clone().invert();
+    for (let i=0;i<boot.geometry.attributes.position.count;i++) {
+      boot.getVertexPosition(i,v); v.applyMatrix4(boot.matrixWorld).applyMatrix4(boneInverseWorld); corners.push(v.clone());
+    }
+
+    return {bone,corners};
+  });
+  const solePoint = new THREE.Vector3();
+  const candidateBaseY = g.position.y;
+  scene.updateMatrixWorld(true);
+  const supportRay = new THREE.Raycaster(new THREE.Vector3(g.position.x,.45,g.position.z),new THREE.Vector3(0,-1,0),0,1);
+  const supportSurfaces = [];
+  scene.traverse(o => { if (o.isMesh && !o.isSkinnedMesh) supportSurfaces.push(o); });
+  const surface = supportRay.intersectObjects(supportSurfaces,false).find(hit => !hit.object.isSkinnedMesh && hit.face && hit.face.normal.y > .5 && hit.point.y < .4);
+  const candidateSurfaceY = surface ? surface.point.y : 0;
+  globalThis.__mpfbCharacterQA.supportSurfaceY = candidateSurfaceY;
+  const forward = new THREE.Vector3(0,0,1).applyQuaternion(actorRotation);
+  const legs = ['l','r'].map(side => {
+    const thigh=bones['thigh_'+side].bone, calf=bones['calf_'+side].bone, foot=bones['foot_'+side].bone;
+    const hip=thigh.getWorldPosition(new THREE.Vector3()), knee=calf.getWorldPosition(new THREE.Vector3()), ankle=foot.getWorldPosition(new THREE.Vector3());
+    return {side,thigh,calf,foot,ankle,rotation:foot.getWorldQuaternion(new THREE.Quaternion()),upper:hip.distanceTo(knee),lower:knee.distanceTo(ankle)};
+  });
+  const arms = ['l','r'].map(side => {
+    const thigh=bones['upperarm_'+side].bone,calf=bones['lowerarm_'+side].bone,foot=bones['hand_'+side].bone;
+    const shoulder=thigh.getWorldPosition(new THREE.Vector3()),elbow=calf.getWorldPosition(new THREE.Vector3()),wrist=foot.getWorldPosition(new THREE.Vector3());
+    return {side,thigh,calf,foot,pole:forward.clone().negate(),upper:shoulder.distanceTo(elbow),lower:elbow.distanceTo(wrist)};
+  });
+  function aimBone(bone, child, target) {
+    const origin=bone.getWorldPosition(new THREE.Vector3());
+    const current=child.getWorldPosition(new THREE.Vector3()).sub(origin).normalize();
+    const desired=target.clone().sub(origin).normalize();
+    const q=bone.getWorldQuaternion(new THREE.Quaternion());
+    q.premultiply(new THREE.Quaternion().setFromUnitVectors(current,desired));
+    bone.quaternion.copy(bone.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(q));
+    bone.updateWorldMatrix(false,true);
+  }
+  function solveLeg(leg, target) {
+    const hip=leg.thigh.getWorldPosition(new THREE.Vector3());
+    const direction=target.clone().sub(hip); const d=Math.min(direction.length(),leg.upper+leg.lower-.0001); direction.normalize();
+    const along=(leg.upper*leg.upper-leg.lower*leg.lower+d*d)/(2*d);
+    const bend=Math.sqrt(Math.max(0,leg.upper*leg.upper-along*along));
+    const bendAxis=leg.pole||forward; const pole=bendAxis.clone().addScaledVector(direction,-bendAxis.dot(direction)).normalize();
+    const knee=hip.clone().addScaledVector(direction,along).addScaledVector(pole,bend);
+    aimBone(leg.thigh,leg.calf,knee); aimBone(leg.calf,leg.foot,target);
+    if (leg.rotation) leg.foot.quaternion.copy(leg.foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(leg.rotation));
+  }
+  let elapsed = 0;
+  updateMpfbCandidate = dt => {
+    const updateStart = performance.now();
+    elapsed += dt;
+    for (const b of Object.values(bones)) b.bone.quaternion.copy(b.rest);
+    const stride = mode === 'walk' ? Math.sin(elapsed*(2*Math.PI/1.25)) : 0;
+
+    rotate('spine_02',Z,.014+Math.sin(elapsed*1.7)*.008);
+    rotate('spine_03',X,(mode==='work'?.09:.012)+Math.sin(elapsed*2)*.008);
+    rotate('head',Z,-.065+Math.sin(elapsed*.8)*.012);
+    rotate('head',X,mode==='work'?.13:.02);
+    // Candidate-only support-foot correction: does not change world collision/grounding.
+    g.position.y = candidateBaseY - .018;
+    g.updateMatrixWorld(true);
+    for (const arm of arms) {
+      const target=arm.thigh.getWorldPosition(new THREE.Vector3());
+      target.y-=(arm.upper+arm.lower)*(mode==='work'?(arm.side==='r'?.65:.82):(arm.side==='l'?.89:.94));
+      target.addScaledVector(X,arm.side==='l'?.03:-.03).addScaledVector(forward,(mode==='work'?(arm.side==='r'?.24:.12):(arm.side==='l'?.11:.035))+(mode==='walk'?stride*(arm.side==='l'?-.085:.085):0));
+      solveLeg(arm,target);
+    }
+    for (const leg of legs) {
+      const phase=(elapsed/1.25+(leg.side==='l'?0:.5))%1;
+      let travel=leg.side==='l'?.028:-.02,lift=0;
+      if (mode==='walk') {
+        if (phase<.6) travel=.15-.30*phase/.6;
+        else { const t=(phase-.6)/.4;travel=-.15+.30*t*t*(3-2*t);lift=.065*Math.sin(Math.PI*t); }
+      }
+      const target=leg.ankle.clone().addScaledVector(forward,travel).addScaledVector(X,leg.side==='l'?-.045:.045);target.y+=lift;
+      solveLeg(leg,target);
+    }
+    g.updateMatrixWorld(true);
+    let lowest = Infinity;
+    for (const sample of soleSamples) for (const corner of sample.corners) {
+      lowest = Math.min(lowest,solePoint.copy(corner).applyMatrix4(sample.bone.matrixWorld).y);
+    }
+    if (Number.isFinite(lowest)) g.position.y += candidateSurfaceY - lowest;
+    globalThis.__mpfbCharacterQA.supportFootCorrection = Number.isFinite(lowest) ? candidateSurfaceY-lowest : null;
+    const updateMs = performance.now()-updateStart;
+    const qa = globalThis.__mpfbCharacterQA;
+    qa.updateMs = updateMs;
+    qa.updateTotalMs = (qa.updateTotalMs || 0) + updateMs;
+    qa.animationFrame++;
+  };
+  updateMpfbCandidate(0);
+  const badge = document.createElement('div');
+  badge.id = 'mpfbCandidateStatus';
+  badge.style.cssText = 'position:fixed;left:14px;bottom:14px;padding:7px 10px;background:#13202ddd;color:#fff;font:13px sans-serif;z-index:20;pointer-events:none';
+  badge.textContent = 'MPFB V4 level-2 candidate · procedural ' + mode + ' · CC0 core + project PPE';
+  document.body.appendChild(badge);
+}
+
 /* 判頭 + 白帽 + 工友 */
 const boss = makeHuman({ vest: true, helmet: 0xd03030, pants: 0x333, boots: 0x222, shirt: 0x8a5a2a });
 boss.g.position.set(GATE[0] + Math.cos(GATE_DIR_IN) * 4, 0, GATE[1] + Math.sin(GATE_DIR_IN) * 4);
 boss.g.rotation.y = GATE_DIR_IN + Math.PI;
 scene.add(boss.g);
 const bossLabel = makeSpriteLabel("老陳", "#ffd76e", 2.6); bossLabel.position.y = 2.25; boss.g.add(bossLabel);
+
+/* CC0 legal-candidate audition: one isolated test NPC only, never replaces workers. */
+let legalCharacterTestActor = null;
+if (typeof LEGAL_CHARACTER_TEST !== "undefined" && LEGAL_CHARACTER_TEST) {
+  try {
+    const h = makeHumanGLB({ vest: true, vestColor: "#2e9b68", vestLabel: "CC0 TEST", helmet: 0xffd23a, shirt: 0x4b5563, pants: 0x26364f, boots: 0x33261b }, LEGAL_CHARACTER_TEST);
+    const lx = GATE[0] + Math.cos(GATE_DIR_IN) * 7 + 3, lz = GATE[1] + Math.sin(GATE_DIR_IN) * 7 + 2;
+    h.g.position.set(lx, 0, lz);
+    const label = makeSpriteLabel("CC0 測試角色", "#8ef0a0", 1.9); label.position.y = 2.2; h.g.add(label);
+    scene.add(h.g);
+    legalCharacterTestActor = { h, x: lx, z: lz, heading: GATE_DIR_IN + Math.PI };
+    window.__legalCharacterStatus = "spawned";
+  } catch (e) {
+    window.__legalCharacterStatus = "fallback: " + (e.message || e);
+    console.warn("legal candidate 測試角色失敗:", e);
+  }
+} else if (typeof __legalCharacterRequested !== "undefined" && __legalCharacterRequested) {
+  window.__legalCharacterStatus = "fallback";
+}
 
 const officers = [];
 function spawnOfficer(nearX, nearZ) {
@@ -1243,6 +1974,18 @@ spawnWorker(PIT.x + 9, PIT.z + 6, { human: { vest: true, helmet: 0x2a5ad0, shirt
 spawnWorker(MAIN_SITE.c[0] - 6, MAIN_SITE.c[1] + 8, { human: { vest: true, vestColor: "#e6e9ee", vestLabel: "安全督導", helmet: 0x2a9a4a, pants: 0x38404e, clipboard: true, boots: 0x2a2a2a }, label: "安全督導員", labelColor: "#ffffff" });
 spawnWorker(MAIN_SITE.c[0] + 10, MAIN_SITE.c[1] + 2, { helmet: 0xffd23a, label: "雜工" });
 spawnWorker(MAIN_SITE.c[0] - 4, MAIN_SITE.c[1] + 14, { helmet: 0xffd23a, label: "雜工" });
+// V3 character audition in the real MAIN_SITE scene (feature flag only).
+if (new URLSearchParams(location.search).get('v3chars') === '1') {
+  const v3 = [
+    { label: 'V3 男工 A', profile: { style: 'beard', height: 1.02, shoulder: 1.08, torsoDepth: 1.04, hip: 1.02, hipDepth: 1.0, legWidth: 1.0, legDepth: 1.0, head: 1.0, hair: 1.0 }, sex: 'M', helmet: 0xffd23a, vestColor: '#ed6810' },
+    { label: 'V3 男工 B', profile: { style: 'plain', height: .98, shoulder: 1.28, torsoDepth: 1.16, hip: 1.18, hipDepth: 1.12, legWidth: 1.18, legDepth: 1.12, head: 1.08, hair: .8 }, sex: 'M', helmet: 0xffd23a, vestColor: '#f28b16' },
+    { label: 'V3 女工 A', profile: { style: 'bun', height: .92, shoulder: .86, torsoDepth: .92, hip: 1.18, hipDepth: 1.08, legWidth: .9, legDepth: .9, head: .98, hair: 1.35 }, sex: 'F', helmet: 0xffd23a, vestColor: '#e56c18' },
+    { label: 'V3 女工 B', profile: { style: 'plain', height: .88, shoulder: .76, torsoDepth: .86, hip: 1.28, hipDepth: 1.15, legWidth: .84, legDepth: .86, head: 1.06, hair: 1.55 }, sex: 'F', helmet: 0xffd23a, vestColor: '#e56c18' },
+    { label: 'V3 老工', profile: { style: 'elderM', height: .94, shoulder: .98, torsoDepth: 1.14, hip: 1.08, hipDepth: 1.12, legWidth: .92, legDepth: 1.08, head: 1.14, hair: .7 }, sex: 'M', helmet: 0xffd23a, vestColor: '#d86716' },
+    { label: 'V3 老女工', profile: { style: 'elderF', height: .87, shoulder: .82, torsoDepth: 1.08, hip: 1.16, hipDepth: 1.12, legWidth: .86, legDepth: 1.05, head: 1.12, hair: 1.2 }, sex: 'F', helmet: 0xffd23a, vestColor: '#d86716' }
+  ];
+  v3.forEach((d, i) => spawnWorker(MAIN_SITE.c[0] - 10 + (i % 3) * 3.2, MAIN_SITE.c[1] + 18 + Math.floor(i / 3) * 3, { human: { ...d, vest: true, pants: 0x243553, boots: 0x4a2e1a }, label: d.label, labelColor: '#fff' }));
+}
 
 /* 街景行人(路人,唔戴帽) */
 const peds = [];
@@ -1331,13 +2074,13 @@ function setMarker(x, z) {
   if (x === null) { marker.visible = false; M.target = null; return; }
   M.target = [x, z]; marker.visible = true; marker.position.set(x, 8, z);
 }
-/* 任務旗幟 + 箭嘴 */
+/* 任務旗幟 + 箭嘴 — P10.5:halo 縮細+低透明(低調 world marker,唔蓋場景) */
 const marker = new THREE.Group();
 {
-  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 16, 20, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: .3, side: THREE.DoubleSide }));
-  cyl.position.y = 8; marker.add(cyl);
-  const ring = new THREE.Mesh(new THREE.RingGeometry(2.2, 2.8, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: .7, side: THREE.DoubleSide }));
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 14, 18, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0xffb03a, transparent: true, opacity: .14, side: THREE.DoubleSide, depthWrite: false }));
+  cyl.position.y = 7; marker.add(cyl);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.5, 1.9, 24), new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: .38, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .15; marker.add(ring);
   marker.userData.ring = ring;
 }
@@ -1636,6 +2379,7 @@ addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
   start() {
     const rp = roadPts.filter(p => d2(p[0], p[1], GATE[0], GATE[1]) > 260 && d2(p[0], p[1], GATE[0], GATE[1]) < 420);
     M.data.dump = rp.length ? rp[randi(0, rp.length - 1)] : [GATE[0] + 300, GATE[1]];
+    if (playerTruck.cargo) { playerTruck.cargo.visible = true; playerTruck.cargo.scale.setScalar(1); playerTruck.cargo.position.y = 0; } // TASK D:任務開始重新載貨
     M.data.tarp = false; M.data.washed = false; M.data.exited = false;
     /* 帆布 */
     if (!playerTruck.tarp) {
@@ -1678,7 +2422,8 @@ addMission({ // 4 開斗車(環保版:蓋帆布+洗車轆)
     if (!player.inTruck && !M.data.tarp) setMarker(t.x, t.z);
     else if (!M.data.washed && player.inTruck) setMarker(M.data.washPos[0], M.data.washPos[1]);
     else setMarker(M.data.dump[0], M.data.dump[1]);
-    if (d2(t.x, t.z, M.data.dump[0], M.data.dump[1]) < 8 && player.inTruck && M.data.tarp && M.data.washed) this.done();
+    /* TASK D:任務完成必須經完整卸料流程(BED→TAILGATE→DUMP→LOWER→CLOSE→COMPLETE),揸入範圍唔算 */
+    if (UNLOAD.justCompleted) { UNLOAD.justCompleted = false; this.done(); }
   },
   done() {
     nextMission();
@@ -1737,15 +2482,34 @@ function collide(px, pz, r) {
       x = c.x + lx * cos + lz * sin; z = c.z - lx * sin + lz * cos;
     }
   }
-  // 圍板:主地盤邊界(大門除外)
-  for (const zonePts of [MAIN_SITE.pts]) {
-    for (let i = 0; i < zonePts.length; i++) {
-      if (i === GATE[2]) continue;
-      const [ax, az] = zonePts[i], [bx, bz] = zonePts[(i + 1) % zonePts.length];
-      const dd = distToSeg(x, z, ax, az, bx, bz);
+  // 圍板(P1):主地盤邊界 — 每條 edge 只喺 opening 闊度內留口,同視覺圍板共用數據。
+  // 行人閘:開口(siteGuard 全周界守衛負責未 admitted 擋人)。
+  // 車閘:行人/其他物體視為實體;泥頭車 12m 內 barrier 升起先可以過。
+  const vehGate = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const vehSolid = vehGate && !vehicleGateOpen();
+  for (let i = 0; i < MAIN_SITE.pts.length; i++) {
+    const [ax, az] = MAIN_SITE.pts[i], [bx, bz] = MAIN_SITE.pts[(i + 1) % MAIN_SITE.pts.length];
+    const L = Math.hypot(bx - ax, bz - az);
+    // 沿 edge 切出實體 subsegments(0..t0, t1..L...)
+    const cuts = [];
+    for (const o of MAIN_OPENINGS.list) {
+      if (o.edge !== i) continue;
+      if (o.type === "vehicle" && vehSolid) continue; // 車閘閂住:成段照撞
+      cuts.push([Math.max(0, o.t0), Math.min(L, o.t1)]);
+    }
+    cuts.sort((a, b) => a[0] - b[0]);
+    const segs = [];
+    let cur = 0;
+    for (const [s0, s1] of cuts) { if (s0 > cur) segs.push([cur, s0]); cur = Math.max(cur, s1); }
+    if (cur < L) segs.push([cur, L]);
+    for (const [s0, s1] of segs) {
+      if (s1 - s0 < .05) continue;
+      const sx = lerp(ax, bx, s0 / L), sz = lerp(az, bz, s0 / L), ex = lerp(ax, bx, s1 / L), ez = lerp(az, bz, s1 / L);
+      const dd = distToSeg(x, z, sx, sz, ex, ez);
       if (dd < r + .35 && dd > 1e-6) {
-        const t = ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / Math.max((bx - ax) ** 2 + (bz - az) ** 2, 1e-9);
-        const gx = lerp(ax, bx, clamp(t, 0, 1)), gz = lerp(az, bz, clamp(t, 0, 1));
+        const sl2 = (ex - sx) ** 2 + (ez - sz) ** 2;
+        const t = ((x - sx) * (ex - sx) + (z - sz) * (ez - sz)) / Math.max(sl2, 1e-9);
+        const gx = lerp(sx, ex, clamp(t, 0, 1)), gz = lerp(sz, ez, clamp(t, 0, 1));
         const dl = Math.hypot(x - gx, z - gz) || 1;
         x = gx + (x - gx) / dl * (r + .36); z = gz + (z - gz) / dl * (r + .36);
       }
@@ -1867,7 +2631,11 @@ function nearestInteract() {
 }
 function doInteract() {
   if (dlgActive) { dlgNext(); return; }
-  if (player.inTruck) { toggleTruck(); return; }
+  if (player.inTruck) { // TASK D:卸料區內 E = 卸料;否則落車
+    const cu = canUnload();
+    if (cu.ok) { startUnload(cu.zone); return; }
+    toggleTruck(); return;
+  }
   const it = nearestInteract();
   if (it) { sClick(); it.action(); return; }
   if (_nearNpc) { // 同NPC傾偈(情緒+TTS)
@@ -1895,6 +2663,8 @@ function dropItem() {
   }
 }
 function toggleTruck() {
+  if (playerTruck.unloading) { toast("🚛 卸料中 — 完成後先可以落車"); return; } // TASK D
+
   if (!player.inTruck) {
     if (M.idx < 4) { violate(2, "偷開斗車!?未經授權操作機械", 100, "未經授權操作機械"); }
     player.inTruck = true; player.h.g.visible = false; engineStart(); toast("上咗斗車 (E 落車)");
@@ -1906,9 +2676,168 @@ function toggleTruck() {
     player.h.g.visible = true; toast("落咗車");
   }
 }
+/* ========== TASK D:卸料狀態機 DRIVING→ALIGNING→PARKED→HANDBRAKE_ON→BED_RAISING→TAILGATE_OPENING→MATERIAL_DUMPING→BED_LOWERING→TAILGATE_CLOSING→COMPLETE ========== */
+const UNLOAD = { state: "IDLE", t: 0, bedA: 0, zone: null, forMission: false, justCompleted: false, dumpPoint: null, pile: null, piles: [], debris: null, debrisData: null, hazard: false, _hydT: 0 };
+function unloadZones() {
+  const zs = [];
+  const uz = SITE_ZONES.find(z => /卸貨/.test(z.name));
+  if (uz) zs.push({ x: uz.x, z: uz.z, r: 11, free: true });
+  if (M.data && M.data.dump && M.idx === 4) zs.push({ x: M.data.dump[0], z: M.data.dump[1], r: 9, mission: true });
+  return zs;
+}
+function canUnload() {
+  const t = playerTruck;
+  if (UNLOAD.state !== "IDLE" || !player.inTruck) return { ok: false };
+  const spd = Math.abs(t.v);
+  for (const zn of unloadZones()) {
+    const d = d2(t.x, t.z, zn.x, zn.z);
+    if (d < zn.r) {
+      if (spd > .4) return { ok: false, inZone: true, msg: "請將泥頭車停泊於卸料區內(停定)" };
+      if (zn.mission && !(M.data.tarp && M.data.washed)) return { ok: false, inZone: true, msg: "未蓋帆布/未洗車 — 唔可以卸料" };
+      if (d > 5) {
+        const want = Math.atan2(zn.z - t.z, zn.x - t.x);
+        const dd = Math.abs(((want - t.heading) % (Math.PI * 2) + Math.PI * 3) % (Math.PI * 2) - Math.PI);
+        if (dd > 1.0) return { ok: false, inZone: true, msg: "請將泥頭車停泊於卸料區內" };
+      }
+      if (!t.cargo || !t.cargo.visible) return { ok: false, inZone: true, msg: "車斗已空 — 冇料可卸" };
+      return { ok: true, zone: zn };
+    }
+  }
+  return { ok: false };
+}
+function sHyd(up) { try { if (AU.ctx && !AU.muted) beep(up ? 95 : 78, .4, "sawtooth", .12); } catch (e) {} }
+function sGravel() { try { if (AU.ctx && !AU.muted && Math.random() < .5) beep(42 + Math.random() * 20, .06, "square", .05); } catch (e) {} }
+function startUnload(zone) {
+  const t = playerTruck;
+  UNLOAD.state = "PARKED"; UNLOAD.t = 0; UNLOAD.bedA = 0; UNLOAD.zone = zone;
+  UNLOAD.forMission = !!zone.mission; UNLOAD.justCompleted = false; UNLOAD.hazard = false;
+  UNLOAD.dumpPoint = [t.x - Math.cos(t.heading) * 4.4, t.z - Math.sin(t.heading) * 4.4];
+  t.unloading = true; t.v = 0;
+  toast("🚛 停妥 · 準備卸料"); sClick();
+}
+function unloadDebrisInit() {
+  if (UNLOAD.debris) return;
+  const geo = new THREE.BoxGeometry(.14, .1, .12);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x6b4f2e, roughness: 1 });
+  UNLOAD.debris = new THREE.InstancedMesh(geo, mat, 120);
+  UNLOAD.debris.frustumCulled = false; scene.add(UNLOAD.debris);
+  UNLOAD.debrisData = { pos: [], vel: [], live: [] };
+  const Mm = new THREE.Matrix4();
+  for (let i = 0; i < 120; i++) { Mm.makeScale(0, 0, 0); UNLOAD.debris.setMatrixAt(i, Mm); UNLOAD.debrisData.live.push(false); UNLOAD.debrisData.pos.push([0, 0, 0]); UNLOAD.debrisData.vel.push([0, 0, 0]); }
+}
+function unloadSpawnDebris(n) {
+  const t = playerTruck, dd = UNLOAD.debrisData;
+  t.bedPivot.updateMatrixWorld(true);
+  const w = t.bedPivot.localToWorld(new THREE.Vector3(-.05, .55, 0));
+  for (let k = 0; k < n; k++) {
+    const i = dd.live.findIndex(l => !l);
+    if (i < 0) return;
+    dd.live[i] = true;
+    dd.pos[i] = [w.x + rand(-.5, .5), w.y, w.z + rand(-.9, .9)];
+    const back = t.heading + Math.PI;
+    dd.vel[i] = [Math.cos(back) * rand(1.5, 3.5) + rand(-.6, .6), rand(.2, 1.4), Math.sin(back) * rand(1.5, 3.5) + rand(-.6, .6)];
+  }
+}
+function unloadPileEnsure() {
+  if (!UNLOAD.pile || UNLOAD.pile.g.position.x !== UNLOAD.dumpPoint[0]) {
+    const g2 = new THREE.Group();
+    const m1 = new THREE.MeshStandardMaterial({ color: 0x63482a, roughness: 1 });
+    const m2 = new THREE.MeshStandardMaterial({ color: 0x74573a, roughness: 1 });
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.05, 9), m1); c1.position.y = .5;
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(1.05, .7, 8), m2); c2.position.set(.25, 1.2, -.2); c2.rotation.y = .6;
+    g2.add(c1, c2);
+    g2.scale.setScalar(.12);
+    g2.position.set(UNLOAD.dumpPoint[0], 0, UNLOAD.dumpPoint[1]);
+    scene.add(g2);
+    const col = { x: UNLOAD.dumpPoint[0], z: UNLOAD.dumpPoint[1], hw: 2, hd: 2, rot: 0, minx: UNLOAD.dumpPoint[0] - 2, maxx: UNLOAD.dumpPoint[0] + 2, minz: UNLOAD.dumpPoint[1] - 2, maxz: UNLOAD.dumpPoint[1] + 2, _pile: true };
+    colliders.push(col);
+    UNLOAD.pile = { g: g2, col };
+    UNLOAD.piles.push(UNLOAD.pile);
+    while (UNLOAD.piles.length > 2) { // 防無限增長
+      const old = UNLOAD.piles.shift();
+      scene.remove(old.g);
+      const ix = colliders.indexOf(old.col); if (ix >= 0) colliders.splice(ix, 1);
+    }
+  }
+}
+function unloadTick(dt) {
+  const U = UNLOAD, t = playerTruck;
+  if (U.state === "IDLE") { /* 碎石都繼續積分到落地 */ }
+  else U.t += dt;
+  const ease = k => k * k * (3 - 2 * k);
+  if (U.state !== "IDLE") switch (U.state) {
+    case "PARKED": if (U.t >= .5) { U.state = "HANDBRAKE_ON"; U.t = 0; U.hazard = true; toast("🅿️ 手掣 + 指揮燈"); } break;
+    case "HANDBRAKE_ON": if (U.t >= .5) { U.state = "BED_RAISING"; U.t = 0; sHyd(true); } break;
+    case "BED_RAISING": {
+      const k = Math.min(1, U.t / 3.0);
+      U.bedA = ease(k) * (46 * Math.PI / 180);
+      t.bedPivot.rotation.z = U.bedA;
+      t.updateHoist(U.bedA);
+      if (U.t > .3 && Math.floor(U.t * 5) !== U._hydT) { U._hydT = Math.floor(U.t * 5); sHyd(true); }
+      if (k >= 1) { U.state = "TAILGATE_OPENING"; U.t = 0; }
+      break;
+    }
+    case "TAILGATE_OPENING": {
+      const k = Math.min(1, U.t / .45);
+      t.tailgatePivot.rotation.z = -1.25 * ease(k);
+      if (k >= 1) { U.state = "MATERIAL_DUMPING"; U.t = 0; unloadDebrisInit(); unloadPileEnsure(); }
+      break;
+    }
+    case "MATERIAL_DUMPING": {
+      unloadSpawnDebris(3); sGravel();
+      const k = Math.min(1, U.t / 3.2);
+      t.cargo.scale.setScalar(Math.max(.001, 1 - k));
+      t.cargo.position.y = -k * .5;
+      U.pile.g.scale.setScalar(.12 + ease(k) * .88);
+      if (k >= 1) { U.state = "BED_LOWERING"; U.t = 0; t.cargo.visible = false; sHyd(false); }
+      break;
+    }
+    case "BED_LOWERING": {
+      const k = Math.min(1, U.t / 2.4);
+      U.bedA = (1 - ease(k)) * (46 * Math.PI / 180);
+      t.bedPivot.rotation.z = U.bedA;
+      t.updateHoist(U.bedA);
+      if (k >= 1) { U.state = "TAILGATE_CLOSING"; U.t = 0; }
+      break;
+    }
+    case "TAILGATE_CLOSING": {
+      const k = Math.min(1, U.t / .5);
+      t.tailgatePivot.rotation.z = -1.25 * (1 - ease(k));
+      if (k >= 1) { U.state = "COMPLETE"; U.t = 0; }
+      break;
+    }
+    case "COMPLETE":
+      U.hazard = false; t.unloading = false;
+      toast("✅ 卸料完成");
+      if (U.forMission) U.justCompleted = true;
+      U.state = "IDLE";
+      break;
+  }
+  if (U.debris && U.debrisData.live.some(l => l)) {
+    const dd = U.debrisData, Mm = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(1, 1, 1), P = new THREE.Vector3();
+    let dirty = false;
+    for (let i = 0; i < 120; i++) {
+      if (!dd.live[i]) continue;
+      dd.vel[i][1] -= 9.8 * dt;
+      dd.pos[i][0] += dd.vel[i][0] * dt; dd.pos[i][1] += dd.vel[i][1] * dt; dd.pos[i][2] += dd.vel[i][2] * dt;
+      if (dd.pos[i][1] <= .05) { dd.live[i] = false; Mm.makeScale(0, 0, 0); U.debris.setMatrixAt(i, Mm); }
+      else { P.set(dd.pos[i][0], dd.pos[i][1], dd.pos[i][2]); Mm.compose(P, Q, S); U.debris.setMatrixAt(i, Mm); }
+      dirty = true;
+    }
+    if (dirty) U.debris.instanceMatrix.needsUpdate = true;
+  }
+  if (U.hazard) {
+    const on = Math.floor(performance.now() / 220) % 2 === 0;
+    t.tailLamps.forEach(l => l.material.emissiveIntensity = on ? 1.8 : .1);
+  } else if (t.tailLamps.length && t.tailLamps[0].material.emissiveIntensity !== .6) {
+    t.tailLamps.forEach(l => l.material.emissiveIntensity = .6);
+  }
+}
+
 function truckDrive(dt) {
   if (!player.inTruck) return;
   let thr = 0, steer = 0;
+  if (playerTruck.unloading) { thr = 0; steer = 0; playerTruck.v *= Math.pow(.001, dt); } // TASK D:卸料鎖車
   if (keys.KeyW || keys.ArrowUp) thr = 1;
   if (keys.KeyS || keys.ArrowDown) thr = -1;
   if (keys.KeyA || keys.ArrowLeft) steer = 1;
@@ -1930,7 +2859,7 @@ function truckDrive(dt) {
     if (nearOff) { t._dustT = performance.now(); violate(1, "未有妥善控制塵埃", 150, "空氣污染管制 $20,000"); }
   }
   t.g.position.set(t.x, 0, t.z); t.g.rotation.y = t.heading;
-  t.wheels.forEach(w => w.rotation.x -= t.v * dt * 1.8);
+  t.wheels.forEach(w => w.rotation.z -= t.v * dt * 1.8);
   t.beacon.material.color.setHex(Math.floor(performance.now() / 300) % 2 ? 0xffaa20 : 0x552200);
   engineSpeed(t.v);
   if (thr < 0 && t.v < -.5 && Math.floor(performance.now() / 1100) !== t._beepT) { t._beepT = Math.floor(performance.now() / 1100); sRev(); }
@@ -2032,9 +2961,14 @@ function busted() {
 
 /* ---------- 工友 ---------- */
 function updateWorkers(dt) {
+  const frame = (window.__animF = (window.__animF || 0) + 1); // P9.3:round-robin 動畫分批
   for (const w of workers) {
     if (w.injured) continue;
-    if (w.stationary) { w.h.animate(dt,0); continue; }
+    const far = d2(w.x, w.z, player.x, player.z) > 60;
+    if (w._rr0 === undefined) w._rr0 = randi(0, 2);
+    const anim = !far || ((frame + w._rr0) % 3 === 0); // 遠角每3幀輪到一次,dt×3補償
+    const adt = far ? dt * 3 : dt;
+    if (w.stationary) { if (anim) w.h.animate(adt, 0); continue; }
     if (d2(w.x, w.z, player.x, player.z) > 130) { w.h.g.visible = false; continue; }
     w.h.g.visible = true;
     w.t -= dt;
@@ -2050,12 +2984,20 @@ function updateWorkers(dt) {
         w.heading = angLerp(w.heading, a, 1 - Math.pow(.001, dt));
         let nx = w.x + Math.cos(w.heading) * 1.1 * dt, nz = w.z + Math.sin(w.heading) * 1.1 * dt;
         [nx, nz] = collide(nx, nz, .4); w.x = nx; w.z = nz;
-        w.h.animate(dt, 1.1);
+        if (anim) w.h.animate(adt, 1.1);
       }
-    } else w.h.animate(dt, 0);
+    } else if (anim) w.h.animate(adt, 0);
     w.h.g.position.set(w.x, 0, w.z);
     w.h.g.rotation.y = -w.heading + Math.PI / 2;
   }
+}
+
+function updateLegalCharacterTest(dt) {
+  if (!legalCharacterTestActor) return;
+  const a = legalCharacterTestActor;
+  a.h.animate(dt, 0);
+  a.h.g.position.set(a.x, 0, a.z);
+  a.h.g.rotation.y = -a.heading + Math.PI / 2;
 }
 
 /* ---------- 危險源 ---------- */
@@ -2160,7 +3102,7 @@ function updateHazards(dt) {
       if (t.timer <= 0) { t.mode = "drive"; t.wp = 0; t.v = 0; }
     }
     t.g.position.set(t.x, 0, t.z); t.g.rotation.y = t.heading;
-    t.wheels.forEach(w => w.rotation.x -= t.v * dt * 1.8);
+    t.wheels.forEach(w => w.rotation.z -= t.v * dt * 1.8);
     if (d2(t.x, t.z, player.x, player.z) < 3 && player.invuln <= 0) {
       damage(45, "俾泥頭車撞到!(-45) 佢倒緊車,聽到「比比」聲要讓開!");
       player.x += rand(-4, 4); player.z += rand(-4, 4);
@@ -2432,7 +3374,14 @@ function updateHUD(dt) {
     const it = nearestInteract();
     if (it) { $("hint").style.display = "block"; $("hint").textContent = `[E] ${it.label}`; }
     else $("hint").style.display = "none";
-  } else if (player.inTruck) { $("hint").style.display = "block"; $("hint").textContent = "[E] 落車 · WASD揸車"; }
+  } else if (player.inTruck) {
+    $("hint").style.display = "block";
+    const cu = canUnload(); // TASK D
+    if (cu.ok) $("hint").textContent = "[E] 開始卸料";
+    else if (cu.inZone && cu.msg) $("hint").textContent = cu.msg;
+    else if (UNLOAD.state !== "IDLE") $("hint").textContent = "🚛 卸料中…";
+    else $("hint").textContent = "[E] 落車 · WASD揸車";
+  }
   else $("hint").style.display = "none";
   // 距離
   if (M.target) {
@@ -2458,13 +3407,15 @@ function renderScene() {
   camera.updateMatrixWorld();
   const pos = new THREE.Vector3();
   const factor = 2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / Math.max(innerHeight, 1);
-  for (const label of worldLabels) {
+  if (!(window.__iso && window.__iso.labels)) for (const label of worldLabels) { // P9.3 隔離開關
     label.getWorldPosition(pos);
     const distance = camera.position.distanceTo(pos);
+    /* P10.5:標籤距離裁剪 — >32m 淡出,>42m 隱藏;近距離先顯示 */
+    if (distance > 32) { label.material.opacity = Math.max(0, 1 - (distance - 32) / 10); if (distance > 42) { label.material.opacity = 0; continue; } }
+    else label.material.opacity = THREE.MathUtils.clamp((distance - 2.5) / 3, 0, 1);
     const aspect = label.userData.labelAspect;
     const size = Math.min(label.userData.labelSize * .65, distance * factor * 28, distance * factor * 200 / aspect);
     label.scale.set(size * aspect, size, 1);
-    label.material.opacity = THREE.MathUtils.clamp((distance - 2.5) / 3, 0, 1);
   }
   renderer.render(scene, camera);
 }
@@ -2515,12 +3466,29 @@ function buildGatehouse() {
   }
   const roof = new THREE.Mesh(new THREE.BoxGeometry(5.6, .18, 8.6), wallM);
   roof.position.y = 2.72; roof.castShadow = true; house.add(roof);
+  /* P10.2:結構柱+屋簷邊(drip edge) */
+  for (const [sx, sz] of [[-2.6, -3.9], [-2.6, 3.9], [2.6, -3.9], [2.6, 3.9]]) {
+    const col = new THREE.Mesh(new THREE.BoxGeometry(.24, 2.6, .24), new THREE.MeshLambertMaterial({ color: 0x8a9096 }));
+    col.position.set(sx, 1.3, sz); col.castShadow = true; house.add(col);
+  }
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(5.8, .12, .22), blueM);
+  edge.position.set(0, 2.66, 4.32); house.add(edge);
+  const edge2 = edge.clone(); edge2.position.z = -4.32; house.add(edge2);
   const armM = new THREE.MeshLambertMaterial({ color: 0xb8bcc2 });
   for (let i = -1; i <= 1; i++) {
+    /* P10.1:stainless steel housing(圓角柱身)+底座plate+頂蓋,唔再係裸方柱 */
+    const steelM = new THREE.MeshStandardMaterial({ color: 0xb9bfc6, roughness: .28, metalness: .85 });
+    const darkM = new THREE.MeshStandardMaterial({ color: 0x2a2d32, roughness: .5, metalness: .4 });
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(.24, .26, 1.1, 12), steelM);
+    housing.position.set(i * 1.75, .55, 0); housing.castShadow = true; house.add(housing);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(.26, .24, .12, 12), darkM);
+    top.position.set(i * 1.75, 1.16, 0); house.add(top);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(.66, .06, .6), darkM);
+    base.position.set(i * 1.75, .03, 0); house.add(base);
     const post = new THREE.Mesh(new THREE.BoxGeometry(.55, 1.05, .5), new THREE.MeshLambertMaterial({ color: 0xa9b0b8 }));
-    post.position.set(i * 1.75, .52, 0); post.castShadow = true; house.add(post);
+    post.visible = false; house.add(post); // 舊方柱停用(保留結構避免index依賴)
     for (const a of [0, 2.09, 4.19]) {
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, 1.7, 6), armM);
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(.028, .028, 1.7, 8), armM);
       arm.rotation.z = Math.PI / 2; arm.rotation.y = a;
       arm.position.set(i * 1.75, 1.02, 0); house.add(arm);
     }
@@ -2539,7 +3507,403 @@ function buildGatehouse() {
   scene.add(house);
   colliders.push({ x: GATE[0] - pxv * 2.6, z: GATE[1] - pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
   colliders.push({ x: GATE[0] + pxv * 2.6, z: GATE[1] + pzv * 2.6, hw: .1, hd: 4, rot: Math.PI / 2 - GATE_DIR_IN, minx: 0, maxx: 0, minz: 0, maxz: 0 });
+  // P8c:三棍閘機身碰撞體(3條通道,行人要經通道行,唔可以穿機)
+  for (let i = -1; i <= 1; i++) {
+    const cx = GATE[0] + pxv * i * 1.75, cz = GATE[1] + pzv * i * 1.75;
+    colliders.push({ x: cx, z: cz, hw: .32, hd: .32, rot: 0, minx: cx - .5, maxx: cx + .5, minz: cz - .5, maxz: cz + .5 });
+  }
 }
+/* ========== P1:車輛閘門(visual barrier)+行人通道+周界 debug overlay ========== */
+const VEH_GATE = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+const vehGate3 = { group: null, arm: null, open: false, amt: 0 };
+{
+  const g = VEH_GATE;
+  if (g) {
+    const grp = new THREE.Group();
+    const postM = new THREE.MeshLambertMaterial({ color: 0x9aa0a8 });
+    const stripeM = new THREE.MeshLambertMaterial({ color: 0xd03030 });
+    const whiteM = new THREE.MeshLambertMaterial({ color: 0xf0f0f0 });
+    for (const s of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(.4, 1.5, .4), postM);
+      post.position.set(s * g.width / 2, .75, 0); post.castShadow = true; grp.add(post);
+      const lamp = new THREE.Mesh(new THREE.BoxGeometry(.3, .18, .3), new THREE.MeshLambertMaterial({ color: g.type === "vehicle" ? 0xff3030 : 0x30ff60 }));
+      lamp.position.set(s * g.width / 2, 1.62, 0); grp.add(lamp);
+    }
+    // 紅白格 barrier arm:局部 +x 沿閘口闊度,分 4 節紅白相間
+    const arm = new THREE.Group();
+    const segW = g.width / 6;
+    for (let i = 0; i < 6; i++) {
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(segW, .22, .14), i % 2 ? whiteM : stripeM);
+      seg.position.set(segW * (i + .5), 0, 0); seg.castShadow = true; arm.add(seg);
+    }
+    arm.position.set(-g.width / 2, 1.15, 0);
+    grp.add(arm);
+    const sign = canvasTex(384, 128, gg => { gg.fillStyle = "#1c3a6a"; gg.fillRect(0, 0, 384, 128); gg.fillStyle = "#ffe08a"; gg.font = "900 54px 'Microsoft JhengHei',sans-serif"; gg.textAlign = "center"; gg.fillText("車輛通道 · 慢駛", 192, 82); });
+    const sp = new THREE.Mesh(new THREE.PlaneGeometry(g.width * .8, 1), new THREE.MeshBasicMaterial({ map: sign, side: THREE.DoubleSide }));
+    sp.position.set(0, 2.6, 0); grp.add(sp);
+    grp.position.set(g.x, 0, g.z);
+    grp.rotation.y = -Math.atan2(g.uz, g.ux);
+    scene.add(grp);
+    vehGate3.group = grp; vehGate3.arm = arm;
+  }
+}
+function updateVehicleGate(dt) {
+  if (!vehGate3.arm) return;
+  const want = vehicleGateOpen();
+  if (want !== vehGate3.open) {
+    vehGate3.open = want;
+    if (AU.ctx && !AU.muted) beep(want ? 880 : 520, .18, "sine", .18);
+  }
+  vehGate3.amt = lerp(vehGate3.amt, want ? 1 : 0, 1 - Math.pow(.005, dt));
+  vehGate3.arm.rotation.z = vehGate3.amt * 1.15; // 升起
+}
+/* P8d:動態 shadow LOD — 角色/街車距玩家 >70m 閉投影(shadow pass 係主要成本) */
+let _shadowLODT = 0;
+function updateShadowLOD(now) {
+  if (now - _shadowLODT < 500) return; _shadowLODT = now;
+  const px = player.x, pz = player.z;
+  const groups = [];
+  for (const w of workers) groups.push(w.h.g);
+  for (const o of officers) groups.push(o.h.g);
+  for (const p of peds) groups.push(p.h.g);
+  for (const c of traffic) groups.push(c.g);
+  for (const g of groups) {
+    if (!g) continue;
+    const far = d2(g.position.x, g.position.z, px, pz) > 70;
+    if (g.userData._shOn === !far) continue;
+    g.userData._shOn = !far;
+    g.traverse(o => { if (o.isMesh) o.castShadow = !far; });
+  }
+}
+/* 行人通道(入閘後黃綠色帶+箭嘴,連接三棍閘→施工區) */
+{
+  const gd = GATE_DIR_IN;
+  const tex = canvasTex(128, 512, g => {
+    g.fillStyle = "#c8e090"; g.fillRect(0, 0, 128, 512);
+    g.fillStyle = "#3a6a1a"; for (let y = 40; y < 512; y += 128) { g.beginPath(); g.moveTo(64, y); g.lineTo(24, y + 46); g.lineTo(52, y + 46); g.lineTo(52, y + 84); g.lineTo(76, y + 84); g.lineTo(76, y + 46); g.lineTo(104, y + 46); g.closePath(); g.fill(); }
+  });
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 24), new THREE.MeshLambertMaterial({ map: tex }));
+  m.rotation.x = -Math.PI / 2; m.rotation.z = Math.PI / 2 - gd;
+  m.position.set(GATE[0] + Math.cos(gd) * 13, .06, GATE[1] + Math.sin(gd) * 13);
+  m.receiveShadow = true; scene.add(m);
+}
+/* 周界 debug overlay(?boundary=1 或撳 B):cyan=collision 實體段,yellow=開口 */
+let boundaryDebug = null, boundaryDebugOn = !!new URLSearchParams(location.search).get("boundary");
+function buildBoundaryDebug() {
+  if (boundaryDebug) { scene.remove(boundaryDebug); boundaryDebug.geometry.dispose(); boundaryDebug = null; }
+  if (!boundaryDebugOn) return;
+  const solid = [], open = [];
+  const vehSolid = !vehicleGateOpen();
+  for (let i = 0; i < MAIN_SITE.pts.length; i++) {
+    const [ax, az] = MAIN_SITE.pts[i], [bx, bz] = MAIN_SITE.pts[(i + 1) % MAIN_SITE.pts.length];
+    const L = Math.hypot(bx - ax, bz - az);
+    const cuts = [];
+    for (const o of MAIN_OPENINGS.list) {
+      if (o.edge !== i) continue;
+      if (o.type === "vehicle" && vehSolid) continue;
+      cuts.push([Math.max(0, o.t0), Math.min(L, o.t1)]);
+    }
+    cuts.sort((a, b) => a[0] - b[0]);
+    let cur = 0;
+    const segs = [];
+    for (const [s0, s1] of cuts) { if (s0 > cur) segs.push([cur, s0]); cur = Math.max(cur, s1); }
+    if (cur < L) segs.push([cur, L]);
+    const P = (arr, s0, s1) => arr.push(lerp(ax, bx, s0 / L), .35, lerp(az, bz, s0 / L), lerp(ax, bx, s1 / L), .35, lerp(az, bz, s1 / L));
+    for (const [s0, s1] of segs) P(solid, s0, s1);
+    for (const [s0, s1] of cuts) P(open, s0, s1);
+  }
+  const grp = new THREE.Group();
+  const mk = (arr, color) => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3)); grp.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color }))); };
+  mk(solid, 0x22ffee); mk(open, 0xffee22);
+  boundaryDebug = grp; scene.add(grp);
+}
+buildBoundaryDebug();
+addEventListener("keydown", e => { if (e.code === "KeyB") { boundaryDebugOn = !boundaryDebugOn; buildBoundaryDebug(); } });
+
+/* ========== P3:閘口示範街景(只影響閘前 ~55m + 閘內第一段,遠景保留 InstancedMesh) ========== */
+function buildDemoStreet() {
+  const ped = MAIN_OPENINGS.list.find(o => o.type === "pedestrian"), veh = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const { ax, az, ux, uz, edgeLen } = MAIN_OPENINGS;
+  let nx = MAIN_SITE.c[0] - (ax + ux * edgeLen / 2), nz = MAIN_SITE.c[1] - (az + uz * edgeLen / 2); // 邊中點→質心 = 內側法線
+  const nl = Math.hypot(nx, nz) || 1; nx /= nl; nz /= nl;
+  const rp = nearestRoadPt(ped.x, ped.z);
+  const gap = rp ? Math.max(1.2, Math.hypot(ped.x - rp[0], ped.z - rp[1]) - rp[2] / 2 - .2) : 3.2; // 圍板→路邊距離
+  const tA = Math.max(2, ped.t0 - 26), tB = Math.min(edgeLen - 2, veh.t1 + 14);
+  const P = t => [ax + ux * t, az + uz * t];
+  const len = tB - tA, mid = (tA + tB) / 2, [mx, mz] = P(mid);
+  const rotY = -Math.atan2(uz, ux);
+  /* 行人路 + 引路磚 + kerb — P4:CC0 concrete PBR,米制 scale(1 tile = 4m) */
+  const swW = Math.min(4, gap + .8);
+  const TL = new THREE.TextureLoader();
+  const pbr = (base, w, h, tile) => {
+    // P8a:只有 Color 用 sRGB;Normal/Roughness 係線性資料圖,唔可以錯當 sRGB
+    const mk = (suf, srgb) => { const t = TL.load("assets/textures/" + base + "_" + suf + ".jpg"); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(w / tile, h / tile); t.anisotropy = 4; if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; };
+    return { map: mk("Color", true), roughnessMap: mk("Roughness", false), normalMap: mk("NormalGL", false) };
+  };
+  const sw = new THREE.Mesh(new THREE.PlaneGeometry(len, swW), new THREE.MeshStandardMaterial({ ...pbr("Concrete034_1K-JPG", len, swW, 4), roughness: 1 }));
+  sw.rotation.x = -Math.PI / 2; sw.rotation.z = rotY + Math.PI / 2;
+  sw.position.set(mx - nx * (swW / 2 - .1), .15, mz - nz * (swW / 2 - .1)); sw.receiveShadow = true; scene.add(sw);
+  /* P4:demo 路面 asphalt 覆蓋層(有 UV,米制 scale 1 tile = 5m) */
+  {
+    const rd = rp ? Math.hypot(ped.x - rp[0], ped.z - rp[1]) : 5, roadW = rp ? rp[2] : 10;
+    const road = new THREE.Mesh(new THREE.PlaneGeometry(len + 24, roadW - .4), new THREE.MeshStandardMaterial({ ...pbr("Asphalt007_512-JPG", len + 24, roadW - .4, 5), roughness: 1 }));
+    road.rotation.x = -Math.PI / 2; road.rotation.z = rotY + Math.PI / 2;
+    road.position.set(mx - nx * rd, .096, mz - nz * rd); road.receiveShadow = true; road.material.polygonOffset = true; road.material.polygonOffsetFactor = -1; road.material.polygonOffsetUnits = -1; scene.add(road);
+  }
+  const tactile = new THREE.Mesh(new THREE.PlaneGeometry(len, .45), new THREE.MeshStandardMaterial({ color: 0xd8b52a, roughness: .8 }));
+  tactile.rotation.x = -Math.PI / 2; tactile.rotation.z = rotY + Math.PI / 2;
+  tactile.position.set(mx - nx * (swW - .28), .155, mz - nz * (swW - .28)); scene.add(tactile);
+  const kerb = new THREE.Mesh(new THREE.BoxGeometry(len, .17, .32), new THREE.MeshStandardMaterial({ color: 0x9a968e, roughness: .85 }));
+  kerb.rotation.y = rotY + Math.PI / 2;
+  kerb.position.set(mx - nx * (swW + .06), .085, mz - nz * (swW + .06)); kerb.receiveShadow = true; scene.add(kerb);
+  /* 路面修補 + 沙井蓋 + 去水格 */
+  const patch = new THREE.Mesh(new THREE.PlaneGeometry(9, 3.4), new THREE.MeshStandardMaterial({ color: 0x2c2a30, roughness: .95 }));
+  patch.rotation.x = -Math.PI / 2; patch.rotation.z = rotY + Math.PI / 2 + .12;
+  patch.position.set(P(mid + 6)[0] - nx * (gap + 1.6), .102, P(mid + 6)[1] - nz * (gap + 1.6)); scene.add(patch);
+  const mhMat = new THREE.MeshStandardMaterial({ color: 0x2f2d33, roughness: .9, metalness: .3 });
+  for (const dt of [-16, -2, 12]) {
+    const [qx, qz] = P(mid + dt);
+    const mh = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .03, 16), mhMat);
+    mh.position.set(qx - nx * (gap + 1.5), .103, qz - nz * (gap + 1.5)); scene.add(mh);
+  }
+  for (const dt of [-22, -8, 6, 20]) {
+    const [qx, qz] = P(mid + dt);
+    const gr = new THREE.Mesh(new THREE.BoxGeometry(.9, .05, .5), mhMat);
+    gr.rotation.y = rotY + Math.PI / 2; gr.position.set(qx - nx * (swW + .2), .12, qz - nz * (swW + .2)); scene.add(gr);
+  }
+  /* 班馬線(連接行人路↔行人閘) — P10.4:斑紋有厚度貼地 */
+  {
+    const gx0 = ped.x - nx * (gap + 1.2), gz0 = ped.z - nz * (gap + 1.2);
+    const stripeG = new THREE.BoxGeometry(3.2, .02, .55), stripeM = new THREE.MeshStandardMaterial({ color: 0xe8e4da, roughness: .7 });
+    const nSt = 7;
+    for (let i = 0; i < nSt; i++) { const s = new THREE.Mesh(stripeG, stripeM); s.rotation.y = rotY + Math.PI / 2; s.position.set(gx0 - ux * (i - nSt / 2 + .5) * 1.15, .105, gz0 - uz * (i - nSt / 2 + .5) * 1.15); scene.add(s); }
+  }
+  /* P10.4:行人路混凝土接縫線(每3m)+閘前輪胎帶泥(只喺車閘口兩側,有邏輯位置) */
+  {
+    const jointM = new THREE.MeshStandardMaterial({ color: 0x8f8b83, roughness: .95 });
+    const nJ = Math.floor(len / 3);
+    for (let i = 1; i < nJ; i++) {
+      const [qx, qz] = P(tA + i * 3);
+      const j = new THREE.Mesh(new THREE.BoxGeometry(.025, .012, swW - .1), jointM);
+      j.rotation.y = rotY + Math.PI / 2;
+      j.position.set(qx - nx * (swW / 2), .162, qz - nz * (swW / 2)); scene.add(j);
+    }
+    const dirtM = new THREE.MeshStandardMaterial({ color: 0x5a4a34, roughness: .99, transparent: true, opacity: .55 });
+    for (const s of [-1, 1]) {
+      const [vx2, vz2] = [veh.x + ux * (s > 0 ? 3 : -3), veh.z + uz * (s > 0 ? 3 : -3)];
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 3.4), dirtM);
+      d.rotation.x = -Math.PI / 2; d.rotation.z = rotY + Math.PI / 2;
+      d.position.set(vx2 + nx * (gap - 1), .106, vz2 + nz * (gap - 1)); scene.add(d);
+    }
+  }
+  /* P10.1-C:building base/street transition — 樓腳排水渠帶+公用事業蓋+窄服務帶(跟行人路同軸) */
+  {
+    const drainM = new THREE.MeshStandardMaterial({ color: 0x3f3d42, roughness: .9, metalness: .25 });
+    // 排水渠帶:沿行人路外緣(靠馬路一側)一條連續窄槽
+    const drain = new THREE.Mesh(new THREE.BoxGeometry(len, .05, .35), drainM);
+    drain.rotation.y = rotY + Math.PI / 2;
+    drain.position.set(mx - nx * (swW + .55), .155, mz - nz * (swW + .55)); scene.add(drain);
+    // 渠面格柵紋(每2m一條淺槽)
+    for (let i = 0; i < Math.floor(len / 2); i++) {
+      const [qx, qz] = P(tA + i * 2 + 1);
+      const slot = new THREE.Mesh(new THREE.BoxGeometry(.06, .06, .22), drainM);
+      slot.rotation.y = rotY + Math.PI / 2;
+      slot.position.set(qx - nx * (swW + .55), .185, qz - nz * (swW + .55)); scene.add(slot);
+    }
+    // 公用事業蓋×2(電訊/電力,唔同色)
+    const utilDefs = [[0x9a6a20, -6], [0x555a62, 9]];
+    for (const [c, off] of utilDefs) {
+      const [qx, qz] = P(mid + off);
+      const cov = new THREE.Mesh(new THREE.BoxGeometry(1.1, .04, .8), new THREE.MeshStandardMaterial({ color: c, roughness: .85, metalness: .3 }));
+      cov.rotation.y = rotY + Math.PI / 2;
+      cov.position.set(qx - nx * (swW - .8), .168, qz - nz * (swW - .8)); scene.add(cov);
+    }
+  }
+  /* 閘內:卸貨區+車道分隔(黃黑 hazard 邊+地面標線) */
+  {
+    const hz = canvasTex(256, 64, g => { g.fillStyle = "#c8a018"; g.fillRect(0, 0, 256, 64); g.fillStyle = "#1c1c1c"; for (let i = -64; i < 256; i += 48) { g.beginPath(); g.moveTo(i, 64); g.lineTo(i + 24, 64); g.lineTo(i + 24 + 32, 0); g.lineTo(i + 32, 0); g.closePath(); g.fill(); } });
+    const vl = veh.t1 - veh.t0 + 10;
+    const lane = new THREE.Mesh(new THREE.PlaneGeometry(vl, 9), new THREE.MeshStandardMaterial({ color: 0x585551, roughness: .95 }));
+    lane.rotation.x = -Math.PI / 2; lane.rotation.z = rotY + Math.PI / 2;
+    lane.position.set(veh.x + nx * 4.5, .135, veh.z + nz * 4.5); lane.receiveShadow = true; scene.add(lane);
+    for (const s of [-1, 1]) {
+      const hzm = new THREE.Mesh(new THREE.PlaneGeometry(vl, .5), new THREE.MeshBasicMaterial({ map: hz }));
+      hzm.rotation.x = -Math.PI / 2; hzm.rotation.z = rotY + Math.PI / 2;
+      hzm.position.set(veh.x + nx * (4.5 + s * 4.4), .14, veh.z + nz * (4.5 + s * 4.4)); scene.add(hzm);
+    }
+    const unTex = canvasTex(256, 96, g => { g.fillStyle = "#c8a018"; g.fillRect(0, 0, 256, 96); g.fillStyle = "#1c1c1c"; g.font = "900 40px 'Microsoft JhengHei',sans-serif"; g.textAlign = "center"; g.fillText("卸貨區", 128, 62); });
+    const un = new THREE.Mesh(new THREE.PlaneGeometry(7, 2.6), new THREE.MeshBasicMaterial({ map: unTex }));
+    un.rotation.x = -Math.PI / 2; un.rotation.z = rotY + Math.PI / 2;
+    un.position.set(veh.x + nx * 4.5, .145, veh.z + nz * 4.5); scene.add(un);
+  }
+  /* 近景立面樓 x3(閘前街對面;窗內凹+地下舖+簷篷+AC+招牌+天台) */
+  const winIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 1.3, .18), new THREE.MeshStandardMaterial({ color: 0x2a3440, roughness: .15, metalness: .5 }), 160);
+  const frameIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.7, 1.5, .14), new THREE.MeshStandardMaterial({ color: 0xcac4b4, roughness: .7 }), 160);
+  const acIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.8, .55, .5), new THREE.MeshStandardMaterial({ color: 0xd8d8d2, roughness: .8 }), 24);
+  let wi = 0, ai = 0;
+  const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(1, 1, 1), P4 = new THREE.Vector3();
+  const names = ["金豐茶餐廳", "大安五金", "宏輝建材"];
+  const cols = [0xb8ab94, 0xa89a86, 0xb0a494];
+  [tA + 6, tA + 19, tB - 8].forEach((ft, bi) => {
+    const [fx0, fz0] = P(ft);
+    const floors = 6 + (bi % 3), h = floors * 3.1;
+    const bx = fx0 - nx * (swW + 2.8), bz = fz0 - nz * (swW + 2.8);
+    const ry = rotY + Math.PI / 2;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(11, h, 9), new THREE.MeshStandardMaterial({ color: cols[bi], roughness: .9 }));
+    body.rotation.y = ry;
+    body.position.set(bx, h / 2, bz); body.castShadow = true; body.receiveShadow = true; scene.add(body);
+    for (let f = 1; f <= floors; f++) for (let k = 0; k < 4; k++) {
+      if (wi >= 160) break;
+      const off = (k - 1.5) * 2.6;
+      const wx = bx - uz * off + nx * 4.62, wz = bz + ux * off + nz * 4.62;
+      Q4.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry); P4.set(wx, f * 3.1 - .3, wz); M4.compose(P4, Q4, S4); frameIM.setMatrixAt(wi, M4);
+      P4.set(wx + nx * .1, f * 3.1 - .3, wz + nz * .1); M4.compose(P4, Q4, S4); winIM.setMatrixAt(wi, M4); wi++;
+      if (f % 2 === 0 && k % 2 === 0 && ai < 24) { P4.set(wx - uz * 1.1 + nx * 4.85, f * 3.1 - .5, wz + ux * 1.1 + nz * 4.85); M4.compose(P4, Q4, S4); acIM.setMatrixAt(ai, M4); ai++; }
+    }
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(8.6, 2.7, .2), new THREE.MeshStandardMaterial({ color: 0x35404a, roughness: .2, metalness: .5 }));
+    shop.rotation.y = ry; shop.position.set(bx + nx * 4.6, 1.5, bz + nz * 4.6); scene.add(shop);
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(9.2, .18, 1.6), new THREE.MeshStandardMaterial({ color: 0x8a2f2a, roughness: .8 }));
+    canopy.rotation.y = ry; canopy.position.set(bx + nx * 5.2, 3.0, bz + nz * 5.2); canopy.castShadow = true; scene.add(canopy);
+    const sTex = canvasTex(512, 128, g => { g.fillStyle = ["#8a2430", "#1a4a7a", "#2a6a3a"][bi]; g.fillRect(0, 0, 512, 128); g.strokeStyle = "#e8c020"; g.lineWidth = 6; g.strokeRect(6, 6, 500, 116); g.fillStyle = "#ffe9a0"; g.font = "900 62px 'Microsoft JhengHei',sans-serif"; g.textAlign = "center"; g.fillText(names[bi], 256, 84); });
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.7), new THREE.MeshBasicMaterial({ map: sTex, side: THREE.DoubleSide }));
+    sign.rotation.y = ry; sign.position.set(bx + nx * 5.35, 3.9, bz + nz * 5.35); scene.add(sign);
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.6, 12), new THREE.MeshStandardMaterial({ color: 0x4a5a6a, roughness: .7 }));
+    tank.position.set(bx - ux * 2.4, h + .8, bz - uz * 2.4); tank.castShadow = true; scene.add(tank);
+    const stair = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.2), new THREE.MeshStandardMaterial({ color: cols[bi], roughness: .9 }));
+    stair.rotation.y = ry; stair.position.set(bx + ux * 2.6, h + 1.1, bz + uz * 2.6); scene.add(stair);
+    for (let f = 1; f <= floors; f += 2) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(11.05, .22, 9.05), new THREE.MeshStandardMaterial({ color: 0x9a8f7c, roughness: .85 }));
+      band.rotation.y = ry; band.position.set(bx, f * 3.1 + 1.25, bz); scene.add(band);
+    }
+    const svc = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.1, .15), new THREE.MeshStandardMaterial({ color: 0x5a5248, roughness: .8 }));
+    svc.rotation.y = ry; svc.position.set(bx - uz * 4.2 + nx * 4.62, 1.05, bz + ux * 4.2 + nz * 4.62); scene.add(svc);
+  });
+  winIM.count = wi; frameIM.count = wi; acIM.count = ai;
+  /* P6:窗/框/AC 唔 cast shadow(立面主體已經投影,慳 shadow pass) */
+  scene.add(winIM, frameIM, acIM);
+}
+buildDemoStreet();
+if(new URLSearchParams(location.search).get("spawnHeroTest")==="1") createSpawnHeroSkin(THREE,scene);
+
+/* ========== P10.3:左側近景 façade attachment(閘口視野內樓宇加深度,唔換 base box) ========== */
+{
+  /* 揾出閘口前 ~70m 視錐內、離閘 <90m 嘅樓(用 BUILDINGS OBB centre),加:
+     window frame recess(InstancedMesh)、AC 機、外露水管、地下舖面/招牌、天台邊 */
+  const near = [];
+  for (const b of BUILDINGS) {
+    const [bx, bz, bhw, bhd, brot, bh] = b;
+    if (b[6] === 1) continue; // 排除特別類別
+    const d = d2(bx, bz, GATE[0], GATE[1]);
+    if (d < 90 * 90 && Math.max(bhw, bhd) * 2 > 8) near.push({ cx: bx, cz: bz, w: bhw * 2, d: bhd * 2, h: bh });
+  }
+  const pick = near.sort((a, b) => d2(a.cx, a.cz, GATE[0], GATE[1]) - d2(b.cx, b.cz, GATE[0], GATE[1])).slice(0, 4);
+  /* P10.1-B hero façade:玻璃有反射色而唔係純黑;窗簾/暗室 variation 用 3 個共享材質輪流;
+     加 sill(窗台出簷)+層間 slab edge+plinth 基座條 */
+  const glassVariants = [
+    new THREE.MeshStandardMaterial({ color: 0x2e4356, roughness: .12, metalness: .7 }),   // 反射天色
+    new THREE.MeshStandardMaterial({ color: 0x18222c, roughness: .3, metalness: .4 }),    // 暗室
+    new THREE.MeshStandardMaterial({ color: 0xcfc8b4, roughness: .6, metalness: .05 })    // 拉咗簾
+  ];
+  const winIM = glassVariants.map(m => new THREE.InstancedMesh(new THREE.BoxGeometry(1.3, 1.1, .16), m, 90));
+  const winCount = [0, 0, 0];
+  const frIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 1.28, .1), new THREE.MeshStandardMaterial({ color: 0xd4cec0, roughness: .75 }), 220);
+  const sillIM = new THREE.InstancedMesh(new THREE.BoxGeometry(1.62, .1, .3), new THREE.MeshStandardMaterial({ color: 0xc8c2b2, roughness: .85 }), 220);
+  const acIM = new THREE.InstancedMesh(new THREE.BoxGeometry(.75, .5, .45), new THREE.MeshStandardMaterial({ color: 0xdcdcd6, roughness: .82 }), 40);
+  const pipeIM = new THREE.InstancedMesh(new THREE.CylinderGeometry(.07, .07, 3, 6), new THREE.MeshStandardMaterial({ color: 0x8a8578, roughness: .8 }), 36);
+  let wi = 0, ai = 0, pi = 0;
+  const M4 = new THREE.Matrix4(), Q4 = new THREE.Quaternion(), S4 = new THREE.Vector3(1, 1, 1), P4 = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
+  for (const b of pick) {
+    // 揾最接近閘口嘅立面軸向
+    const faceX = Math.abs(b.cx - GATE[0]) > Math.abs(b.cz - GATE[1]);
+    const dir = faceX ? [Math.sign(GATE[0] - b.cx) || 1, 0] : [0, Math.sign(GATE[1] - b.cz) || 1];
+    const ry = faceX ? (dir[0] > 0 ? Math.PI / 2 : -Math.PI / 2) : (dir[1] > 0 ? 0 : Math.PI);
+    const fx = b.cx + dir[0] * (faceX ? b.w / 2 : 0), fz = b.cz + dir[1] * (faceX ? 0 : b.d / 2);
+    const ux2 = faceX ? 0 : 1, uz2 = faceX ? 1 : 0; // 沿立面
+    const half = (faceX ? b.d : b.w) / 2 - 2;
+    const floors = Math.max(3, Math.min(10, Math.floor(b.h / 3.1)));
+    /* hero 樓(最近嗰棟)用多欄窗,其餘維持 3 欄 */
+    const hero = b === pick[0];
+    const cols = hero ? 5 : 3;
+    const colSpan = hero ? 2.4 : 2.7;
+    for (let f = 1; f <= floors; f++) for (let k = 0; k < cols; k++) {
+      if (wi >= 218) break;
+      const off = (k - (cols - 1) / 2) * colSpan;
+      const wx = fx + ux2 * off + dir[0] * .12, wz = fz + uz2 * off + dir[1] * .12;
+      Q4.setFromAxisAngle(UP, ry); P4.set(wx, f * 3.1 - .4, wz); M4.compose(P4, Q4, S4);
+      frIM.setMatrixAt(wi, M4);
+      // sill(窗台出簷,每窗一條)
+      P4.set(wx + dir[0] * .16, f * 3.1 - .98, wz + dir[1] * .16); M4.compose(P4, Q4, S4);
+      sillIM.setMatrixAt(wi, M4);
+      // 玻璃:3 variant 輪流(偽隨機但穩定:用 f*7+k*3)
+      const v = (f * 7 + k * 3 + b.cx.toFixed(0) * 1) % 5;
+      const bucket = v < 2 ? 0 : v < 4 ? 1 : 2;
+      const idx = winCount[bucket];
+      if (idx < 89) { P4.set(wx + dir[0] * .1, f * 3.1 - .4, wz + dir[1] * .1); M4.compose(P4, Q4, S4); winIM[bucket].setMatrixAt(idx, M4); winCount[bucket]++; }
+      wi++;
+      if (f % 2 === 0 && k === 0 && ai < 39) { P4.set(wx + dir[0] * .55, f * 3.1 - .9, wz + dir[1] * .55); M4.compose(P4, Q4, S4); acIM.setMatrixAt(ai, M4); ai++; }
+    }
+    // 層間 slab edge(hero 樓)
+    if (hero) for (let f = 1; f < floors; f++) {
+      const se = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .18 : Math.min(b.w, 12), .22, faceX ? Math.min(b.d, 12) : .18), new THREE.MeshStandardMaterial({ color: 0xaaa498, roughness: .88 }));
+      se.position.set(fx + dir[0] * .06, f * 3.1 + .12, fz + dir[1] * .06); scene.add(se);
+    }
+    // plinth 基座條(樓腳)
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .24 : Math.min(b.w, 12), .55, faceX ? Math.min(b.d, 12) : .24), new THREE.MeshStandardMaterial({ color: 0x7a7468, roughness: .92 }));
+    plinth.position.set(fx + dir[0] * .1, .28, fz + dir[1] * .1); scene.add(plinth);
+    // 外露水管(角落兩條)
+    for (const s of [-1, 1]) {
+      if (pi >= 35) break;
+      const px = fx + ux2 * s * (half + .5) + dir[0] * .18, pz = fz + uz2 * s * (half + .5) + dir[1] * .18;
+      Q4.setFromAxisAngle(UP, ry); P4.set(px, (floors * 3.1) / 2, pz); M4.compose(P4, Q4, S4); pipeIM.setMatrixAt(pi, M4); pi++;
+    }
+    // 地下舖面+簷篷+招牌板
+    const gr = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .3 : Math.min(9, b.w * .7), 2.8, faceX ? Math.min(9, b.d * .7) : .3), new THREE.MeshStandardMaterial({ color: 0x303840, roughness: .25, metalness: .4 }));
+    gr.position.set(fx + dir[0] * .1, 1.45, fz + dir[1] * .1); scene.add(gr);
+    const can = new THREE.Mesh(new THREE.BoxGeometry(faceX ? 1.5 : Math.min(9, b.w * .72), .16, faceX ? Math.min(9, b.d * .72) : 1.5), new THREE.MeshStandardMaterial({ color: 0x6a2a24, roughness: .8 }));
+    can.position.set(fx + dir[0] * .8, 3.1, fz + dir[1] * .8); can.castShadow = true; scene.add(can);
+    // 天台邊欄
+    const par = new THREE.Mesh(new THREE.BoxGeometry(faceX ? .2 : b.w, .8, faceX ? b.d : .2), new THREE.MeshStandardMaterial({ color: 0x9a9488, roughness: .85 }));
+    par.position.set(fx - dir[0] * .1, b.h + .4, fz - dir[1] * .1); scene.add(par);
+  }
+  winIM.forEach((im, i) => { im.count = winCount[i]; scene.add(im); });
+  frIM.castShadow = true;
+  scene.add(frIM, sillIM, acIM, pipeIM);
+}
+
+/* ========== P10.6:實體告示牌(有支架/厚度/位置理由,原創 generic 香港地盤風格) ========== */
+{
+  const signDefs = [
+    { txt: "進入地盤\n必須佩戴安全帽", sub: "WEAR SAFETY HELMET", bg: "#1a5aa8", pos: [ped => [ped.x + 2.2, ped.z - 3.2]], h: 1.6 },
+    { txt: "行人通道\n請靠左", sub: "KEEP LEFT", bg: "#c8a018", pos: [ped => [ped.x - 2.4, ped.z - 2.6]], h: 1.4 },
+    { txt: "車輛出入口\n慢駛 · 倒車響號", sub: "VEHICLES SLOW", bg: "#b03028", pos: [veh => [veh.x - 5.6, veh.z + 3.4]], h: 1.6 },
+    { txt: "地盤重地\n閒人免進", sub: "AUTHORISED PERSONNEL ONLY", bg: "#2a7a3a", pos: [() => [GATE[0] + Math.cos(GATE_DIR_IN + Math.PI / 2) * 9, GATE[1] + Math.sin(GATE_DIR_IN + Math.PI / 2) * 9]], h: 1.5 }
+  ];
+  const ped = MAIN_OPENINGS.list.find(o => o.type === "pedestrian"), vehG = MAIN_OPENINGS.list.find(o => o.type === "vehicle");
+  const postM = new THREE.MeshLambertMaterial({ color: 0x5a6068 });
+  for (const def of signDefs) {
+    const [sx, sz] = def.pos[0](ped) || [0, 0];
+    const tex = canvasTex(512, 640, g => {
+      g.fillStyle = def.bg; g.fillRect(0, 0, 512, 640);
+      g.strokeStyle = "#f2f2f2"; g.lineWidth = 10; g.strokeRect(14, 14, 484, 612);
+      g.fillStyle = "#ffffff"; g.textAlign = "center";
+      const lines = def.txt.split("\n");
+      g.font = "900 92px 'Microsoft JhengHei',sans-serif";
+      lines.forEach((l, i) => g.fillText(l, 256, 180 + i * 130));
+      g.font = "700 34px Arial,sans-serif"; g.fillStyle = "rgba(255,255,255,.85)";
+      g.fillText(def.sub, 256, 600 - 40 * (2 - lines.length));
+    });
+    const board = new THREE.Mesh(new THREE.BoxGeometry(def.h * .8, def.h, .06), [postM, postM, postM, postM, new THREE.MeshLambertMaterial({ map: tex }), new THREE.MeshLambertMaterial({ map: tex, side: THREE.BackSide })]);
+    board.position.set(sx, 1.45 + def.h / 2, sz);
+    board.rotation.y = -Math.atan2(MAIN_SITE.c[1] - sz, MAIN_SITE.c[0] - sx); // 面向場外行人
+    board.castShadow = true; scene.add(board);
+    for (const px of [-.28, .28]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(.035, .035, 1.5 + def.h, 8), postM);
+      pole.position.set(sx + px * Math.cos(board.rotation.y + Math.PI / 2) * .8, (1.5 + def.h) / 2, sz - px * Math.sin(board.rotation.y + Math.PI / 2) * .8);
+      pole.castShadow = true; scene.add(pole);
+    }
+  }
+}
+
 function siteGuard() {
   buildGatehouse();
   const st = accessState();
@@ -2618,9 +3982,37 @@ function mkEvent(id, name, zone, source) { const e = { id, name, zone, source, s
 {
   const e = mkEvent("ppe", "入場PPE檢查", SITE_ZONES[0], "啟德2022會議文件13A(項目設定)");
   const zp = SITE_ZONES[0];
-  e.rack = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.8, .5), new THREE.MeshLambertMaterial({ color: 0x2a6ad0 }));
-  e.rack.position.set(PPE_POS[0], .9, PPE_POS[1]); e.rack.castShadow = true; scene.add(e.rack);
-  e.label = makeSpriteLabel("🦺 領PPE(E)", "#8fd0ff", 3); e.label.position.set(0, 2.4, 0); e.rack.add(e.label);
+  /* P10.1:真實 PPE 裝備架(鋼框+兩層板+掛住頭盔/反光衣),唔再係藍色實心盒 */
+  e.rack = new THREE.Group();
+  const rackM = new THREE.MeshLambertMaterial({ color: 0x6a7078 });
+  const shelfM = new THREE.MeshLambertMaterial({ color: 0x8a5a2a });
+  for (const s of [-1, 1]) for (const hh of [.02, .92, 1.78]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(1.5, .06, .06), rackM);
+    bar.position.set(s * .72, hh, 0); e.rack.add(bar);
+  }
+  for (const zz of [-.25, .25]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(.06, 1.82, .06), rackM);
+    post.position.set(-1.45, .91, zz); e.rack.add(post);
+    const post2 = post.clone(); post2.position.x = 1.45; e.rack.add(post2);
+  }
+  for (const yy of [.55, 1.25]) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.5, .05, .5), shelfM);
+    shelf.position.set(0, yy, 0); e.rack.add(shelf);
+  }
+  const hat = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: 0xffd23a }));
+  hat.position.set(-.5, 1.32, 0); e.rack.add(hat);
+  const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .03, 10), new THREE.MeshLambertMaterial({ color: 0xffd23a }));
+  hatBrim.position.set(-.5, 1.3, 0); e.rack.add(hatBrim);
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(.55, .6, .08), new THREE.MeshLambertMaterial({ color: 0xff7a1a }));
+  vest.position.set(.45, .9, 0); e.rack.add(vest);
+  const bootL = new THREE.Mesh(new THREE.BoxGeometry(.16, .2, .26), new THREE.MeshLambertMaterial({ color: 0x3a2a1a }));
+  bootL.position.set(-.35, .35, 0); e.rack.add(bootL);
+  const bootR = bootL.clone(); bootR.position.x = -.1; e.rack.add(bootR);
+  e.rack.position.set(PPE_POS[0], 0, PPE_POS[1]); scene.add(e.rack);
+  e.rack.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  colliders.push({ x: PPE_POS[0], z: PPE_POS[1], hw: .8, hd: .35, rot: 0, minx: PPE_POS[0] - .8, maxx: PPE_POS[0] + .8, minz: PPE_POS[1] - .35, maxz: PPE_POS[1] + .35 });
+  /* P10.5:實體 PPE 架上有一塊細提示牌就夠,唔再疊巨大 floating sprite */
+  e.label = makeSpriteLabel("🦺 領PPE(E)", "#8fd0ff", 1.1); e.label.position.set(0, 2.15, 0); e.rack.add(e.label);
   e.checkEnter = () => {
     if (!player.ppe) {
       player.x = GATE[0] + Math.cos(GATE_OUT) * 5; player.z = GATE[1] + Math.sin(GATE_OUT) * 5;
@@ -2755,12 +4147,12 @@ function tick(dt, now) {
   if (dlgActive) { player.freeze = Math.max(player.freeze, .05); dlgTick(dt); }
   playerMove(dt);
   truckDrive(dt);
-  updateOfficers(dt);
-  updateWorkers(dt);
-  updateTraffic(dt);
-  updatePeds(dt);
+  if (!window.__iso) { updateOfficers(dt); updateWorkers(dt); updateTraffic(dt); updatePeds(dt); }
+  else { if (!window.__iso.npc) { updateOfficers(dt); updateWorkers(dt); } if (!window.__iso.traffic) { updateTraffic(dt); updatePeds(dt); } }
   updateHazards(dt);
   updateBarriers(dt);
+  updateVehicleGate(dt);
+  unloadTick(dt); // TASK D
   // 任務
   const m = missions[M.idx];
   if (m && m.tick) m.tick();
@@ -2778,19 +4170,22 @@ function tick(dt, now) {
   // 攝影機
   if (manualCamT > 0) manualCamT -= dt;
   else if (player.speed > .5 && (player.inTruck || ((keys.KeyW || keys.ArrowUp) && !keys.KeyA && !keys.KeyD))) camYaw = angLerp(camYaw, player.heading + Math.PI, dt * 1.8);
-  const eyeDist = player.inTruck ? camDist + 4 : camDist;
-  const ex = player.x + Math.cos(camYaw) * eyeDist, ez = player.z + Math.sin(camYaw) * eyeDist;
-  const ey = (player.inTruck ? 4.5 : 3.2) + (camDist - 8.5) * .5;
+  const eyeDist = qaCloseAdapter ? 2.8 : (player.inTruck ? camDist + 4 : camDist);
+  const viewYaw = qaCloseAdapter ? player.heading : camYaw;
+  const ex = player.x + Math.cos(viewYaw) * eyeDist, ez = player.z + Math.sin(viewYaw) * eyeDist;
+  const ey = qaCloseAdapter ? 1.9 : ((player.inTruck ? 4.5 : 3.2) + (camDist - 8.5) * .5);
   camera.position.lerp(_v1.set(ex, Math.max(ey, 1.5), ez), 1 - Math.pow(.0015, dt));
-  camera.lookAt(player.x, 1.6 + (player.inTruck ? 1 : 0), player.z);
+  camera.lookAt(player.x, qaCloseAdapter ? 1.0 : 1.6 + (player.inTruck ? 1 : 0), player.z);
   // 光源跟玩家
   sun.position.set(player.x - 140, 300, player.z + 50);
   sun.target.position.set(player.x, 0, player.z);
   // 老陳望玩家
   boss.g.rotation.y = Math.atan2(player.z - boss.g.position.z, player.x - boss.g.position.x) - Math.PI / 2 + Math.PI;
   boss.animate(dt, 0);
+  updateLegalCharacterTest(dt);
+  updateMpfbCandidate(dt);
   updateHUD(dt);
-  drawMinimap();
+  if (!(window.__iso && window.__iso.mini)) drawMinimap(); // P9.3 profiling 隔離開關
   /* 安全獎:連續3分鐘零警告 */
   if (player.registered && player.ppe && player.warnings === 0 && player.stars === 0) {
     player.streakT = (player.streakT || 0) + dt;
@@ -2808,6 +4203,7 @@ window.__game.tick = tick;
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min((now - last) / 1000, .05); last = now;
+  updateShadowLOD(now);
   tick(dt, now);
 }
 requestAnimationFrame(loop);
@@ -2816,8 +4212,69 @@ requestAnimationFrame(loop);
 /* 開場鏡頭:喺玩家背後5米,唔好攝入閘機房 */
 camera.position.set(SPAWN[0] - 3, 4.2, SPAWN[1] - 4.5);
 camera.lookAt(SPAWN[0], 1.5, SPAWN[1]);
-window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started });
-window.__game.audit = () => ({build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
+/* ===== TASK C:載入 CSDI 背景 chunks(非阻塞;csdioff 時完全唔載) ===== */
+if (csdiBgOn) {
+  try {
+    const ktx2 = new KTX2Loader().setTranscoderPath("https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/libs/basis/").detectSupport(renderer);
+    const bgLoader = new GLTFLoader().setKTX2Loader(ktx2);
+    window.__csdiBg = { state: "loading", chunks: 0, tris: 0, t0: performance.now() };
+    fetch("models/csdibg/manifest.json").then(r => r.json()).then(mf => {
+      const names = Object.keys(mf.chunks);
+      let done = 0;
+      for (const nm of names) {
+        bgLoader.load("models/csdibg/" + mf.chunks[nm].file, gl => {
+          const g = gl.scene;
+          g.position.set(mega[0], 0, mega[1]); // ENU 頂點 + MegaBox 遊戲座標(convert.py x-east/z-south 同 ENU 一致,零旋轉)
+          g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+          g.matrixAutoUpdate = false; g.updateMatrix();
+          scene.add(g);
+          done++;
+          window.__csdiBg.chunks++;
+          window.__csdiBg.tris += mf.chunks[nm].triangles;
+          if (done === names.length) {
+            window.__csdiBg.state = "ready";
+            window.__csdiBg.loadMs = Math.round(performance.now() - window.__csdiBg.t0);
+          }
+        }, undefined, e => { window.__csdiBg.state = "chunk-fail:" + String(e).slice(0, 80); });
+      }
+    }).catch(e => { window.__csdiBg.state = "manifest-fail:" + String(e).slice(0, 80); });
+  } catch (e) { window.__csdiBg = { state: "init-fail:" + String(e).slice(0, 80) }; }
+}
+
+window.__game = Object.assign(window.__game || {}, { scene, camera, renderer, player, THREE, marker, M, officers, started: () => started, collide, openings: MAIN_OPENINGS, mainSite: MAIN_SITE, vehGateOpen: vehicleGateOpen, playerTruck, npcTruck, colliders, unload: UNLOAD, canUnload, startUnload, characterAdapterStatus: () => window.__characterAdapterStatus || null });
+window.__game.mpfbActor = mpfbCharacterTestActor;
+window.__game.audit = () => ({mpfbCharacter: {...globalThis.__mpfbCharacterQA, visible: !!mpfbCharacterTestActor?.visible}, build: window.__BUILD, started, paused, mission: M.idx, wage: player.wage, registered: !!player.registered, ppe: !!player.ppe, npcCount: workers.length + officers.length + peds.length + 1, animationMixerCount: [player.h, ...workers.map(w => w.h), ...officers.map(o => o.h), ...peds.map(p => p.h), legalCharacterTestActor?.h].filter(h => !!h?.mixer).length, adapterCostFlags: {noAnim: adapterNoAnim, noPPE: adapterNoPPE, hidden: adapterHidden}, characterAdapter: {requested: !!window.__characterAdapterRequested, loaded: !!window.__characterAdapterLoaded, visible: !!window.__characterAdapterSpawned && !adapterHidden, status: window.__characterAdapterStatus || null}, legalCharacter: {requested: !!window.__legalCharacterRequested, loaded: !!window.__legalCharacterLoaded, visible: !!legalCharacterTestActor?.h?.g?.visible, status: window.__legalCharacterStatus || null}, workers: workers.map(w => ({name:w.name,role:w.role,female:w.female,x:w.x,z:w.z})), officers:officers.length, pedestrians:peds.length, events:EVENTS.map(e=>({id:e.id,state:e.state})), errors:window.__errs.slice(-20)});
+if (_qaParams.get("characterAdapterTest") === "1") {
+  const panel = document.createElement("div");
+  panel.id = "character-adapter-qa-panel";
+  panel.style.cssText = "position:fixed;left:12px;bottom:12px;z-index:10001;background:rgba(8,15,22,.86);color:#d9f7ff;border:1px solid #4aa8bc;border-radius:6px;padding:7px 9px;font:11px/1.45 monospace;pointer-events:none;white-space:pre";
+  document.body.append(panel);
+  const refreshAdapterQa = () => { panel.textContent = [
+    "INTERNAL TECHNICAL ADAPTER TEST",
+    `adapter requested: ${!!window.__characterAdapterRequested}`,
+    `adapter loaded: ${!!window.__characterAdapterLoaded}`,
+    `adapter visible: ${!!window.__characterAdapterSpawned && !adapterHidden}`,
+    `animation clip: ${window.__characterAdapterAnimationClip || (adapterNoAnim ? "disabled" : "pending")}`,
+    `fallback active: ${!window.__characterAdapterLoaded}`,
+    "licence status: UNKNOWN"
+  ].join("\n"); };
+  refreshAdapterQa(); setInterval(refreshAdapterQa, 250);
+}
+if (_qaParams.get("legalCharacterTest") === "1") {
+  const panel = document.createElement("div");
+  panel.id = "legal-character-qa-panel";
+  panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:10001;background:rgba(8,15,22,.86);color:#d9f7ff;border:1px solid #55bb77;border-radius:6px;padding:7px 9px;font:11px/1.45 monospace;pointer-events:none;white-space:pre";
+  document.body.append(panel);
+  const refreshLegalQa = () => { panel.textContent = [
+    "CC0 LEGAL CHARACTER TEST",
+    `requested: ${!!window.__legalCharacterRequested}`,
+    `loaded: ${!!window.__legalCharacterLoaded}`,
+    `visible: ${!!legalCharacterTestActor?.h?.g?.visible}`,
+    `status: ${window.__legalCharacterStatus || "pending"}`,
+    `licence: CC0 (KayKit)`
+  ].join("\n"); };
+  refreshLegalQa(); setInterval(refreshLegalQa, 250);
+}
 window.__game.test = { trainIt, bpIt, runQuiz, runBP, QUIZ_STATE, BP_STATE, GATE, GATE_OUT, OFFICE, collide, violate, missions, say, nextMission, pause: v => { paused = v; } };
 
 // Explicit local QA controls: exercise the same movement function at a fixed
@@ -2878,3 +4335,6 @@ $("gateScan").onclick=()=>{
   player.admitted=true;setGateOpen(true);inductionMode=null;$("gatePanel").style.display="none";
   toast("嘟！入閘核對通過，請沿行人通道入場。");
 };
+
+// Opt-in independent handbook-inspired QA exercise.
+if(new URLSearchParams(location.search).get("haSafetyScenarioTest")==="1") createHaSafetyScenario(window.__game);

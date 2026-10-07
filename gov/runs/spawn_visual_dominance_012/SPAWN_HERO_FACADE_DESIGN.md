@@ -1,0 +1,5 @@
+# Spawn hero design
+Four audited faces only. Detached visual skin, no colliders. Main left front and side; adjacent left side; right tower west face bottom40m (visible normal camera band). Existing original meshes stay intact.
+1.65m bays and ~3.1m storeys. One1024 atlas with 5 different window modules: split casement, horizontal transom, blinds, vent/AC, partly blocked pane; blank bay plus shutter and service door. Deterministic nonuniform module selection, floor interrupts and mixed sill patterns, no whole-wall repeated texture.
+Low floors contain industrial shutter, recessed-looking service entrance, meter/vent detail. Instanced 3D sill/awning, pipe and AC platforms add depth. Offwhite tile joints, bluegreen aluminium, concrete bands. All original procedural art. Roof/parapet only at real street-building roof, not fake cap on tower treatment cutoff.
+Budget: one1024 texture, one merged plane batch and one instanced equipment batch; no shadows cast by overlay; geometry budget checked at runtime. Existing kerb/drain retained rather than obstructing paths with new clutter.

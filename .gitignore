@@ -1,3 +1,5 @@
 backup/
 *.log
 __pycache__/
+node_modules/
+qa-tests/node_modules/

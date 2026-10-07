@@ -1,0 +1,20 @@
+{
+  "training_bay_bounds": [
+    -803.8,
+    929.98,
+    -800.8,
+    932.4200000000001
+  ],
+  "sidewalk_overlap_m2": 0.0,
+  "sidewalk_gap_m": 0.5512774863542669,
+  "approaches": {
+    "pedestrian": {
+      "overlap_m2": 0.0,
+      "gate_centre_distance_m": 12.998707628068216
+    },
+    "vehicle": {
+      "overlap_m2": 0.0,
+      "gate_centre_distance_m": 21.41695734723271
+    }
+  }
+}

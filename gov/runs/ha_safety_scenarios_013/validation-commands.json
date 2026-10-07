@@ -1,0 +1,60 @@
+[
+  {
+    "command": [
+      "node",
+      "--check",
+      "app.js"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "ha-safety-scenario.js"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "--check",
+      "spawn-hero-skin.js"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python",
+      "tests/test_longrun_governance.py"
+    ],
+    "exit_code": 0,
+    "stdout": "PASS incomplete\r\nPASS blocked\r\nPASS outcome not met fails\r\nPASS outcome met passes\r\nPASS outcome blocked not allowed fails\r\nPASS outcome blocked allowed passes\r\nPASS skipped without evidence\r\nPASS core skipped without approval\r\nPASS core skipped with blocker\r\nPASS DONE validation\r\nPASS VERIFIED validation\r\nPASS BLOCKED validation\r\nPASS FAILED validation\r\nPASS SKIPPED validation\r\nPASS resume dry-run\r\nPASS missing\r\nPASS invalid schema\r\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "python",
+      "tests/test_character_outcome_gate.py"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "......\r\n----------------------------------------------------------------------\r\nRan 6 tests in 0.956s\r\n\r\nOK\r\n"
+  },
+  {
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+]

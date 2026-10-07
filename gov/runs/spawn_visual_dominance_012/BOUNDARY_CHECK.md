@@ -1,0 +1,6 @@
+# Protected gameplay boundary
+PASS: same paused runtime before/after creating skin: 4,295 pre-existing mesh geometry IDs, transforms and instance matrices unchanged. 1,214 colliders unchanged. Mission index and opening definitions unchanged. Only two new render meshes. See protected-runtime-proof.json.
+app.js differs from preserved pre-run source only by an import and one opt-in render-only call; automated removal of those additions matches original text exactly. No mission, route, PPE, tutorial, scaffold, lift/MEWP, vehicle path or collision code rewritten. V3 module untouched.
+Projected conservative skin envelopes have zero intersection with both 55m pedestrian/vehicle approach buffers. Nearest skin to pedestrian gate centre is3.126m; this is centre distance, not clearance beyond the full gate width. Exact polygons/widths used in boundary.json.
+Right tower lies in site bounds: it receives only permitted detached visual skin; original host and interactables remain. No functional new doors: doors/shutters are decorative closed surfaces.
+Separate fresh page collider comparison was not identical: four vehicle-related entries differ in rotation/extent after runtime progression, count same. This was not hidden; same-state insertion test above establishes zero modification by the skin itself. No full Mission5 regression claimed.

@@ -1,0 +1,1 @@
+All added geometry and atlas artwork are original project procedural work. Generic fictional industrial unit signage only. No external models, logos, textures, unknown assets or credentials added. Public-repository suitability applies to this new module, not blanket clearance of existing project assets.

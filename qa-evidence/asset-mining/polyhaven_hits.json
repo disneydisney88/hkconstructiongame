@@ -1,0 +1,982 @@
+[
+ {
+  "id": "Barrel_01",
+  "cats": "industrial containers",
+  "url": "https://polyhaven.com/a/Barrel_01"
+ },
+ {
+  "id": "Barrel_02",
+  "cats": "industrial containers collection: the_shed",
+  "url": "https://polyhaven.com/a/Barrel_02"
+ },
+ {
+  "id": "CheeseBox_01",
+  "cats": "props containers collection: the_shed",
+  "url": "https://polyhaven.com/a/CheeseBox_01"
+ },
+ {
+  "id": "Drill_01",
+  "cats": "props tools electronics collection: the_shed",
+  "url": "https://polyhaven.com/a/Drill_01"
+ },
+ {
+  "id": "Megaphone_01",
+  "cats": "props electronics tools",
+  "url": "https://polyhaven.com/a/Megaphone_01"
+ },
+ {
+  "id": "WetFloorSign_01",
+  "cats": "props industrial office",
+  "url": "https://polyhaven.com/a/WetFloorSign_01"
+ },
+ {
+  "id": "adjustable_wrench",
+  "cats": "collection: project_lighthouse props industrial tools",
+  "url": "https://polyhaven.com/a/adjustable_wrench"
+ },
+ {
+  "id": "all_purpose_cleaner",
+  "cats": "props containers collection: the_shed",
+  "url": "https://polyhaven.com/a/all_purpose_cleaner"
+ },
+ {
+  "id": "ammo_box",
+  "cats": "industrial tools collection: project_lighthouse",
+  "url": "https://polyhaven.com/a/ammo_box"
+ },
+ {
+  "id": "antique_ceramic_vase_01",
+  "cats": "decorative containers vases",
+  "url": "https://polyhaven.com/a/antique_ceramic_vase_01"
+ },
+ {
+  "id": "barrel_03",
+  "cats": "industrial containers",
+  "url": "https://polyhaven.com/a/barrel_03"
+ },
+ {
+  "id": "barrel_stove",
+  "cats": "industrial containers collection: hidden_alley",
+  "url": "https://polyhaven.com/a/barrel_stove"
+ },
+ {
+  "id": "bench_vice_01",
+  "cats": "tools industrial rigged collection: the_shed",
+  "url": "https://polyhaven.com/a/bench_vice_01"
+ },
+ {
+  "id": "binoculars",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/binoculars"
+ },
+ {
+  "id": "bleach_bottle",
+  "cats": "props containers collection: the_shed",
+  "url": "https://polyhaven.com/a/bleach_bottle"
+ },
+ {
+  "id": "bolt_cutters_01",
+  "cats": "tools industrial props rigged collection: the_shed",
+  "url": "https://polyhaven.com/a/bolt_cutters_01"
+ },
+ {
+  "id": "brass_blowtorch",
+  "cats": "props tools",
+  "url": "https://polyhaven.com/a/brass_blowtorch"
+ },
+ {
+  "id": "brass_goblets",
+  "cats": "props dishes decorative containers",
+  "url": "https://polyhaven.com/a/brass_goblets"
+ },
+ {
+  "id": "brass_pan_01",
+  "cats": "props containers decorative dishes",
+  "url": "https://polyhaven.com/a/brass_pan_01"
+ },
+ {
+  "id": "brass_pot_01",
+  "cats": "props containers decorative",
+  "url": "https://polyhaven.com/a/brass_pot_01"
+ },
+ {
+  "id": "brass_pot_02",
+  "cats": "props dishes containers decorative",
+  "url": "https://polyhaven.com/a/brass_pot_02"
+ },
+ {
+  "id": "brass_vase_03",
+  "cats": "containers props decorative vases",
+  "url": "https://polyhaven.com/a/brass_vase_03"
+ },
+ {
+  "id": "brass_vase_04",
+  "cats": "containers props vases dishes",
+  "url": "https://polyhaven.com/a/brass_vase_04"
+ },
+ {
+  "id": "bunsen_burner",
+  "cats": "collection: project_lighthouse props industrial tools",
+  "url": "https://polyhaven.com/a/bunsen_burner"
+ },
+ {
+  "id": "caged_hanging_light",
+  "cats": "collection: project_lighthouse lighting industrial",
+  "url": "https://polyhaven.com/a/caged_hanging_light"
+ },
+ {
+  "id": "can_rusted",
+  "cats": "containers collection: the_shed",
+  "url": "https://polyhaven.com/a/can_rusted"
+ },
+ {
+  "id": "cardboard_box_01",
+  "cats": "industrial containers collection: the_shed",
+  "url": "https://polyhaven.com/a/cardboard_box_01"
+ },
+ {
+  "id": "ceramic_pot",
+  "cats": "containers props decorative dishes collection: project_light",
+  "url": "https://polyhaven.com/a/ceramic_pot"
+ },
+ {
+  "id": "ceramic_vase_01",
+  "cats": "vases containers decorative",
+  "url": "https://polyhaven.com/a/ceramic_vase_01"
+ },
+ {
+  "id": "ceramic_vase_02",
+  "cats": "decorative containers vases",
+  "url": "https://polyhaven.com/a/ceramic_vase_02"
+ },
+ {
+  "id": "ceramic_vase_03",
+  "cats": "containers decorative vases",
+  "url": "https://polyhaven.com/a/ceramic_vase_03"
+ },
+ {
+  "id": "ceramic_vase_04",
+  "cats": "containers decorative vases",
+  "url": "https://polyhaven.com/a/ceramic_vase_04"
+ },
+ {
+  "id": "chemistry_set",
+  "cats": "collection: project_lighthouse industrial props tools",
+  "url": "https://polyhaven.com/a/chemistry_set"
+ },
+ {
+  "id": "chinese_stool",
+  "cats": "seating furniture",
+  "url": "https://polyhaven.com/a/chinese_stool"
+ },
+ {
+  "id": "cigarette_pack",
+  "cats": "containers props collection: project_lighthouse",
+  "url": "https://polyhaven.com/a/cigarette_pack"
+ },
+ {
+  "id": "cleaner_tin_01",
+  "cats": "containers tools industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/cleaner_tin_01"
+ },
+ {
+  "id": "combination_wrench",
+  "cats": "collection: project_lighthouse tools industrial",
+  "url": "https://polyhaven.com/a/combination_wrench"
+ },
+ {
+  "id": "compost_bag_02",
+  "cats": "containers industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/compost_bag_02"
+ },
+ {
+  "id": "concrete_cat_statue",
+  "cats": "decorative",
+  "url": "https://polyhaven.com/a/concrete_cat_statue"
+ },
+ {
+  "id": "concrete_road_barrier",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/concrete_road_barrier"
+ },
+ {
+  "id": "concrete_road_barrier_02",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/concrete_road_barrier_02"
+ },
+ {
+  "id": "covered_car",
+  "cats": "props industrial collection: hidden_alley",
+  "url": "https://polyhaven.com/a/covered_car"
+ },
+ {
+  "id": "cross_pein_hammer",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/cross_pein_hammer"
+ },
+ {
+  "id": "crowbar_01",
+  "cats": "tools industrial props collection: the_shed",
+  "url": "https://polyhaven.com/a/crowbar_01"
+ },
+ {
+  "id": "drain_cleaner",
+  "cats": "industrial props tools",
+  "url": "https://polyhaven.com/a/drain_cleaner"
+ },
+ {
+  "id": "drill_press_01",
+  "cats": "collection: project_lighthouse appliances electronics indust",
+  "url": "https://polyhaven.com/a/drill_press_01"
+ },
+ {
+  "id": "dustpan",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/dustpan"
+ },
+ {
+  "id": "exterior_aircon_unit",
+  "cats": "appliances industrial electronics collection: hidden_alley",
+  "url": "https://polyhaven.com/a/exterior_aircon_unit"
+ },
+ {
+  "id": "fire_alarm",
+  "cats": "collection: project_lighthouse industrial office wall decora",
+  "url": "https://polyhaven.com/a/fire_alarm"
+ },
+ {
+  "id": "fire_hydrant",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/fire_hydrant"
+ },
+ {
+  "id": "flathead_screwdriver",
+  "cats": "tools props industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/flathead_screwdriver"
+ },
+ {
+  "id": "folding_wooden_stool",
+  "cats": "seating furniture",
+  "url": "https://polyhaven.com/a/folding_wooden_stool"
+ },
+ {
+  "id": "garden_sprinkler_01",
+  "cats": "tools appliances collection: the_shed",
+  "url": "https://polyhaven.com/a/garden_sprinkler_01"
+ },
+ {
+  "id": "gate_latch_01",
+  "cats": "industrial buildings structures collection: the_shed",
+  "url": "https://polyhaven.com/a/gate_latch_01"
+ },
+ {
+  "id": "hand_plane_no4",
+  "cats": "tools collection: the_shed",
+  "url": "https://polyhaven.com/a/hand_plane_no4"
+ },
+ {
+  "id": "hand_truck",
+  "cats": "collection: project_lighthouse industrial props",
+  "url": "https://polyhaven.com/a/hand_truck"
+ },
+ {
+  "id": "handsaw_wood",
+  "cats": "props tools industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/handsaw_wood"
+ },
+ {
+  "id": "hanging_industrial_lamp",
+  "cats": "lighting",
+  "url": "https://polyhaven.com/a/hanging_industrial_lamp"
+ },
+ {
+  "id": "hatchet",
+  "cats": "tools",
+  "url": "https://polyhaven.com/a/hatchet"
+ },
+ {
+  "id": "industrial_caged_sconce",
+  "cats": "collection: project_lighthouse lighting industrial",
+  "url": "https://polyhaven.com/a/industrial_caged_sconce"
+ },
+ {
+  "id": "industrial_coffee_table",
+  "cats": "furniture table",
+  "url": "https://polyhaven.com/a/industrial_coffee_table"
+ },
+ {
+  "id": "industrial_microscope",
+  "cats": "collection: project_lighthouse industrial tools appliances",
+  "url": "https://polyhaven.com/a/industrial_microscope"
+ },
+ {
+  "id": "industrial_pastic_container",
+  "cats": "collection: project_lighthouse containers office industrial",
+  "url": "https://polyhaven.com/a/industrial_pastic_container"
+ },
+ {
+  "id": "industrial_pipe_lamp",
+  "cats": "collection: project_lighthouse industrial lighting",
+  "url": "https://polyhaven.com/a/industrial_pipe_lamp"
+ },
+ {
+  "id": "industrial_storage_cart",
+  "cats": "collection: project_lighthouse table furniture industrial",
+  "url": "https://polyhaven.com/a/industrial_storage_cart"
+ },
+ {
+  "id": "industrial_wall_lamp",
+  "cats": "lighting",
+  "url": "https://polyhaven.com/a/industrial_wall_lamp"
+ },
+ {
+  "id": "industrial_wall_sconce",
+  "cats": "lighting decorative",
+  "url": "https://polyhaven.com/a/industrial_wall_sconce"
+ },
+ {
+  "id": "jug_01",
+  "cats": "props decorative dishes containers",
+  "url": "https://polyhaven.com/a/jug_01"
+ },
+ {
+  "id": "korean_fire_extinguisher_01",
+  "cats": "industrial props",
+  "url": "https://polyhaven.com/a/korean_fire_extinguisher_01"
+ },
+ {
+  "id": "ladder_sectioned_01",
+  "cats": "industrial tools collection: the_shed",
+  "url": "https://polyhaven.com/a/ladder_sectioned_01"
+ },
+ {
+  "id": "leather_cleaner_can",
+  "cats": "props containers collection: the_shed",
+  "url": "https://polyhaven.com/a/leather_cleaner_can"
+ },
+ {
+  "id": "life_jacket",
+  "cats": "collection: project_lighthouse props",
+  "url": "https://polyhaven.com/a/life_jacket"
+ },
+ {
+  "id": "lifebuoy",
+  "cats": "collection: project_lighthouse wall decoration industrial",
+  "url": "https://polyhaven.com/a/lifebuoy"
+ },
+ {
+  "id": "long_life_food",
+  "cats": "collection: project_lighthouse food containers props",
+  "url": "https://polyhaven.com/a/long_life_food"
+ },
+ {
+  "id": "lubricant_spray",
+  "cats": "props containers tools decorative collection: the_shed",
+  "url": "https://polyhaven.com/a/lubricant_spray"
+ },
+ {
+  "id": "magnifying_glass_01",
+  "cats": "props tools",
+  "url": "https://polyhaven.com/a/magnifying_glass_01"
+ },
+ {
+  "id": "measuring_tape_01",
+  "cats": "industrial tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/measuring_tape_01"
+ },
+ {
+  "id": "medical_box",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/medical_box"
+ },
+ {
+  "id": "medical_tape",
+  "cats": "collection: project_lighthouse props industrial tools",
+  "url": "https://polyhaven.com/a/medical_tape"
+ },
+ {
+  "id": "metal_jerrycan",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/metal_jerrycan"
+ },
+ {
+  "id": "metal_jerrycan_green",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/metal_jerrycan_green"
+ },
+ {
+  "id": "metal_jug",
+  "cats": "containers decorative vases",
+  "url": "https://polyhaven.com/a/metal_jug"
+ },
+ {
+  "id": "metal_stool_01",
+  "cats": "collection: project_lighthouse furniture seating",
+  "url": "https://polyhaven.com/a/metal_stool_01"
+ },
+ {
+  "id": "metal_stool_02",
+  "cats": "collection: project_lighthouse furniture seating",
+  "url": "https://polyhaven.com/a/metal_stool_02"
+ },
+ {
+  "id": "metal_stool_03",
+  "cats": "collection: project_lighthouse furniture seating",
+  "url": "https://polyhaven.com/a/metal_stool_03"
+ },
+ {
+  "id": "metal_tool_chest",
+  "cats": "props tools industrial containers rigged collection: the_she",
+  "url": "https://polyhaven.com/a/metal_tool_chest"
+ },
+ {
+  "id": "metal_toolbox",
+  "cats": "collection: project_lighthouse containers tools industrial",
+  "url": "https://polyhaven.com/a/metal_toolbox"
+ },
+ {
+  "id": "metal_trash_can",
+  "cats": "industrial containers collection: hidden_alley",
+  "url": "https://polyhaven.com/a/metal_trash_can"
+ },
+ {
+  "id": "modified_thermos",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/modified_thermos"
+ },
+ {
+  "id": "modular_airduct_circular_01",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/modular_airduct_circular_01"
+ },
+ {
+  "id": "modular_airduct_rectangular_01",
+  "cats": "industrial",
+  "url": "https://polyhaven.com/a/modular_airduct_rectangular_01"
+ },
+ {
+  "id": "modular_chainlink_fence",
+  "cats": "structures industrial buildings collection: hidden_alley",
+  "url": "https://polyhaven.com/a/modular_chainlink_fence"
+ },
+ {
+  "id": "modular_electric_cables",
+  "cats": "industrial",
+  "url": "https://polyhaven.com/a/modular_electric_cables"
+ },
+ {
+  "id": "modular_electricity_poles",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/modular_electricity_poles"
+ },
+ {
+  "id": "modular_fire_escape",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/modular_fire_escape"
+ },
+ {
+  "id": "modular_industrial_pipes_01",
+  "cats": "industrial structures",
+  "url": "https://polyhaven.com/a/modular_industrial_pipes_01"
+ },
+ {
+  "id": "modular_metal_gutter",
+  "cats": "industrial structures buildings collection: hidden_alley",
+  "url": "https://polyhaven.com/a/modular_metal_gutter"
+ },
+ {
+  "id": "modular_pipes",
+  "cats": "industrial structures",
+  "url": "https://polyhaven.com/a/modular_pipes"
+ },
+ {
+  "id": "modular_pipes_plastic_01",
+  "cats": "industrial structures collection: the_shed",
+  "url": "https://polyhaven.com/a/modular_pipes_plastic_01"
+ },
+ {
+  "id": "mounted_fluorescent_lights",
+  "cats": "collection: project_lighthouse lighting industrial",
+  "url": "https://polyhaven.com/a/mounted_fluorescent_lights"
+ },
+ {
+  "id": "multi_cleaner_5_litre",
+  "cats": "props containers industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/multi_cleaner_5_litre"
+ },
+ {
+  "id": "multi_cleaner_bottle",
+  "cats": "containers props collection: the_shed",
+  "url": "https://polyhaven.com/a/multi_cleaner_bottle"
+ },
+ {
+  "id": "oil_tin",
+  "cats": "containers props industrial collection: project_lighthouse",
+  "url": "https://polyhaven.com/a/oil_tin"
+ },
+ {
+  "id": "old_drill_press",
+  "cats": "collection: project_lighthouse tools industrial",
+  "url": "https://polyhaven.com/a/old_drill_press"
+ },
+ {
+  "id": "old_gas_mask",
+  "cats": "collection: project_lighthouse props industrial tools",
+  "url": "https://polyhaven.com/a/old_gas_mask"
+ },
+ {
+  "id": "old_military_compressor",
+  "cats": "collection: project_lighthouse industrial tools",
+  "url": "https://polyhaven.com/a/old_military_compressor"
+ },
+ {
+  "id": "old_military_crate",
+  "cats": "collection: project_lighthouse containers props",
+  "url": "https://polyhaven.com/a/old_military_crate"
+ },
+ {
+  "id": "old_tyre",
+  "cats": "industrial props collection: hidden_alley",
+  "url": "https://polyhaven.com/a/old_tyre"
+ },
+ {
+  "id": "overhead_crane",
+  "cats": "collection: project_lighthouse industrial tools",
+  "url": "https://polyhaven.com/a/overhead_crane"
+ },
+ {
+  "id": "painted_wooden_stool",
+  "cats": "seating furniture",
+  "url": "https://polyhaven.com/a/painted_wooden_stool"
+ },
+ {
+  "id": "pastic_torch_6v",
+  "cats": "collection: project_lighthouse lighting tools electronics pr",
+  "url": "https://polyhaven.com/a/pastic_torch_6v"
+ },
+ {
+  "id": "picke_dirty_01",
+  "cats": "props tools collection: the_shed",
+  "url": "https://polyhaven.com/a/picke_dirty_01"
+ },
+ {
+  "id": "pipe_wrench",
+  "cats": "industrial tools collection: hidden_alley",
+  "url": "https://polyhaven.com/a/pipe_wrench"
+ },
+ {
+  "id": "planter_box_01",
+  "cats": "decorative containers potted plants collection: the_shed",
+  "url": "https://polyhaven.com/a/planter_box_01"
+ },
+ {
+  "id": "planter_box_02",
+  "cats": "containers decorative potted plants collection: the_shed",
+  "url": "https://polyhaven.com/a/planter_box_02"
+ },
+ {
+  "id": "planter_box_03",
+  "cats": "containers decorative potted plants collection: the_shed",
+  "url": "https://polyhaven.com/a/planter_box_03"
+ },
+ {
+  "id": "planter_pot_clay",
+  "cats": "containers vases collection: the_shed",
+  "url": "https://polyhaven.com/a/planter_pot_clay"
+ },
+ {
+  "id": "plastic_bottle_gallon",
+  "cats": "containers collection: the_shed",
+  "url": "https://polyhaven.com/a/plastic_bottle_gallon"
+ },
+ {
+  "id": "plastic_broom",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/plastic_broom"
+ },
+ {
+  "id": "plastic_container",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/plastic_container"
+ },
+ {
+  "id": "plastic_crate_01",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/plastic_crate_01"
+ },
+ {
+  "id": "plastic_crate_02",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/plastic_crate_02"
+ },
+ {
+  "id": "plastic_crate_03",
+  "cats": "collection: project_lighthouse containers industrial",
+  "url": "https://polyhaven.com/a/plastic_crate_03"
+ },
+ {
+  "id": "plastic_jerrycan",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/plastic_jerrycan"
+ },
+ {
+  "id": "plastic_thermos",
+  "cats": "collection: project_lighthouse props containers",
+  "url": "https://polyhaven.com/a/plastic_thermos"
+ },
+ {
+  "id": "pliers",
+  "cats": "collection: project_lighthouse tools props industrial",
+  "url": "https://polyhaven.com/a/pliers"
+ },
+ {
+  "id": "plunger",
+  "cats": "tools",
+  "url": "https://polyhaven.com/a/plunger"
+ },
+ {
+  "id": "portable_generator",
+  "cats": "industrial appliances collection: project_lighthouse",
+  "url": "https://polyhaven.com/a/portable_generator"
+ },
+ {
+  "id": "portable_searchlight",
+  "cats": "collection: project_lighthouse lighting electronics tools pr",
+  "url": "https://polyhaven.com/a/portable_searchlight"
+ },
+ {
+  "id": "portable_welding_cart",
+  "cats": "collection: project_lighthouse industrial containers",
+  "url": "https://polyhaven.com/a/portable_welding_cart"
+ },
+ {
+  "id": "power_box_01",
+  "cats": "industrial props electronics tools rigged collection: the_sh",
+  "url": "https://polyhaven.com/a/power_box_01"
+ },
+ {
+  "id": "propane_tank",
+  "cats": "collection: project_lighthouse props industrial",
+  "url": "https://polyhaven.com/a/propane_tank"
+ },
+ {
+  "id": "propane_torch",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/propane_torch"
+ },
+ {
+  "id": "propane_torch_02",
+  "cats": "collection: project_lighthouse industrial tools props",
+  "url": "https://polyhaven.com/a/propane_torch_02"
+ },
+ {
+  "id": "ratchet_wrench",
+  "cats": "props tools industrial collection: the_shed rigged",
+  "url": "https://polyhaven.com/a/ratchet_wrench"
+ },
+ {
+  "id": "retro_multimeter",
+  "cats": "collection: project_lighthouse electronics industrial tools ",
+  "url": "https://polyhaven.com/a/retro_multimeter"
+ },
+ {
+  "id": "rollershutter_door",
+  "cats": "structures industrial buildings collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rollershutter_door"
+ },
+ {
+  "id": "rollershutter_window_01",
+  "cats": "structures industrial buildings collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rollershutter_window_01"
+ },
+ {
+  "id": "rollershutter_window_02",
+  "cats": "industrial structures buildings collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rollershutter_window_02"
+ },
+ {
+  "id": "rollershutter_window_03",
+  "cats": "industrial buildings structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rollershutter_window_03"
+ },
+ {
+  "id": "russian_food_cans_01",
+  "cats": "containers props food",
+  "url": "https://polyhaven.com/a/russian_food_cans_01"
+ },
+ {
+  "id": "rusted_hacksaw",
+  "cats": "collection: project_lighthouse tools props",
+  "url": "https://polyhaven.com/a/rusted_hacksaw"
+ },
+ {
+  "id": "rusted_spade_01",
+  "cats": "tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/rusted_spade_01"
+ },
+ {
+  "id": "rusted_wheel_rim_01",
+  "cats": "industrial props collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rusted_wheel_rim_01"
+ },
+ {
+  "id": "rusted_wheel_rim_02",
+  "cats": "industrial props collection: hidden_alley",
+  "url": "https://polyhaven.com/a/rusted_wheel_rim_02"
+ },
+ {
+  "id": "screwdriver",
+  "cats": "collection: project_lighthouse tools props",
+  "url": "https://polyhaven.com/a/screwdriver"
+ },
+ {
+  "id": "screwdrivers_02",
+  "cats": "collection: project_lighthouse tools props",
+  "url": "https://polyhaven.com/a/screwdrivers_02"
+ },
+ {
+  "id": "seadogs_compass",
+  "cats": "props tools decorative collection: project_lighthouse",
+  "url": "https://polyhaven.com/a/seadogs_compass"
+ },
+ {
+  "id": "security_camera_01",
+  "cats": "electronics appliances industrial rigged collection: hidden_",
+  "url": "https://polyhaven.com/a/security_camera_01"
+ },
+ {
+  "id": "security_camera_02",
+  "cats": "industrial electronics appliances rigged collection: hidden_",
+  "url": "https://polyhaven.com/a/security_camera_02"
+ },
+ {
+  "id": "security_light",
+  "cats": "lighting industrial collection: hidden_alley",
+  "url": "https://polyhaven.com/a/security_light"
+ },
+ {
+  "id": "seeding_tray_01",
+  "cats": "containers collection: the_shed",
+  "url": "https://polyhaven.com/a/seeding_tray_01"
+ },
+ {
+  "id": "sledgehammer_01",
+  "cats": "props tools industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/sledgehammer_01"
+ },
+ {
+  "id": "small_lpg_tank",
+  "cats": "collection: project_lighthouse props industrial",
+  "url": "https://polyhaven.com/a/small_lpg_tank"
+ },
+ {
+  "id": "small_oil_can_01",
+  "cats": "industrial tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/small_oil_can_01"
+ },
+ {
+  "id": "small_plastic_torch",
+  "cats": "collection: project_lighthouse tools props",
+  "url": "https://polyhaven.com/a/small_plastic_torch"
+ },
+ {
+  "id": "spinning_wheel_01",
+  "cats": "props tools",
+  "url": "https://polyhaven.com/a/spinning_wheel_01"
+ },
+ {
+  "id": "spray_paint_bottles",
+  "cats": "props containers industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/spray_paint_bottles"
+ },
+ {
+  "id": "spray_paint_bottles_02",
+  "cats": "industrial props tools collection: hidden_alley",
+  "url": "https://polyhaven.com/a/spray_paint_bottles_02"
+ },
+ {
+  "id": "steel_frame_shelves_01",
+  "cats": "furniture shelves industrial collection: the_shed",
+  "url": "https://polyhaven.com/a/steel_frame_shelves_01"
+ },
+ {
+  "id": "steel_frame_shelves_02",
+  "cats": "furniture industrial shelves collection: the_shed",
+  "url": "https://polyhaven.com/a/steel_frame_shelves_02"
+ },
+ {
+  "id": "street_lamp_01",
+  "cats": "lighting industrial collection: hidden_alley",
+  "url": "https://polyhaven.com/a/street_lamp_01"
+ },
+ {
+  "id": "street_lamp_02",
+  "cats": "lighting industrial collection: hidden_alley",
+  "url": "https://polyhaven.com/a/street_lamp_02"
+ },
+ {
+  "id": "tire_pump",
+  "cats": "tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/tire_pump"
+ },
+ {
+  "id": "tongue_groove_pliers",
+  "cats": "collection: project_lighthouse tools",
+  "url": "https://polyhaven.com/a/tongue_groove_pliers"
+ },
+ {
+  "id": "tool_cart",
+  "cats": "collection: project_lighthouse industrial furniture table",
+  "url": "https://polyhaven.com/a/tool_cart"
+ },
+ {
+  "id": "treasure_chest",
+  "cats": "props containers decorative collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/treasure_chest"
+ },
+ {
+  "id": "trowel_01",
+  "cats": "props tools collection: the_shed",
+  "url": "https://polyhaven.com/a/trowel_01"
+ },
+ {
+  "id": "utility_box_01",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/utility_box_01"
+ },
+ {
+  "id": "utility_box_02",
+  "cats": "structures industrial collection: hidden_alley",
+  "url": "https://polyhaven.com/a/utility_box_02"
+ },
+ {
+  "id": "vintage_flashlight",
+  "cats": "collection: project_lighthouse lighting electronics props to",
+  "url": "https://polyhaven.com/a/vintage_flashlight"
+ },
+ {
+  "id": "vintage_hand_drill",
+  "cats": "tools props rigged collection: the_shed",
+  "url": "https://polyhaven.com/a/vintage_hand_drill"
+ },
+ {
+  "id": "vintage_lighter",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/vintage_lighter"
+ },
+ {
+  "id": "vintage_microscope",
+  "cats": "collection: project_lighthouse instrument industrial tools",
+  "url": "https://polyhaven.com/a/vintage_microscope"
+ },
+ {
+  "id": "vintage_spacecraft_instrument",
+  "cats": "collection: project_lighthouse instrument electronics indust",
+  "url": "https://polyhaven.com/a/vintage_spacecraft_instrument"
+ },
+ {
+  "id": "vintage_stapler",
+  "cats": "collection: project_lighthouse props tools office",
+  "url": "https://polyhaven.com/a/vintage_stapler"
+ },
+ {
+  "id": "water_manhole_cover",
+  "cats": "industrial structures collection: hidden_alley",
+  "url": "https://polyhaven.com/a/water_manhole_cover"
+ },
+ {
+  "id": "watering_can_metal_01",
+  "cats": "containers tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/watering_can_metal_01"
+ },
+ {
+  "id": "wicker_basket_01",
+  "cats": "containers decorative collection: the_shed",
+  "url": "https://polyhaven.com/a/wicker_basket_01"
+ },
+ {
+  "id": "wicker_basket_02",
+  "cats": "containers decorative",
+  "url": "https://polyhaven.com/a/wicker_basket_02"
+ },
+ {
+  "id": "wine_barrel_01",
+  "cats": "containers",
+  "url": "https://polyhaven.com/a/wine_barrel_01"
+ },
+ {
+  "id": "wine_bottles_01",
+  "cats": "props containers dishes",
+  "url": "https://polyhaven.com/a/wine_bottles_01"
+ },
+ {
+  "id": "wooden_axe_03",
+  "cats": "props tools",
+  "url": "https://polyhaven.com/a/wooden_axe_03"
+ },
+ {
+  "id": "wooden_barrels_01",
+  "cats": "containers props collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/wooden_barrels_01"
+ },
+ {
+  "id": "wooden_broom",
+  "cats": "collection: project_lighthouse props tools",
+  "url": "https://polyhaven.com/a/wooden_broom"
+ },
+ {
+  "id": "wooden_bucket_01",
+  "cats": "props containers collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/wooden_bucket_01"
+ },
+ {
+  "id": "wooden_bucket_02",
+  "cats": "props containers collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/wooden_bucket_02"
+ },
+ {
+  "id": "wooden_crate_01",
+  "cats": "containers collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/wooden_crate_01"
+ },
+ {
+  "id": "wooden_crate_02",
+  "cats": "containers props collection: smugglers_cove",
+  "url": "https://polyhaven.com/a/wooden_crate_02"
+ },
+ {
+  "id": "wooden_hammer_01",
+  "cats": "industrial tools props collection: the_shed",
+  "url": "https://polyhaven.com/a/wooden_hammer_01"
+ },
+ {
+  "id": "wooden_ladder",
+  "cats": "collection: project_lighthouse tools industrial",
+  "url": "https://polyhaven.com/a/wooden_ladder"
+ },
+ {
+  "id": "wooden_ladder_02",
+  "cats": "collection: project_lighthouse tools",
+  "url": "https://polyhaven.com/a/wooden_ladder_02"
+ },
+ {
+  "id": "wooden_military_crate",
+  "cats": "collection: project_lighthouse containers",
+  "url": "https://polyhaven.com/a/wooden_military_crate"
+ },
+ {
+  "id": "wooden_stool_01",
+  "cats": "seating furniture collection: the_shed",
+  "url": "https://polyhaven.com/a/wooden_stool_01"
+ },
+ {
+  "id": "wooden_stool_02",
+  "cats": "seating furniture",
+  "url": "https://polyhaven.com/a/wooden_stool_02"
+ },
+ {
+  "id": "worn_metal_rack",
+  "cats": "collection: project_lighthouse furniture shelves industrial",
+  "url": "https://polyhaven.com/a/worn_metal_rack"
+ }
+]

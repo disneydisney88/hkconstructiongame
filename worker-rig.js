@@ -141,10 +141,27 @@ export function createWorker(source, options) {
   const material=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.82});
   // Front reference projection is explicitly a first pass, not a full UV atlas.
   if(typeof document!=='undefined' && options.photo !== false) {
-    const photo=new THREE.TextureLoader().load('assets/worker/appearance-reference.png');
-    photo.colorSpace=THREE.SRGBColorSpace;
-    const rear=new THREE.TextureLoader().load('assets/worker/rear-reference-ai.png');
-    rear.colorSpace=THREE.SRGBColorSpace;
+    /* P10.1-fix:TextureLoader(Image)喺退化環境會靜默失敗/掛起 → sampler 黑 → 工人前面全黑。
+       改 fetch→createImageBitmap(timeout+retry);初始白 1×1 + uPhotoOK/uRearOK=0,
+       呢陣時 vertex 顏色照出、背心由 shader overwrite 畫前後兩面;載入成功先換真圖(健康環境=原效果)。 */
+    const raceT=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('img timeout')),ms))]);
+    const whiteTex=(()=>{const t=new THREE.DataTexture(new Uint8Array([255,255,255,255]),1,1);t.needsUpdate=true;return t;})();
+    const uni={
+      workerPhoto:{value:whiteTex}, workerRear:{value:whiteTex},
+      workerLabel:{value:null}, workerBadge:{value:null},
+      uPhotoOK:{value:0}, uRearOK:{value:0}
+    };
+    const loadBmp=async url=>{
+      if(typeof location!=='undefined' && location.search.includes('photofail')) throw new Error('simulated photo fail (?photofail)');
+      const r=await fetch(url); if(!r.ok) throw new Error('HTTP '+r.status+' '+url);
+      const bmp=await createImageBitmap(await r.blob());
+      const t=new THREE.Texture(bmp); t.colorSpace=THREE.SRGBColorSpace; t.needsUpdate=true; return t;
+    };
+    const tryTwice=fn=>fn().catch(()=>fn());
+    tryTwice(()=>raceT(loadBmp('assets/worker/appearance-reference.png'),12000))
+      .then(t=>{uni.workerPhoto.value=t;uni.uPhotoOK.value=1;}).catch(()=>{});
+    tryTwice(()=>raceT(loadBmp('assets/worker/rear-reference-ai.png'),12000))
+      .then(t=>{uni.workerRear.value=t;uni.uRearOK.value=1;}).catch(()=>{});
     const labelCanvas=document.createElement('canvas');labelCanvas.width=512;labelCanvas.height=128;
     const ctx=labelCanvas.getContext('2d');
     ctx.font='bold 88px "Microsoft JhengHei", "Noto Sans TC", sans-serif';
@@ -157,16 +174,14 @@ export function createWorker(source, options) {
     badgeCtx.strokeStyle='#cbd2d5';badgeCtx.lineWidth=4;badgeCtx.stroke();
     badgeCtx.fillStyle='#ffffff';badgeCtx.font='bold 108px Arial, sans-serif';badgeCtx.textAlign='center';badgeCtx.textBaseline='middle';badgeCtx.fillText('KL',128,86);
     const badge=new THREE.CanvasTexture(badgeCanvas);badge.colorSpace=THREE.SRGBColorSpace;
+    uni.workerLabel.value=label; uni.workerBadge.value=badge;
     material.onBeforeCompile=shader=>{
-      shader.uniforms.workerPhoto={value:photo};
-      shader.uniforms.workerRear={value:rear};
-      shader.uniforms.workerLabel={value:label};
-      shader.uniforms.workerBadge={value:badge};
+      Object.assign(shader.uniforms,uni);
       shader.vertexShader='attribute float partId; attribute vec2 photoUv; attribute float photoBlend; varying float vPart; varying vec2 vPhotoUv; varying float vPhotoBlend; varying vec3 vRest; varying vec3 vRestNormal;\n'+shader.vertexShader;
       shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPhotoUv=photoUv; vPhotoBlend=photoBlend; vRest=position; vRestNormal=normal; vPart=partId;');
-      shader.fragmentShader='uniform sampler2D workerPhoto; uniform sampler2D workerRear; uniform sampler2D workerLabel; uniform sampler2D workerBadge; varying float vPart; varying vec2 vPhotoUv; varying float vPhotoBlend; varying vec3 vRest; varying vec3 vRestNormal;\n'+shader.fragmentShader;
+      shader.fragmentShader='uniform sampler2D workerPhoto; uniform sampler2D workerRear; uniform sampler2D workerLabel; uniform sampler2D workerBadge; uniform float uPhotoOK; uniform float uRearOK; varying float vPart; varying vec2 vPhotoUv; varying float vPhotoBlend; varying vec3 vRest; varying vec3 vRestNormal;\n'+shader.fragmentShader;
       shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
-        if(vRest.z<-.015 && vRest.y>.89 && vRest.y<1.44 && abs(vRest.x)<.175){
+        if((vRest.z<-.015 || uPhotoOK<.5) && vRest.y>.89 && vRest.y<1.44 && abs(vRest.x)<.175){
           diffuseColor.rgb=vec3(${palette.vest.r},${palette.vest.g},${palette.vest.b});
           if((vRest.y>1.025&&vRest.y<1.068)||(vRest.y>1.16&&vRest.y<1.208)||(abs(vRest.x)>.096&&abs(vRest.x)<.127&&vRest.y>1.20))
             diffuseColor.rgb=vec3(${palette.silver.r},${palette.silver.g},${palette.silver.b});
@@ -178,12 +193,12 @@ export function createWorker(source, options) {
           diffuseColor.rgb=vec3(${palette.pants.r},${palette.pants.g},${palette.pants.b});
           notWhite*=1.0-smoothstep(.10,.22,max(pc.r,max(pc.g,pc.b)));
         }
-        diffuseColor.rgb=mix(diffuseColor.rgb,pc,vPhotoBlend*notWhite);
+        diffuseColor.rgb=mix(diffuseColor.rgb,pc,vPhotoBlend*notWhite*uPhotoOK);
         vec2 rearUv=vec2(.5-vRest.x*.5063,1.0-(.975-vRest.y*.532));
         vec3 rc=texture2D(workerRear,rearUv).rgb;
         float rearMask=smoothstep(.02,.55,-vRestNormal.z)*(1.0-smoothstep(.78,.95,min(rc.r,min(rc.g,rc.b))));
         if(trouser)rearMask*=1.0-smoothstep(.10,.22,max(rc.r,max(rc.g,rc.b)));
-        if(vRest.y<1.62)diffuseColor.rgb=mix(diffuseColor.rgb,rc,rearMask);
+        if(vRest.y<1.62)diffuseColor.rgb=mix(diffuseColor.rgb,rc,rearMask*uRearOK);
         vec2 labelUv=vec2(.5-vRest.x/.26,.5+(vRest.y-1.335)/.065);
         if(vRest.z<-.035 && labelUv.x>0.0 && labelUv.x<1.0 && labelUv.y>0.0 && labelUv.y<1.0){
           vec4 ink=texture2D(workerLabel,labelUv);

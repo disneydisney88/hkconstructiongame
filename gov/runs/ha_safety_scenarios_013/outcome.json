@@ -1,0 +1,13 @@
+{
+  "id": "ha_safety_scenario_plan_and_one_proof",
+  "required": true,
+  "blocked_allowed": false,
+  "status": "MET",
+  "evidence": [
+    "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\OUTCOME_EVALUATION.md",
+    "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SAFETY_SCENARIO_MATRIX.md",
+    "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\performance-final-ui.json",
+    "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\HA_SCENARIO_BOUNDARY_CHECK.md",
+    "C:\\Users\\klcho\\.zcode\\workspace\\default\\hk-gta\\gov\\runs\\ha_safety_scenarios_013\\screenshots\\HA_SCENARIO_06_success.png"
+  ]
+}

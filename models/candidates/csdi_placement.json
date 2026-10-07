@@ -1,0 +1,138 @@
+{
+ "rootTransform": [
+  1,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  0,
+  0,
+  0,
+  1,
+  0,
+  -2413000,
+  5380000,
+  2420000,
+  1
+ ],
+ "childCenterToECEF": {
+  "center": [
+   2071,
+   4393,
+   -2747
+  ],
+  "ecef": [
+   -2410929,
+   5384393,
+   2417253
+  ],
+  "distToMegaBoxKm": 14.2
+ },
+ "nearestLeaves": [
+  {
+   "dM": 35,
+   "file": "F_Tile_+4_2_0+R1_8137.b3dm"
+  },
+  {
+   "dM": 35,
+   "file": "F_Tile_+4_2_0+R0_8137.b3dm"
+  },
+  {
+   "dM": 58,
+   "file": "F_Tile_+4_2_0+R1_8152.b3dm"
+  },
+  {
+   "dM": 58,
+   "file": "F_Tile_+4_2_0+R0_8152.b3dm"
+  }
+ ],
+ "b3dmBytes": 26664,
+ "chosenLeafDistanceM": 35,
+ "b3dmHeader": {
+  "magic": "b3dm",
+  "version": 1,
+  "byteLength": 26664,
+  "tables": [
+   20,
+   0,
+   396,
+   0
+  ],
+  "glbOffset": 444,
+  "glbPaddedOffset": 448,
+  "glbMagic": "glTF",
+  "declaredOK": true
+ },
+ "glb": {
+  "triangles": 515,
+  "meshes": 1,
+  "materials": 1,
+  "images": [
+   "image/ktx2"
+  ],
+  "nodes": 3,
+  "nodeTransforms": 0,
+  "RTC_CENTER": null,
+  "upAxis": "Y",
+  "nodeMatrixSample": null,
+  "positionMin": [
+   -8407,
+   -12387,
+   -3512
+  ],
+  "positionMax": [
+   -8278,
+   -12254,
+   -3450
+  ]
+ },
+ "RTC_CENTER": null,
+ "axisConvention": {
+  "scores": {
+   "C1_identity": 18078,
+   "C2_rx90_yUpToZUp": 35,
+   "C3_rxM90": 25588,
+   "C4_swapYZ": 6936
+  },
+  "chosen": "C2_rx90_yUpToZUp"
+ },
+ "placementMatrixColumnMajor": [
+  -0.912,
+  -0.3795,
+  -0.1558,
+  0,
+  0,
+  0.3799,
+  -0.925,
+  0,
+  0.4102,
+  -0.8436,
+  -0.3464,
+  0,
+  -6210.1461,
+  -1412.5687,
+  -13886.5972,
+  1
+ ],
+ "verifyCorners": {
+  "min": [
+   16.5,
+   35.6,
+   98.3
+  ],
+  "max": [
+   -75.3,
+   -15.7,
+   -66
+  ]
+ },
+ "anchorInsideContentBox": true,
+ "anchor": {
+  "latDeg": 22.3245,
+  "lonDeg": 114.2172,
+  "name": "MegaBox, Kowloon Bay"
+ },
+ "frameNote": "local +x=南 +y=下 +z=東(由 root transform 驗證);scene x=東 y=上 z=南"
+}

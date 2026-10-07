@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="utf-8">
+<title>P10.2 Asset Audition — 泥頭車候選 + CSDI 實景</title>
+<style>
+  body { margin: 0; overflow: hidden; font-family: 'Microsoft JhengHei', sans-serif; background: #87b5d8; }
+  #panel { position: fixed; top: 8px; left: 8px; background: rgba(10,14,24,.85); color: #cfe2ee; padding: 10px 12px; font-size: 12px; border-radius: 6px; max-width: 340px; line-height: 1.6; z-index: 10; }
+  #panel b { color: #ffd76e; }
+  button { margin: 2px 4px 2px 0; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  #status { color: #8ef0a0; }
+</style>
+<script>
+  window.__errs = [];
+  window.addEventListener('error', e => { window.__errs.push('E:' + e.message + ' @' + (e.filename||'').split('/').pop() + ':' + e.lineno); const s = document.querySelector('#status'); if (s) s.textContent = 'ERR: ' + e.message; });
+  window.addEventListener('unhandledrejection', e => { window.__errs.push('P:' + String(e.reason).slice(0, 200)); });
+</script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="panel">
+  <b>P10.2 Asset Audition</b> · 同一鏡頭/光照/比例<br>
+  <span id="status">載入中…</span><br>
+  <button data-view="side">側面</button>
+  <button data-view="front34">前 3/4</button>
+  <button data-view="rear34">後 3/4</button>
+  <button data-view="city">CSDI 實景 vs 程序化樓</button>
+  <br>蔡司參考:黃色柱 = 1.78m 工人高度
+</div>
+<canvas id="c"></canvas>
+<script type="module" src="./audition.js"></script>
+</body>
+</html>
