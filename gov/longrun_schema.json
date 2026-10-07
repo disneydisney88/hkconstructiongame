@@ -1,0 +1,6 @@
+{
+  "description": "Lightweight manifest shape used by long-run guards. The Python guards are the source of truth.",
+  "required_manifest_fields": ["run_id", "title", "created_at", "updated_at", "controller_pid", "lock_file", "items", "history"],
+  "item_statuses": ["NOT_STARTED", "RUNNING", "DONE", "VERIFIED", "BLOCKED", "FAILED", "SKIPPED"],
+  "outcome_statuses": ["NOT_MET", "MET", "BLOCKED", "WAIVED_BY_USER"]
+}
