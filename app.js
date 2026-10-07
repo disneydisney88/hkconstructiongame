@@ -1,3 +1,4 @@
+import { createHaSafetyScenario } from './ha-safety-scenario.js';
 /* =========================================================================
  * 香港地盤 GTA · 開工大吉
  * 真實地圖:九龍灣/啟德/觀塘 (OpenStreetMap)
@@ -2878,3 +2879,6 @@ $("gateScan").onclick=()=>{
   player.admitted=true;setGateOpen(true);inductionMode=null;$("gatePanel").style.display="none";
   toast("嘟！入閘核對通過，請沿行人通道入場。");
 };
+
+// Independent opt-in S07 exercise; uses existing collider collection only.
+if (new URLSearchParams(location.search).get("haSafetyScenarioTest") === "1") createHaSafetyScenario({...window.__game, colliders});
